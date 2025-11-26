@@ -34,3 +34,10 @@ frontend/dist/
 *.coverage
 .coverage
 .envrc
+
+# Backend development-only files
+backend/test_preview_conversion.py
+backend/test_preview_conversion_rn.py
+backend/verify_setup.py
+backend/preview_to_flutter.py
+backend/component_registry.json
