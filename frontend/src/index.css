@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+    height: 100%;
+}
+
+.generated-root {
+    padding: 16px;
+}
+
+.canvas {
+    border: 1px dashed #d1d5db;
+    min-height: 400px;
+    position: relative;
+}
+
+.component-box {
+    position: absolute;
+    border: 1px solid #e5e7eb;
+    padding: 8px;
+    background: white;
+    cursor: move;
+}
+
+.sidebar {
+    width: 320px;
+    border-left: 1px solid #e5e7eb;
+    padding: 16px;
+}

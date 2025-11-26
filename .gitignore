@@ -1,0 +1,36 @@
+# ---- General ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---- Python backend ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.sqlite3
+
+# venvs
+venv/
+backend/venv/
+
+# env files (DO NOT COMMIT)
+.env
+.env.*
+backend/.env
+frontend/.env
+
+# ---- Node / React frontend ----
+node_modules/
+frontend/node_modules/
+
+# build artifacts
+frontend/build/
+frontend/dist/
+
+# ---- Misc ----
+*.coverage
+.coverage
+.envrc
