@@ -656,62 +656,44 @@ async def generate_asset_prompts(components: list) -> dict:
 
 async def generate_preview_from_json(component_model: dict) -> dict:
     """
-    API 3 (CODE): Generate web preview JSON from component model.
+    Generate web preview JSON from component model (NO LLM).
     
-    STRATEGY: Direct pass-through (no transformation needed)
-    - Component model IS already the web preview
-    - No LLM, no transformation, no hallucinations
-    - Ensures 100% consistency with generated React Native code
-    
-    Args:
-        component_model: Component model JSON from API 1
-        
-    Returns:
-        Web-ready preview JSON (pass-through)
+    STRATEGY: Direct pass-through adapter
+    - Component model IS already web-preview compatible
+    - No API call, no LLM, no transformation
+    - Zero latency, zero cost
     """
-    print("\n🔵 [API 3] Generating web preview...")
+    print("\n🔄 [PREVIEW ADAPTER] Generating web preview (no API call)...")
     
     try:
         from preview_adapter import PreviewAdapter
         web_preview = PreviewAdapter.to_web_preview(component_model)
         
-        print(f"✅ [API 3] Web preview ready")
-        print(f"📊 [API 3] Screens: {len(web_preview.get('screens', []))}")
+        print(f"✅ [PREVIEW ADAPTER] Web preview ready")
+        print(f"📊 [PREVIEW ADAPTER]: {len(web_preview.get('screens', []))}")
         
         return web_preview
         
     except ImportError:
-        print("ℹ️  [API 3] PreviewAdapter not found - using direct pass-through")
+        print("ℹ️ [PREVIEW ADAPTER] PreviewAdapter not found - using direct pass-through")
         return component_model
     
     except Exception as e:
-        print(f"⚠️  [API 3] Error: {e} - returning original model")
+        print(f"⚠️  [PREVIEW ADAPTER] Error: {e} - returning original model")
         return component_model
 
 
 async def generate_react_native_from_json(component_model: dict) -> dict:
     """
-    API 2 (COMPONENT): Generate React Native code from component model.
+    Generate React Native code from component model (NO LLM).
     
-    ✅ DETERMINISTIC STRATEGY: Preview→React Native Direct Conversion
-    - NO LLM involved (zero hallucinations)
-    - NO fallbacks to legacy generators
+    ✅ DETERMINISTIC STRATEGY: Component Model → React Native Direct Conversion
+    - NO API call, NO LLM involved (zero hallucinations)
     - Direct component mapping (100% accuracy)
-    - Same input → Same output (deterministic)
-    
-    Args:
-        component_model: Component model JSON from API 1
-        
-    Returns:
-        Dictionary of React Native project files
-        
-    Raises:
-        ImportError: If PreviewToReactNativeConverter is not available
-        ValueError: If component_model is invalid
-        RuntimeError: If conversion fails
+    - Deterministic output (same input = same output)
     """
-    print("\n🔵 [API 2] Starting React Native code generation...")
-    print("🎯 [API 2] Method: Deterministic Preview→React Native conversion")
+    print("\n🔧 [RN CONVERTER] Starting React Native code generation (no API call)...")
+    print("🎯 [RN CONVERTER] Method: Deterministic component-to-code conversion")
     
     try:
         from preview_to_react_native import PreviewToReactNativeConverter
@@ -732,13 +714,13 @@ async def generate_react_native_from_json(component_model: dict) -> dict:
     if not screens:
         print("⚠️  [API 2] Warning: No screens in component model")
     
-    print(f"📊 [API 2] Input: {len(screens)} screen(s), "
+    print(f"📊 [RN CONVERTER] Input: {len(screens)} screen(s), "
           f"{sum(len(s.get('components', [])) for s in screens)} components")
     
     try:
         converter = PreviewToReactNativeConverter(component_model)
         
-        print("🔄 [API 2] Converting preview → React Native code...")
+        print("🔄 [RN CONVERTER] Converting component model → React Native code...")
         rn_files = converter.convert()
         
         if not rn_files:
@@ -764,7 +746,7 @@ async def generate_react_native_from_json(component_model: dict) -> dict:
         screen_files = [f for f in rn_files.keys() if f.startswith("src/screens/")]
         total_size = sum(len(content) for content in rn_files.values())
         
-        print(f"\n✅ [API 2] Conversion successful!")
+        print(f"\n✅ [RN CONVERTER] Conversion successful!")
         print(f"   📦 Files: {len(rn_files)}")
         print(f"   🎨 Components: {len(converter.used_components)}")
         print(f"   📱 Screens: {len(screen_files)}")
@@ -1011,7 +993,6 @@ __all__ = [
     "extract_intent",
     "componentize",
     "generate_asset_prompts",
-    "generate_dart_from_json",
     "generate_preview_from_json",
     
     # Diagnostics

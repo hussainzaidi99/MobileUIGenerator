@@ -2,6 +2,12 @@
 import React, { useContext, useState } from "react";
 import { Mail, User, Lock, Phone, Search } from 'lucide-react';
 import { ThemeCtx } from "./CanvasRendererLite";
+   
+  const StarIcon = () => (
+    <span style={{ color: '#FCD34D' }}>★</span>
+);
+
+  
 
 /* ============================================
    THEME HOOK & UTILITIES
@@ -213,7 +219,7 @@ export const IconInput = ({ icon, label, placeholder, type = "text", borderRadiu
     user: <User size={18} />, 
     lock: <Lock size={18} />, 
     phone: <Phone size={18} />, 
-    search: <Search size={18} /> 
+    search: <Search size={18} />
   };
   
   return (
@@ -376,19 +382,45 @@ export const Link = LinkButton;
 /* ============================================
    MEDIA COMPONENTS
    ============================================ */
+
+// More reliable image placeholder generator
+const getPlaceholderImage = (width = 400, height = 300, seed) => {
+  // Use a hash of the seed to generate consistent colors
+  const colors = ['FF6B6B', '4ECDC4', '45B7D1', 'FFA07A', '98D8C8', 'F7DC6F', 'BB8FCE', '85C1E2'];
+  const colorIndex = seed ? Math.abs(seed.split('').reduce((a, b) => a + b.charCodeAt(0), 0) % colors.length) : 0;
+  const bgColor = colors[colorIndex];
+  const textColor = 'FFFFFF';
+  
+  // Use placeholder.com with custom styling
+  return `https://via.placeholder.com/${width}x${height}/${bgColor}/${textColor}?text=${encodeURIComponent(seed || 'Image')}`;
+};
+
 export const Image = ({ src, alt, fit = "cover", borderRadius = "md", style }) => {
   const radiusMap = { sm: "8px", md: "12px", lg: "16px" };
-  if (src && !src.includes("placeholder")) {
-    return <img src={src} alt={alt || ""} style={{ width: "100%", height: "auto", objectFit: fit, borderRadius: radiusMap[borderRadius] || "12px", marginBottom: "12px", ...style }} />;
-  }
+  
+  // Generate placeholder if no src or if src includes "placeholder"
+  const imageSrc = (src && !src.includes("placeholder")) 
+    ? src 
+    : getPlaceholderImage(400, 300, alt || "Image");
+  
   return (
-    <div style={{
-      width: "100%", height: "180px", background: "#F3F4F6", borderRadius: radiusMap[borderRadius] || "12px",
-      display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF", fontSize: "14px",
-      marginBottom: "12px", border: "2px dashed #E5E7EB", ...style
-    }}>
-      Image {alt || "Image"}
-    </div>
+    <img 
+      src={imageSrc} 
+      alt={alt || "Image"} 
+      style={{ 
+        width: "100%", 
+        height: "auto", 
+        objectFit: fit, 
+        borderRadius: radiusMap[borderRadius] || "12px", 
+        marginBottom: "12px", 
+        ...style 
+      }}
+      onError={(e) => {
+        // Fallback if image fails to load
+        e.target.style.background = '#F3F4F6';
+        e.target.style.minHeight = '180px';
+      }}
+    />
   );
 };
 
@@ -411,32 +443,76 @@ export const Avatar = ({ size = "md", name = "User", border, position, style }) 
 
 export const IllustrationHeader = ({ illustration, title, subtitle, spacing = "xl", style }) => {
   const spacingMap = { md: "16px", lg: "24px", xl: "32px", "2xl": "48px" };
+  const illustrationSrc = illustration || getPlaceholderImage(600, 400, title || "Illustration");
+  
   return (
     <div style={{ textAlign: "center", marginBottom: spacingMap[spacing] || "32px", ...style }}>
-      <div style={{ width: "100%", height: "180px", background: "linear-gradient(135deg, #E0F2FE, #BAE6FD)", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "20px", fontSize: "48px" }}>Illustration</div>
+      <img 
+        src={illustrationSrc} 
+        alt={title || "Illustration"} 
+        style={{ 
+          width: "100%", 
+          height: "180px", 
+          objectFit: "cover", 
+          borderRadius: "16px", 
+          marginBottom: "20px" 
+        }} 
+      />
       {title && <h1 style={{ fontSize: "28px", fontWeight: "700", color: "#0F172A", marginBottom: "8px" }}>{title}</h1>}
       {subtitle && <p style={{ fontSize: "16px", color: "#64748B", lineHeight: "1.6" }}>{subtitle}</p>}
     </div>
   );
 };
 
-export const HeroSection = ({ coverImage, height = "240", spacing, children, style }) => (
-  <div style={{
-    width: "100%", height: `${height}px`, background: "linear-gradient(135deg, #667EEA, #764BA2)",
-    borderRadius: "16px", marginBottom: spacing ? "24px" : "16px", display: "flex", alignItems: "center",
-    justifyContent: "center", color: "#FFFFFF", fontSize: "24px", fontWeight: "600", ...style
-  }}>
-    {children || "Hero Section"}
-  </div>
-);
+export const HeroSection = ({ coverImage, height = "240", spacing, children, style }) => {
+  const heroSrc = coverImage || getPlaceholderImage(800, parseInt(height), "Hero");
+  
+  return (
+    <div style={{
+      width: "100%", 
+      height: `${height}px`, 
+      backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${heroSrc})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      borderRadius: "16px", 
+      marginBottom: spacing ? "24px" : "16px", 
+      display: "flex", 
+      alignItems: "center",
+      justifyContent: "center", 
+      color: "#FFFFFF", 
+      fontSize: "24px", 
+      fontWeight: "600", 
+      ...style
+    }}>
+      {children || "Hero Section"}
+    </div>
+  );
+};
 
-export const ImageGallery = ({ images = [], spacing, style }) => (
-  <div style={{ display: "flex", gap: "8px", overflowX: "auto", marginBottom: spacing ? "16px" : "12px", ...style }}>
-    {images.map((_, idx) => (
-      <div key={idx} style={{ minWidth: "120px", height: "120px", background: "#F3F4F6", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px" }}>Image</div>
-    ))}
-  </div>
-);
+export const ImageGallery = ({ images = [], spacing, style }) => {
+  // Generate placeholder images if no images provided
+  const galleryImages = images.length > 0 
+    ? images 
+    : Array(6).fill(null).map((_, i) => getPlaceholderImage(300, 300, `Gallery-${i + 1}`));
+  
+  return (
+    <div style={{ display: "flex", gap: "8px", overflowX: "auto", marginBottom: spacing ? "16px" : "12px", ...style }}>
+      {galleryImages.map((img, idx) => (
+        <img 
+          key={idx} 
+          src={typeof img === 'string' ? img : getPlaceholderImage(300, 300, `Photo-${idx + 1}`)}
+          alt={`Gallery ${idx + 1}`}
+          style={{ 
+            minWidth: "120px", 
+            height: "120px", 
+            objectFit: "cover", 
+            borderRadius: "8px" 
+          }} 
+        />
+      ))}
+    </div>
+  );
+};
 
 /* ============================================
    SPECIAL COMPONENTS
@@ -468,9 +544,19 @@ export const ProductCard = ({ image, title, price, rating, badge, elevation = "s
       onMouseOver={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.15)"; }}
       onMouseOut={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = elevationMap[elevation] || elevationMap.sm; }}>
       {badge && <div style={{ position: "absolute", top: "8px", right: "8px", zIndex: 10 }}><Badge text={badge} color="red" /></div>}
-      <Image src={image} alt={title} borderRadius="md" style={{ height: "160px", width: "100%", objectFit: "cover", marginBottom: "12px" }} />
+      <Image 
+        src={image || getPlaceholderImage(400, 400, title || "Product")} 
+        alt={title} 
+        borderRadius="md" 
+        style={{ height: "160px", width: "100%", objectFit: "cover", marginBottom: "12px" }} 
+      />
       <div style={{ fontSize: "14px", fontWeight: "600", color: "#0F172A", marginBottom: "8px", lineHeight: "1.4", minHeight: "40px" }}>{title}</div>
-      {rating && <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "8px", fontSize: "12px", color: "#64748B" }}><span>Star</span><span style={{ fontWeight: "500" }}>{rating}</span></div>}
+      {rating && (
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "8px", fontSize: "12px", color: "#64748B" }}>
+          <span style={{ color: '#FCD34D' }}>★</span>
+          <span style={{ fontWeight: "500" }}>{rating}</span>
+        </div>
+      )}
       <div style={{ fontSize: "20px", fontWeight: "700", color: colors.primary, marginBottom: "12px" }}>{price}</div>
       <button style={{
         width: "100%", padding: "8px 16px", background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
@@ -504,8 +590,12 @@ export const QuantityControl = ({ value = 1, min = 0, max = 99, onChange, style 
 export const CartItem = ({ image, title, price, quantity = 1, onQuantityChange, onRemove, style }) => {
   return (
     <div style={{ display: "flex", gap: "16px", padding: "16px", background: "#FFFFFF", borderRadius: "12px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", marginBottom: "12px", ...style }}>
-      <div style={{ width: "80px", height: "80px", borderRadius: "8px", background: "#F3F4F6", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px" }}>
-        {image ? <img src={image} alt={title} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }} /> : "Cart"}
+      <div style={{ width: "80px", height: "80px", borderRadius: "8px", background: "#F3F4F6", flexShrink: 0, overflow: "hidden" }}>
+        <img 
+          src={image || getPlaceholderImage(200, 200, title || "Item")} 
+          alt={title || "Cart Item"} 
+          style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+        />
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
         <div style={{ fontSize: "14px", fontWeight: "600", color: "#0F172A", lineHeight: "1.4" }}>{title}</div>
@@ -611,7 +701,10 @@ export const CardList = ({ spacing, children, style }) => {
 
 export const Rating = ({ value = 0, reviews, spacing, style }) => (
   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: spacing ? "12px" : "8px", ...style }}>
-    <span style={{ fontSize: "16px" }}>{"Star".repeat(Math.floor(value))}</span>
+    <span style={{ fontSize: "16px" }}>
+      {Array(Math.floor(value)).fill('★').join('')}
+      {Array(5 - Math.floor(value)).fill('☆').join('')}
+    </span>
     <span style={{ fontSize: "14px", color: "#64748B" }}>{value} {reviews && `(${reviews} reviews)`}</span>
   </div>
 );

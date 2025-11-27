@@ -1,6 +1,13 @@
-# backend/main.py - Production-Ready 4-API Architecture (React Native)
-# Version: 2.2.0 - FIXED Component Screen Assignment
-# FIX: Intelligent screen-aware component grouping with fallback strategies
+# backend/main.py - Production-Ready 3-API Architecture (React Native)
+# Version: 2.2.1 - Corrected Architecture Labels
+# 
+# Architecture:
+# - API 0: Prompt Refiner (Groq)
+# - API 1: Intent Extractor (DeepSeek Chat v3)
+# - API 2: Component Generator (DeepSeek Chat v3) 
+# - RN Converter: Deterministic Python (NO LLM)
+# - Preview Adapter: Pass-through Python (NO LLM)
+# - API 3: UNUSED (reserved for future features)
 
 import os
 import json
@@ -577,36 +584,39 @@ async def generate_pipeline(request: Request):
     # API 2 (COMPONENT) → React Native Code Generation
     # API 3 (CODE) → Web Preview Generation
     # ========================================================================
-    print("\n⚡ [STEP 2 & 3] Running API 2 (React Native) + API 3 (Preview) in PARALLEL...")
+    print("\n⚡ [STEP 2] Running RN Code Generation + Preview Adapter in PARALLEL (no API calls)...")
     
     json_truth = component_model.to_dict()
     
-    async def generate_rn_task():
-        """API 2: Generate React Native code from JSON (deterministic)"""
+    async def generate_rn_task(): 
+        """Generate React Native code from component model (deterministic converter)"""
         try:
-            print("🔵 [API 2] Generating React Native code...")
+            print("🔧 [RN CONVERTER] Generating React Native code...")
             rn_files = await generate_react_native_from_json(json_truth)
-            print(f"✅ [API 2] Generated {len(rn_files)} React Native files")
+            print(f"✅ [RN CONVERTER] Generated {len(rn_files)} React Native files")
             return rn_files
         except Exception as e:
-            print(f"❌ [API 2] React Native generation failed: {e}")
-            raise  # No fallback - converter must work
+            print(f"❌ [RN CONVERTER] React Native generation failed: {e}")
+            raise
     
     async def generate_preview_task():
-        """API 3: Generate web preview from JSON"""
+        
+        """Generate web preview from component model (pass-through adapter)"""
         try:
-            print("🔵 [API 3] Generating web preview...")
+            
+            print("🔄 [PREVIEW ADAPTER] Generating web preview...")
             web_preview = await generate_preview_from_json(json_truth)
-            print(f"✅ [API 3] Web preview generated")
+            print(f"✅ [PREVIEW ADAPTER] Web preview generated")
             return web_preview
         except Exception as e:
-            print(f"⚠️  [API 3] Preview generation failed: {e}")
-            # Fallback to pass-through
+            print(f"⚠️ [PREVIEW ADAPTER] Preview generation failed: {e}")
+        # Fallback to pass-through
             try:
                 from preview_adapter import PreviewAdapter
                 return PreviewAdapter.to_web_preview(json_truth)
             except:
-                return json_truth  # Last resort: return raw model
+                
+                return json_truth
     
     # Run both tasks in parallel
     try:
@@ -645,11 +655,11 @@ async def generate_pipeline(request: Request):
     ])
     
     print(f"\n✅ Pipeline Complete!")
-    print(f"   - Prompt Refinement: {'Applied' if refinement_result['refinement_applied'] else 'Skipped'}")
-    print(f"   - Component Model: {len(screens)} screens")
-    print(f"   - Screen Type: {screen_type}")
-    print(f"   - React Native Files: {len(rn_files)} files")
-    print(f"   - Preview: Ready")
+    print(f"   📝 API 0 (Refiner): {'Applied' if refinement_result['refinement_applied'] else 'Skipped'}")
+    print(f"   🎯 API 1 (Intent): {len(screens)} screens detected")
+    print(f"   🧩 API 2 (Component): {len(all_components)} components generated")
+    print(f"   🔧 RN Converter: {len(rn_files)} files created")
+    print(f"   🔄 Preview Adapter: Ready")
     
     return {
         "refinement": refinement_result,
@@ -781,12 +791,14 @@ def root():
         "platform": "React Native",
         "version": "2.2.0",
         "architecture": {
-            "api_0": "Prompt Refiner (transforms raw prompts)",
-            "api_1": "Intent Extractor (design strategy + flat component list)",
-            "assembly": "🆕 Intelligent Component-to-Screen Assignment (multi-strategy)",
-            "nesting": "🆕 Screen-type-aware Component Nesting",
-            "api_2": "React Native Code Generator (deterministic, parallel)",
-            "api_3": "Web Preview Generator (parallel)"
+            "api_0": "Prompt Refiner (Groq - enhances user input)",
+            "api_1": "Intent Extractor (DeepSeek Chat v3 - design strategy)",
+            "api_2": "Component Generator (DeepSeek Chat v3 - component model JSON)",
+            "assembly": "Component-to-Screen Assignment (Python - multi-strategy)",
+            "nesting": "Screen-type-aware Component Nesting (Python)",
+            "rn_converter": "React Native Code Generator (Python - deterministic)",
+            "preview_adapter": "Web Preview Generator (Python - pass-through)",
+            "api_3": "🚫 UNUSED (reserved for future features)"
         },
         "endpoints": {
             "POST /generate_pipeline": "Main pipeline - generates component model + RN code + preview",
@@ -846,14 +858,23 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.on_event("startup")
 async def startup_event():
-    """Startup tasks and diagnostics"""
     print("\n" + "="*70)
     print("🚀 UI PIPELINE BETA - REACT NATIVE EDITION v2.2")
     print("="*70)
     print(f"Platform: React Native")
-    print(f"Architecture: 4-API + Intelligent Assembly")
-    print(f"Version: 2.2.0 (Fixed Component Screen Assignment)")
-    print(f"Step Timeout: {STEP_TIMEOUT}s")
+    print(f"Architecture: 3 LLM APIs + 2 Deterministic Converters")
+    print(f"")
+    print(f"🤖 LLM API Calls:")
+    print(f"   API 0: Prompt Refiner (Groq)")
+    print(f"   API 1: Intent Extractor (DeepSeek Chat v3)")
+    print(f"   API 2: Component Generator (DeepSeek Chat v3)")
+    print(f"")
+    print(f"🔧 Deterministic Converters (no LLM):")
+    print(f"   - React Native Code Generator (Python)")
+    print(f"   - Web Preview Adapter (Python)")
+    print(f"")
+    print(f"🚫 Unused APIs:")
+    print(f"   API 3 (OR_API_KEY_CODE): Reserved for future features")
     
     # Check critical dependencies
     try:
