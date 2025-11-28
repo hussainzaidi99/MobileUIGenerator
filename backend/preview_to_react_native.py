@@ -9,8 +9,9 @@ Architecture:
 - Deterministic output (same input = same output)
 - Production-grade error handling
 - State management for interactive components
+- 🎨 Dynamic background support (v2.3)
 
-Version: 2.0 PRODUCTION READY (Fixed)
+Version: 2.3.0 PRODUCTION READY (Dynamic Backgrounds)
 Author: Generated for Project Beta UI Generator
 """
 
@@ -18,7 +19,6 @@ from typing import Dict, List, Any, Set
 import re
 import json
 import traceback
-
 
 class PreviewToReactNativeConverter:
     """
@@ -32,6 +32,7 @@ class PreviewToReactNativeConverter:
     - 100% deterministic output
     - Production-grade error handling
     - Interactive components with state management
+    - 🎨 Dynamic backgrounds per screen (v2.3)
     """
 
     COMPONENT_MAP = {
@@ -199,7 +200,8 @@ class PreviewToReactNativeConverter:
 
         self.style_counter = 0
         self.uses_linear_gradient: bool = False
-        self.uses_state: bool = False  # Track if React.useState is needed
+        self.uses_state: bool = False
+        self.uses_backgrounds: bool = False  # 🎨 NEW
 
         print(f"Initialized with {len(self.screens)} screens")
         if self.theme:
@@ -223,6 +225,12 @@ class PreviewToReactNativeConverter:
                 self._generate_complete_component_library()
             )
             print("✓ Generated complete UI component library (40+ components)")
+
+            # 🎨 NEW: Generate DynamicBackground component
+            rn_files["src/components/backgrounds/DynamicBackground.tsx"] = (
+                self._generate_dynamic_background_component()
+            )
+            print("✓ Generated DynamicBackground component")
 
             # Screens
             for idx, screen in enumerate(self.screens):
@@ -254,6 +262,10 @@ class PreviewToReactNativeConverter:
             print(f"\n✓ Successfully generated {len(rn_files)} files")
             components_used = ", ".join(sorted(self.used_components)) or "None"
             print(f"Components used: {components_used}")
+            
+            # 🎨 NEW: Report background usage
+            if self.uses_backgrounds:
+                print(f"🎨 Dynamic backgrounds: ENABLED")
 
             if self.warnings:
                 print(f"\n⚠ {len(self.warnings)} warnings")
@@ -269,11 +281,19 @@ class PreviewToReactNativeConverter:
         return rn_files
 
     # -------------------------------------------------------------------------
-    # SCREEN GENERATION
+    # SCREEN GENERATION (🎨 UPDATED WITH BACKGROUND SUPPORT)
     # -------------------------------------------------------------------------
     def _generate_screen(self, screen: Dict[str, Any]) -> str:
         screen_name = self._sanitize_name(screen.get("name", "Screen"))
         components = screen.get("components", [])
+        
+        # 🎨 NEW: Extract background configuration
+        background_config = screen.get("background", {})
+        has_background = background_config.get("enabled", False)
+        
+        if has_background:
+            self.uses_backgrounds = True
+        
         jsx_elements: List[str] = []
 
         for comp in components:
@@ -289,18 +309,43 @@ class PreviewToReactNativeConverter:
         )
 
         imports = self._generate_imports()
+        
+        # 🎨 NEW: Add DynamicBackground import if backgrounds are enabled
+        background_import = ""
+        background_wrapper_start = ""
+        background_wrapper_end = ""
+        background_config_export = ""
+        
+        if has_background:
+            background_import = "import DynamicBackground from '../components/backgrounds/DynamicBackground';"
+            
+            # Serialize background config as const
+            bg_json = json.dumps(background_config, separators=(',', ':'))
+            background_config_export = f"const backgroundConfig = {bg_json};\n"
+            
+            background_wrapper_start = "      <DynamicBackground config={backgroundConfig}>"
+            background_wrapper_end = "      </DynamicBackground>"
+            
+            # Increase indent for wrapped content
+            jsx_content = "\n".join(
+                "  " + line if line.strip() else line
+                for line in jsx_content.split("\n")
+            )
 
         return f"""{imports}
-
+{background_import}
+{background_config_export}
 export default function {screen_name}Screen() {{
   return (
     <SafeAreaView style={{styles.container}}>
+{background_wrapper_start}
       <ScrollView
         contentContainerStyle={{styles.scrollContent}}
         showsVerticalScrollIndicator={{false}}
       >
 {jsx_content}
       </ScrollView>
+{background_wrapper_end}
     </SafeAreaView>
   );
 }}
@@ -602,7 +647,7 @@ const styles = StyleSheet.create({{
 {indent_str}  {text}
 {indent_str}</Chip>"""
 
-    # -------------------------------------------------------------------------
+# -------------------------------------------------------------------------
     # INPUT (WITH STATE MANAGEMENT)
     # -------------------------------------------------------------------------
     def _generate_icon_input(self, props: Dict, indent: int) -> str:
@@ -721,7 +766,7 @@ const styles = StyleSheet.create({{
 {indent_str}  );
 {indent_str})()}}"""
 
-# -------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # BUTTONS
     # -------------------------------------------------------------------------
     def _generate_button(self, props: Dict, indent: int) -> str:
@@ -1000,42 +1045,39 @@ const styles = StyleSheet.create({{
         description = self._escape_string(props.get("description", ""))
         rating = self._safe_number(props.get("rating"), 0)
         badge = self._escape_string(props.get("badge", ""))
-
         badge_jsx = ""
         if badge:
             badge_jsx = (
-                f"\n{indent_str}    <Chip style={{{{ position: 'absolute', "
+                f"\n{indent_str} <Chip style={{{{ position: 'absolute', "
                 f"top: 8, right: 8, backgroundColor: '#EF4444' }}}}>"
-                f"\n{indent_str}      <Text style={{{{ color: '#FFFFFF', fontSize: 10 }}}}>{badge}</Text>"
-                f"\n{indent_str}    </Chip>"
+                f"\n{indent_str} <Text style={{{{ color: '#FFFFFF', fontSize: 10 }}}}>{badge}</Text>"
+                f"\n{indent_str} </Chip>"
             )
-
         rating_jsx = ""
         if rating:
             rating_jsx = f"""
-{indent_str}      <View style={{{{ flexDirection: 'row', marginTop: 4 }}}}>
-{indent_str}        {{[...Array(5)].map((_, i) => (
-{indent_str}          <Icon
-{indent_str}            key={{i}}
-{indent_str}            name={{i < {rating} ? 'star' : 'star-outline'}}
-{indent_str}            size={{16}}
-{indent_str}            color="#F59E0B"
-{indent_str}          />
-{indent_str}        ))}}
-{indent_str}      </View>"""
-
+{indent_str} <View style={{{{ flexDirection: 'row', marginTop: 4 }}}}>
+{indent_str} {{[...Array(5)].map((_, i) => (
+{indent_str} <Icon
+{indent_str} key={{i}}
+{indent_str} name={{i < {rating} ? 'star' : 'star-outline'}}
+{indent_str} size={{16}}
+{indent_str} color="#F59E0B"
+{indent_str} />
+{indent_str} ))}}
+{indent_str} </View>"""
         return f"""{indent_str}<Card mode="elevated" style={{{{ marginBottom: 16 }}}} onPress={{() => {{}}}}>
-{indent_str}  <View style={{{{ height: 180, backgroundColor: '#F3F4F6', borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}}}>
-{indent_str}    <Icon name="image" size={{80}} color="#9CA3AF" />{badge_jsx}
-{indent_str}  </View>
-{indent_str}  <Card.Content style={{{{ paddingTop: 12 }}}}>
-{indent_str}    <Text style={{{{ fontSize: 16, fontWeight: 'bold' }}}}>{title}</Text>
-{indent_str}    <Text style={{{{ color: theme.colors.textSecondary, marginVertical: 4 }}}}>{description}</Text>
-{indent_str}    <View style={{{{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}}}>
-{indent_str}      <Text style={{{{ fontSize: 24, fontWeight: 'bold', color: theme.colors.primary }}}}>{price}</Text>
-{indent_str}      <Button mode="contained">Add to Cart</Button>
-{indent_str}    </View>{rating_jsx}
-{indent_str}  </Card.Content>
+{indent_str} <View style={{{{ height: 180, backgroundColor: '#F3F4F6', borderRadius: 12, justifyContent: 'center', alignItems: 'center' }}}}>
+{indent_str} <Icon name="image" size={{80}} color="#9CA3AF" />{badge_jsx}
+{indent_str} </View>
+{indent_str} <Card.Content style={{{{ paddingTop: 12 }}}}>
+{indent_str} <Text style={{{{ fontSize: 16, fontWeight: 'bold' }}}}>{title}</Text>
+{indent_str} <Text style={{{{ color: theme.colors.textSecondary, marginVertical: 4 }}}}>{description}</Text>
+{indent_str} <View style={{{{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}}}>
+{indent_str} <Text style={{{{ fontSize: 24, fontWeight: 'bold', color: theme.colors.primary }}}}>{price}</Text>
+{indent_str} <Button mode="contained">Add to Cart</Button>
+{indent_str} </View>{rating_jsx}
+{indent_str} </Card.Content>
 {indent_str}</Card>"""
 
     def _generate_cart_item(self, props: Dict, indent: int) -> str:
@@ -1044,22 +1086,22 @@ const styles = StyleSheet.create({{
         quantity = int(self._safe_number(props.get("quantity"), 1))
         indent_str = " " * indent
         return f"""{indent_str}<Card style={{{{ marginBottom: 12 }}}}>
-{indent_str}  <Card.Content>
-{indent_str}    <View style={{{{ flexDirection: 'row', alignItems: 'center' }}}}>
-{indent_str}      <View style={{{{ width: 80, height: 80, backgroundColor: '#E5E7EB', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}}}>
-{indent_str}        <Icon name="image" size={{32}} color="#9CA3AF" />
-{indent_str}      </View>
-{indent_str}      <View style={{{{ flex: 1, marginLeft: 12 }}}}>
-{indent_str}        <Text style={{{{ fontSize: 16, fontWeight: 'bold' }}}}>{title}</Text>
-{indent_str}        <Text style={{{{ fontSize: 18, fontWeight: '600', color: theme.colors.primary, marginTop: 4 }}}}>{price}</Text>
-{indent_str}      </View>
-{indent_str}      <View style={{{{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 8 }}}}>
-{indent_str}        <IconButton icon="minus" size={{16}} onPress={{() => {{}}}} />
-{indent_str}        <Text style={{{{ fontWeight: 'bold' }}}}>{quantity}</Text>
-{indent_str}        <IconButton icon="plus" size={{16}} onPress={{() => {{}}}} />
-{indent_str}      </View>
-{indent_str}    </View>
-{indent_str}  </Card.Content>
+{indent_str} <Card.Content>
+{indent_str} <View style={{{{ flexDirection: 'row', alignItems: 'center' }}}}>
+{indent_str} <View style={{{{ width: 80, height: 80, backgroundColor: '#E5E7EB', borderRadius: 8, justifyContent: 'center', alignItems: 'center' }}}}>
+{indent_str} <Icon name="image" size={{32}} color="#9CA3AF" />
+{indent_str} </View>
+{indent_str} <View style={{{{ flex: 1, marginLeft: 12 }}}}>
+{indent_str} <Text style={{{{ fontSize: 16, fontWeight: 'bold' }}}}>{title}</Text>
+{indent_str} <Text style={{{{ fontSize: 18, fontWeight: '600', color: theme.colors.primary, marginTop: 4 }}}}>{price}</Text>
+{indent_str} </View>
+{indent_str} <View style={{{{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 8 }}}}>
+{indent_str} <IconButton icon="minus" size={{16}} onPress={{() => {{}}}} />
+{indent_str} <Text style={{{{ fontWeight: 'bold' }}}}>{quantity}</Text>
+{indent_str} <IconButton icon="plus" size={{16}} onPress={{() => {{}}}} />
+{indent_str} </View>
+{indent_str} </View>
+{indent_str} </Card.Content>
 {indent_str}</Card>"""
 
     def _generate_price_breakdown(self, props: Dict, indent: int) -> str:
@@ -1069,22 +1111,22 @@ const styles = StyleSheet.create({{
         total = self._escape_string(props.get("total", "$0.00"))
         indent_str = " " * indent
         return f"""{indent_str}<Card style={{{{ marginBottom: 16 }}}}>
-{indent_str}  <Card.Content>
-{indent_str}    <View style={{{{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}}}>
-{indent_str}      <Text>Subtotal</Text><Text>{subtotal}</Text>
-{indent_str}    </View>
-{indent_str}    <View style={{{{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}}}>
-{indent_str}      <Text>Shipping</Text><Text>{shipping}</Text>
-{indent_str}    </View>
-{indent_str}    <View style={{{{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}}}>
-{indent_str}      <Text>Tax</Text><Text>{tax}</Text>
-{indent_str}    </View>
-{indent_str}    <Divider style={{{{ marginVertical: 8 }}}} />
-{indent_str}    <View style={{{{ flexDirection: 'row', justifyContent: 'space-between' }}}}>
-{indent_str}      <Text style={{{{ fontSize: 18, fontWeight: 'bold' }}}}> Total</Text>
-{indent_str}      <Text style={{{{ fontSize: 18, fontWeight: 'bold', color: theme.colors.primary }}}}>{total}</Text>
-{indent_str}    </View>
-{indent_str}  </Card.Content>
+{indent_str} <Card.Content>
+{indent_str} <View style={{{{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}}}>
+{indent_str} <Text>Subtotal</Text><Text>{subtotal}</Text>
+{indent_str} </View>
+{indent_str} <View style={{{{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}}}>
+{indent_str} <Text>Shipping</Text><Text>{shipping}</Text>
+{indent_str} </View>
+{indent_str} <View style={{{{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}}}>
+{indent_str} <Text>Tax</Text><Text>{tax}</Text>
+{indent_str} </View>
+{indent_str} <Divider style={{{{ marginVertical: 8 }}}} />
+{indent_str} <View style={{{{ flexDirection: 'row', justifyContent: 'space-between' }}}}>
+{indent_str} <Text style={{{{ fontSize: 18, fontWeight: 'bold' }}}}>Total</Text>
+{indent_str} <Text style={{{{ fontSize: 18, fontWeight: 'bold', color: theme.colors.primary }}}}>{total}</Text>
+{indent_str} </View>
+{indent_str} </Card.Content>
 {indent_str}</Card>"""
 
     def _generate_stat_card(self, props: Dict, indent: int) -> str:
@@ -1101,10 +1143,10 @@ const styles = StyleSheet.create({{
         stat_color = color_map.get(color, "#3B82F6")
         indent_str = " " * indent
         return f"""{indent_str}<Card style={{{{ marginBottom: 16, flex: 1, marginHorizontal: 4 }}}}>
-{indent_str}  <Card.Content>
-{indent_str}    <Text style={{{{ fontSize: 32, fontWeight: 'bold', color: '{stat_color}' }}}}>{value}</Text>
-{indent_str}    <Text style={{{{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 }}}}>{label}</Text>
-{indent_str}  </Card.Content>
+{indent_str} <Card.Content>
+{indent_str} <Text style={{{{ fontSize: 32, fontWeight: 'bold', color: '{stat_color}' }}}}>{value}</Text>
+{indent_str} <Text style={{{{ fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 }}}}>{label}</Text>
+{indent_str} </Card.Content>
 {indent_str}</Card>"""
 
     def _generate_progress_bar(self, props: Dict, indent: int) -> str:
@@ -1121,17 +1163,15 @@ const styles = StyleSheet.create({{
             "purple": "#8B5CF6",
         }
         bar_color = color_map.get(color, "#0D9488")
-
         label_jsx = ""
         if label:
             label_jsx = (
-                f"{indent_str}  <Text style={{{{ fontSize: 14, "
+                f"{indent_str} <Text style={{{{ fontSize: 14, "
                 f"color: theme.colors.textSecondary, marginBottom: 8 }}}}>"
                 f"{self._escape_string(label)}</Text>\n"
             )
-
         return f"""{indent_str}<View style={{{{ marginBottom: 16 }}}}>
-{label_jsx}{indent_str}  <ProgressBar progress={{{progress_value}}} color="{bar_color}" style={{{{ height: 12, borderRadius: 8 }}}} />
+{label_jsx}{indent_str} <ProgressBar progress={{{progress_value}}} color="{bar_color}" style={{{{ height: 12, borderRadius: 8 }}}} />
 {indent_str}</View>"""
 
     def _generate_form_section(self, comp: Dict, children: List, indent: int) -> str:
@@ -1144,7 +1184,7 @@ const styles = StyleSheet.create({{
         children_content = "\n".join(child_jsx)
         indent_str = " " * indent
         return f"""{indent_str}<View style={{{{ marginBottom: 24 }}}}>
-{indent_str}  <Text style={{{{ fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}}}>{title}</Text>
+{indent_str} <Text style={{{{ fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}}}>{title}</Text>
 {children_content}
 {indent_str}</View>"""
 
@@ -1153,7 +1193,6 @@ const styles = StyleSheet.create({{
         subtitle = props.get("subtitle", "")
         icon = props.get("icon", "")
         trailing = props.get("trailing", "chevron-right")
-
         left_icon = ""
         if icon:
             icon_name = self._map_icon(icon)
@@ -1161,7 +1200,6 @@ const styles = StyleSheet.create({{
             left_icon = (
                 f'left={{props => <List.Icon {{...props}} icon="{icon_name}" />}}'
             )
-
         right_icon = (
             'right={props => <List.Icon {...props} icon="chevron-right" />}'
             if trailing == "chevron-right"
@@ -1171,14 +1209,13 @@ const styles = StyleSheet.create({{
             f'description="{self._escape_string(subtitle)}"' if subtitle else ""
         )
         indent_str = " " * indent
-
         return f"""{indent_str}<List.Item
-{indent_str}  title="{title}"
-{indent_str}  {description}
-{indent_str}  {left_icon}
-{indent_str}  {right_icon}
-{indent_str}  onPress={{() => {{}}}}
-{indent_str}  style={{{{ marginBottom: 8 }}}}
+{indent_str} title="{title}"
+{indent_str} {description}
+{indent_str} {left_icon}
+{indent_str} {right_icon}
+{indent_str} onPress={{() => {{}}}}
+{indent_str} style={{{{ marginBottom: 8 }}}}
 />"""
 
     def _generate_alert(self, props: Dict, indent: int) -> str:
@@ -1198,30 +1235,25 @@ const styles = StyleSheet.create({{
         subtitle_jsx = ""
         if subtitle:
             subtitle_jsx = (
-                f"\n{indent_str}  <Text style={{{{ fontSize: 16, "
+                f"\n{indent_str} <Text style={{{{ fontSize: 16, "
                 f"color: theme.colors.textSecondary, textAlign: 'center', marginTop: 8 }}}}>\n"
-                f"{indent_str}    {self._escape_string(subtitle)}\n"
-                f"{indent_str}  </Text>"
+                f"{indent_str} {self._escape_string(subtitle)}\n"
+                f"{indent_str} </Text>"
             )
-
         return f"""{indent_str}<View style={{{{ alignItems: 'center', justifyContent: 'center', paddingVertical: 64 }}}}>
-{indent_str}  <Icon name="inbox" size={{64}} color="#9CA3AF" />
-{indent_str}  <Text style={{{{ fontSize: 20, fontWeight: '600', marginTop: 16, textAlign: 'center' }}}}>{title}</Text>{subtitle_jsx}
+{indent_str} <Icon name="inbox" size={{64}} color="#9CA3AF" />
+{indent_str} <Text style={{{{ fontSize: 20, fontWeight: '600', marginTop: 16, textAlign: 'center' }}}}>{title}</Text>{subtitle_jsx}
 {indent_str}</View>"""
 
     def _generate_rating(self, props: Dict, indent: int) -> str:
         indent_str = " " * indent
-        value = int(self._safe_number(props.get("value"), 0))
+        value = int(self._safe_number(props.get("value"), 4))
         max_rating = int(self._safe_number(props.get("max"), 5))
         reviews = props.get("reviews", "")
         reviews_text = ""
         if reviews:
-            reviews_text = (
-                f"\n{indent_str}  <Text style={{{{ marginLeft: 8, "
-                f"color: theme.colors.textSecondary }}}}>{self._escape_string(str(reviews))} reviews</Text>"
-            )
-
-        return f"""{indent_str}<View style={{{{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}}}>
+            reviews_text = f"\n{indent_str}  <Text style={{marginLeft: 8, color: theme.colors.textSecondary}}>({self._escape_string(str(reviews))} reviews)</Text>"
+        return f"""{indent_str}<View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
 {indent_str}  {{[...Array({max_rating})].map((_, i) => (
 {indent_str}    <Icon key={{i}} name={{i < {value} ? "star" : "star-outline"}} size={{20}} color="#F59E0B" />
 {indent_str}  ))}}{reviews_text}
@@ -1231,16 +1263,143 @@ const styles = StyleSheet.create({{
         quantity = int(self._safe_number(props.get("quantity"), 1))
         indent_str = " " * indent
         return f"""{indent_str}<View style={{{{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 8, paddingHorizontal: 4 }}}}>
-{indent_str}  <IconButton icon="minus" size={{20}} onPress={{() => {{}}}} />
-{indent_str}  <Text style={{{{ fontWeight: 'bold', paddingHorizontal: 16 }}}}>{quantity}</Text>
-{indent_str}  <IconButton icon="plus" size={{20}} onPress={{() => {{}}}} />
+{indent_str} <IconButton icon="minus" size={{20}} onPress={{() => {{}}}} />
+{indent_str} <Text style={{{{ fontWeight: 'bold', paddingHorizontal: 16 }}}}>{quantity}</Text>
+{indent_str} <IconButton icon="plus" size={{20}} onPress={{() => {{}}}} />
 {indent_str}</View>"""
+
+    # -------------------------------------------------------------------------
+    # DYNAMIC BACKGROUND COMPONENT (v2.3)
+    # -------------------------------------------------------------------------
+    def _generate_dynamic_background_component(self) -> str:
+        return """import React from 'react';
+import { View, StyleSheet, Dimensions, ImageBackground } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import Animated, {
+  useSharedValue,
+  withTiming,
+  useAnimatedStyle,
+  withRepeat,
+  Easing,
+} from 'react-native-reanimated';
+import { BlurView } from '@react-native-community/blur';
+import { theme } from '../theme';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+type BackgroundConfig = {
+  type: 'solid' | 'gradient' | 'image';
+  color?: string;
+  colors?: string[];
+  image?: string;
+  blur?: number;
+  opacity?: number;
+  particles?: boolean;
+  gradientAngle?: 'vertical' | 'horizontal' | 'diagonal';
+};
+
+const Particle = ({ delay }: { delay: number }) => {
+  const translateY = useSharedValue(SCREEN_HEIGHT);
+  const translateX = useSharedValue(Math.random() * SCREEN_WIDTH);
+
+  React.useEffect(() => {
+    translateY.value = withRepeat(
+      withTiming(-100, {
+        duration: 15000 + Math.random() * 10000,
+        easing: Easing.linear,
+      }),
+      -1,
+      false
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { translateX: translateX.value },
+    ],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.particle,
+        animatedStyle,
+        { left: Math.random() * SCREEN_WIDTH - 50 },
+      ]}
+    />
+  );
+};
+
+const DynamicBackground: React.FC<{ config: BackgroundConfig }> = ({ config, children }) => {
+  const particles = config.particles ? Array.from({ length: 12 }) : [];
+
+  const renderBackground = () => {
+    if (config.type === 'gradient' && config.colors?.length >= 2) {
+      const angle = config.gradientAngle || 'vertical';
+      const [start, end] =
+        angle === 'horizontal'
+          ? [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }]
+          : angle === 'diagonal'
+          ? [{ x: 0, y: 0 }, { x: 1, y: 1 }]
+          : [{ x: 0.5, y: 0 }, { x: 0.5, y: 1 }];
+
+      return (
+        <LinearGradient colors={config.colors} start={start} end={end} style={StyleSheet.absoluteFill} />
+      );
+    }
+
+    if (config.type === 'image' && config.image) {
+      return (
+        <ImageBackground source={{ uri: config.image }} style={StyleSheet.absoluteFill} resizeMode="cover">
+          {config.blur && config.blur > 0 && (
+            <BlurView style={StyleSheet.absoluteFill} blurType="dark" blurAmount={config.blur} />
+          )}
+        </ImageBackground>
+      );
+    }
+
+    return <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: config.color || theme.colors.background }} />;
+  };
+
+  return (
+    <View style={styles.container}>
+      {renderBackground()}
+
+      {particles.length > 0 &&
+        particles.map((_, i) => <Particle key={i} delay={i * 1000} />)}
+
+      <View style={[styles.content, { opacity: config.opacity ?? 1 }]}>
+        {children}
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  content: {
+    flex: 1,
+  },
+  particle: {
+    position: 'absolute',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+});
+
+export default DynamicBackground;
+"""
 
     # -------------------------------------------------------------------------
     # IMPORTS / THEME / HELPERS
     # -------------------------------------------------------------------------
     def _map_icon(self, icon_key: str) -> str:
-        """Map icon name with fallback strategy"""
         icon_lower = icon_key.lower()
         return self.ICON_MAP.get(icon_lower, icon_lower)
 
@@ -1249,46 +1408,27 @@ const styles = StyleSheet.create({{
             "import React from 'react';\n"
             "import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';"
         )
-
         paper_imports: List[str] = []
         needed_paper = [
-            "Card",
-            "Button",
-            "TextInput",
-            "Searchbar",
-            "Checkbox",
-            "Switch",
-            "Chip",
-            "Divider",
-            "Avatar",
-            "FAB",
-            "IconButton",
-            "List",
-            "Banner",
-            "ProgressBar",
-            "Appbar",
-            "BottomNavigation",
+            "Card", "Button", "TextInput", "Searchbar", "Checkbox", "Switch",
+            "Chip", "Divider", "Avatar", "FAB", "IconButton", "List",
+            "Banner", "ProgressBar", "Appbar", "BottomNavigation",
         ]
         for comp in needed_paper:
             if comp in self.used_components:
                 paper_imports.append(comp)
-
         paper_line = (
             f"import {{ {', '.join(paper_imports)} }} from 'react-native-paper';"
             if paper_imports
             else ""
         )
-
         gradient = ""
         if self.uses_linear_gradient:
             gradient = "import LinearGradient from 'react-native-linear-gradient';"
-
         icons = ""
         if self.used_icons:
             icons = "import Icon from 'react-native-vector-icons/MaterialCommunityIcons';"
-
         theme = "import { theme } from '../theme';"
-
         lines = [base]
         if paper_line:
             lines.append(paper_line)
@@ -1325,7 +1465,6 @@ const styles = StyleSheet.create({{
 """
 
     def _darken_color(self, hex_color: str) -> str:
-        """Darken a hex color by 20%"""
         hex_color = hex_color.lstrip("#")
         try:
             r, g, b = [int(hex_color[i : i + 2], 16) for i in (0, 2, 4)]
@@ -1335,20 +1474,17 @@ const styles = StyleSheet.create({{
             return "#000000"
 
     def _escape_string(self, s: Any) -> str:
-        """Escape strings for JSX"""
         if not isinstance(s, str):
             s = str(s)
         return s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace('"', '\\"')
 
     def _safe_number(self, value: Any, default: float = 0) -> float:
-        """Safely convert value to number"""
         try:
             return float(value) if value is not None else default
         except Exception:
             return default
 
     def _sanitize_name(self, name: str) -> str:
-        """Sanitize screen/component names"""
         return re.sub(r"[^a-zA-Z0-9]", "", name or "Screen").capitalize()
 
     # -------------------------------------------------------------------------
@@ -1360,7 +1496,6 @@ import { Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
 import { NavigationContainer } from '@react-navigation/native';
 import RootNavigator from './src/navigation/RootNavigator';
 import { theme } from './src/theme';
-
 const paperTheme = {
   ...DefaultTheme,
   colors: {
@@ -1371,7 +1506,6 @@ const paperTheme = {
     text: theme.colors.text,
   },
 };
-
 export default function App() {
   return (
     <PaperProvider theme={paperTheme}>
@@ -1386,16 +1520,14 @@ export default function App() {
     def _generate_navigation(self) -> str:
         screen_imports: List[str] = []
         screen_components: List[str] = []
-
         for screen in self.screens:
             name = self._sanitize_name(screen.get("name", "Screen"))
             screen_imports.append(
                 f"import {name}Screen from '../screens/{name}Screen';"
             )
             screen_components.append(
-                f'      <Stack.Screen name="{name}" component={{{name}Screen}} options={{{{ title: "{name}" }}}} />'
+                f' <Stack.Screen name="{name}" component={{{name}Screen}} options={{{{ title: "{name}" }}}}/>'
             )
-
         imports = (
             "\n".join(screen_imports)
             if screen_imports
@@ -1404,15 +1536,12 @@ export default function App() {
         screens = (
             "\n".join(screen_components)
             if screen_components
-            else '      <Stack.Screen name="Home" component={HomeScreen} />'
+            else ' <Stack.Screen name="Home" component={HomeScreen} />'
         )
-
         return f"""import React from 'react';
 import {{ createNativeStackNavigator }} from '@react-navigation/native-stack';
 {imports}
-
 const Stack = createNativeStackNavigator();
-
 export default function RootNavigator() {{
   return (
     <Stack.Navigator>
@@ -1425,7 +1554,6 @@ export default function RootNavigator() {{
     def _generate_complete_component_library(self) -> str:
         return """// Complete UI Component Library for React Native
 // All custom components used throughout the app
-
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Card, Button, TextInput, Avatar, Chip } from 'react-native-paper';
@@ -1459,131 +1587,12 @@ export const SocialButton = ({ provider, icon, onPress, style }) => (
   </Button>
 );
 
-export const IconInput = ({ icon, label, placeholder, secureTextEntry, value, onChangeText, ...props }) => (
-  <TextInput
-    mode="outlined"
-    label={label}
-    placeholder={placeholder}
-    secureTextEntry={secureTextEntry}
-    value={value}
-    onChangeText={onChangeText}
-    left={<TextInput.Icon icon={icon || 'text-box'} />}
-    style={styles.input}
-    {...props}
-  />
-);
-
-export const IllustrationHeader = ({ title, subtitle }) => (
-  <View style={styles.illustrationHeader}>
-    <Icon name="image" size={120} color="#9CA3AF" />
-    <Text style={styles.illustrationTitle}>{title}</Text>
-    {subtitle && <Text style={styles.illustrationSubtitle}>{subtitle}</Text>}
-  </View>
-);
-
-export const ProductCard = ({ title, price, rating, badge, onPress }) => (
-  <Card style={styles.productCard} onPress={onPress}>
-    <Card.Content style={{ padding: 0 }}>
-      <View style={styles.productImage}>
-        <Icon name="image" size={48} color="#9CA3AF" />
-        {badge && (
-          <Chip style={styles.productBadge}>
-            <Text style={{ color: '#FFFFFF', fontSize: 10 }}>{badge}</Text>
-          </Chip>
-        )}
-      </View>
-      <View style={{ padding: 12 }}>
-        <Text style={styles.productTitle}>{title}</Text>
-        <Text style={styles.productPrice}>{price}</Text>
-        {rating && (
-          <View style={styles.ratingContainer}>
-            {[...Array(5)].map((_, i) => (
-              <Icon key={i} name={i < rating ? 'star' : 'star-outline'} size={16} color="#F59E0B" />
-            ))}
-          </View>
-        )}
-      </View>
-    </Card.Content>
-  </Card>
-);
-
-export const StatCard = ({ value, label, color, icon }) => (
-  <Card style={styles.statCard}>
-    <Card.Content>
-      {icon && <Icon name={icon} size={32} color={color || theme.colors.primary} />}
-      <Text style={[styles.statValue, { color: color || theme.colors.primary }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </Card.Content>
-  </Card>
-);
-
-export const EmptyState = ({ title, subtitle, icon }) => (
-  <View style={styles.emptyState}>
-    <Icon name={icon || 'inbox'} size={64} color="#9CA3AF" />
-    <Text style={styles.emptyTitle}>{title}</Text>
-    {subtitle && <Text style={styles.emptySubtitle}>{subtitle}</Text>}
-  </View>
-);
-
-export const HeroSection = ({ title, subtitle, height }) => (
-  <LinearGradient
-    colors={[theme.colors.primary, theme.colors.primaryDark]}
-    style={[styles.heroSection, { height: height || 300 }]}
-  >
-    <Text style={styles.heroTitle}>{title}</Text>
-    <Text style={styles.heroSubtitle}>{subtitle}</Text>
-  </LinearGradient>
-);
+// Export DynamicBackground
+export { default as DynamicBackground } from './backgrounds/DynamicBackground';
 
 const styles = StyleSheet.create({
   gradientButton: { borderRadius: 8, marginBottom: 12 },
   socialButton: { marginBottom: 12 },
-  input: { marginBottom: 16 },
-  illustrationHeader: { alignItems: 'center', marginBottom: 32 },
-  illustrationTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 24,
-    color: theme.colors.text,
-  },
-  illustrationSubtitle: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  productCard: { marginBottom: 16, width: '48%' },
-  productImage: {
-    height: 150,
-    backgroundColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  productBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: '#EF4444' },
-  productTitle: { fontSize: 16, fontWeight: 'bold', color: theme.colors.text },
-  productPrice: { fontSize: 18, fontWeight: '600', color: theme.colors.primary, marginTop: 4 },
-  ratingContainer: { flexDirection: 'row', marginTop: 4 },
-  statCard: { marginBottom: 16, flex: 1, marginHorizontal: 4 },
-  statValue: { fontSize: 32, fontWeight: 'bold', marginTop: 8 },
-  statLabel: { fontSize: 14, color: theme.colors.textSecondary, marginTop: 4 },
-  emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 64 },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: 16,
-    textAlign: 'center',
-    color: theme.colors.text,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  heroSection: { borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
-  heroTitle: { fontSize: 32, fontWeight: 'bold', color: '#FFFFFF', textAlign: 'center' },
-  heroSubtitle: { fontSize: 18, color: '#FFFFFF80', textAlign: 'center', marginTop: 16 },
 });
 """
 
@@ -1604,6 +1613,8 @@ const styles = StyleSheet.create({
                     "react-native-paper": "^5.11.0",
                     "react-native-linear-gradient": "^2.8.3",
                     "react-native-vector-icons": "^10.0.3",
+                    "react-native-reanimated": "^3.6.0",
+                    "@react-native-community/blur": "^4.3.2",
                     "@react-navigation/native": "^6.1.9",
                     "@react-navigation/native-stack": "^6.9.0",
                     "react-native-safe-area-context": "^4.8.0",
@@ -1638,64 +1649,53 @@ android/app/build/
 """
 
     def _generate_readme(self) -> str:
-        screen_list = (
-            "\n".join(
-                [
-                    f"- **{self._sanitize_name(s.get('name', 'Screen'))}Screen** → "
-                    f"`src/screens/{self._sanitize_name(s.get('name', 'Screen'))}Screen.tsx`"
-                    for s in self.screens
-                ]
-            )
-            or "- HomeScreen"
-        )
+        screen_list = "\n".join(
+            f"- **{self._sanitize_name(s.get('name', 'Screen'))}Screen** → `src/screens/{self._sanitize_name(s.get('name', 'Screen'))}Screen.tsx`"
+            for s in self.screens
+        ) or "- HomeScreen"
+
+        bg_status = "ENABLED" if self.uses_backgrounds else "DISABLED"
 
         return f"""# Generated React Native App
+## Production-Ready • v2.3.0 • Dynamic Backgrounds {bg_status}
 
-## 🚀 Production-Ready Features
-- ✅ Full component library (40+ components)
-- ✅ State management with React hooks
-- ✅ React Native Paper integration
-- ✅ Native navigation
-- ✅ Custom theme system
-- ✅ Vector icons support
-- ✅ Linear gradients
-- ✅ Interactive components
+### Features
+- 40+ components with full state management
+- React Native Paper + custom theme
+- Ready-to-use navigation
+- Animated DynamicBackground (gradient / image / particles / blur)
+- 100% deterministic output
 
-## 📱 Screens
+### Generated Screens
 {screen_list}
 
-## 🛠 How to Run
+### How to run
 ```bash
-# Install dependencies
 npm install
+# or
+yarn install
 
-# iOS (Mac only)
-cd ios && pod install && cd ..
-npx react-native run-ios
-
-# Android
-npx react-native run-android
-
-# Start Metro bundler
-npm start
+npx react-native start
+npx react-native run-android   # or run-ios
 ```
 
-## 📁 Project Structure
+### Project Structure
 ```
 src/
-├── screens/          # Screen components
-├── navigation/       # Navigation configuration
-├── theme/           # Theme and styling tokens
-└── components/ui/   # Reusable UI components
+├── screens/          # All screen components
+├── components/
+│   ├── ui/          # UI component library
+│   └── backgrounds/ # DynamicBackground component
+├── theme/           # Theme configuration
+└── navigation/      # Navigation setup
 ```
 
-## 🎨 Customization
-Edit `src/theme/index.ts` to customize colors, spacing, and typography.
+### Dynamic Backgrounds
+Each screen can have a custom background configuration:
+- **Solid**: Single color background
+- **Gradient**: Linear gradients (vertical/horizontal/diagonal)
+- **Image**: Background image with optional blur
+- **Particles**: Animated floating particles
 
-## 📝 Version
-Generated with Preview → React Native Converter v2.0
-
----
-**Note:** This app was automatically generated from a preview component model.
-All components are production-ready with proper state management.
+Generated by Project Beta UI Generator v2.3.0
 """

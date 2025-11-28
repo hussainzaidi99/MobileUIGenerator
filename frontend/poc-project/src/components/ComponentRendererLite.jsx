@@ -1,6 +1,6 @@
-// frontend/src/components/ComponentRendererLite.jsx - FULLY THEME-AWARE PRODUCTION VERSION
 import React, { useContext, useState } from "react";
 import { Mail, User, Lock, Phone, Search } from 'lucide-react';
+import { FaGoogle, FaApple, FaFacebook, FaGithub } from 'react-icons/fa';
 import { ThemeCtx } from "./CanvasRendererLite";
    
   const StarIcon = () => (
@@ -319,20 +319,52 @@ export const GradientButton = ({ text = "Button", gradient = "primary", size = "
 
 export const SocialButton = ({ provider = "Google", text, style }) => {
   const providerMap = {
-    Google: { icon: "Google", bg: "#FFFFFF", color: "#000000", border: "1px solid #D1D5DB" },
-    Apple: { icon: "Apple", bg: "#000000", color: "#FFFFFF" },
-    Facebook: { icon: "Facebook", bg: "#1877F2", color: "#FFFFFF" },
-    GitHub: { icon: "GitHub", bg: "#181717", color: "#FFFFFF" }
+    Google: { 
+      icon: <FaGoogle size={18} />, 
+      bg: "#FFFFFF", 
+      color: "#000000", 
+      border: "1px solid #D1D5DB" 
+    },
+    Apple: { 
+      icon: <FaApple size={20} />, 
+      bg: "#000000", 
+      color: "#FFFFFF" 
+    },
+    Facebook: { 
+      icon: <FaFacebook size={18} />, 
+      bg: "#1877F2", 
+      color: "#FFFFFF" 
+    },
+    GitHub: { 
+      icon: <FaGithub size={18} />, 
+      bg: "#181717", 
+      color: "#FFFFFF" 
+    }
   };
   const config = providerMap[provider] || providerMap.Google;
+  
   return (
     <button style={{
-      width: "100%", padding: "10px 20px", fontSize: "14px", fontWeight: "600",
-      background: config.bg, color: config.color, border: config.border || "none",
-      borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "8px", transition: "opacity 0.2s", ...style
+      width: "100%", 
+      padding: "10px 20px", 
+      fontSize: "14px", 
+      fontWeight: "600",
+      background: config.bg, 
+      color: config.color, 
+      border: config.border || "none",
+      borderRadius: "8px", 
+      cursor: "pointer", 
+      display: "flex", 
+      alignItems: "center", 
+      justifyContent: "center", 
+      gap: "10px", 
+      marginBottom: "8px", 
+      transition: "opacity 0.2s", 
+      ...style
     }}
-      onMouseOver={e => e.target.style.opacity = "0.9"} onMouseOut={e => e.target.style.opacity = "1"}>
-      <span style={{ fontSize: "18px" }}>{config.icon}</span>
+      onMouseOver={e => e.target.style.opacity = "0.9"} 
+      onMouseOut={e => e.target.style.opacity = "1"}>
+      {config.icon}
       {text || `Continue with ${provider}`}
     </button>
   );

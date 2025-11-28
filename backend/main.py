@@ -1,13 +1,13 @@
-# backend/main.py - Production-Ready 3-API Architecture (React Native)
-# Version: 2.2.1 - Corrected Architecture Labels
+# backend/main.py - Production-Ready 4-API Architecture (React Native)
+# Version: 2.3.0 - Dynamic Backgrounds via API 3
 # 
 # Architecture:
 # - API 0: Prompt Refiner (Groq)
 # - API 1: Intent Extractor (DeepSeek Chat v3)
 # - API 2: Component Generator (DeepSeek Chat v3) 
+# - API 3: Background Generator (DeepSeek Chat v3) 🎨 NEW
 # - RN Converter: Deterministic Python (NO LLM)
 # - Preview Adapter: Pass-through Python (NO LLM)
-# - API 3: UNUSED (reserved for future features)
 
 import os
 import json
@@ -26,7 +26,8 @@ from llm_client import (
     componentize, 
     generate_react_native_from_json, 
     generate_preview_from_json, 
-    generate_asset_prompts
+    generate_asset_prompts,
+    generate_backgrounds
 )
 from component_model import create_component_model
 from style_enricher import enrich_styles
@@ -35,8 +36,8 @@ load_dotenv()
 
 app = FastAPI(
     title="UI Pipeline Beta - React Native Edition",
-    version="2.2.0",
-    description="Production-ready 4-API architecture with intelligent component screen assignment"
+    version="2.3.0",
+    description="Production-ready 4-API architecture with intelligent component screen assignment and dynamic backgrounds"
 )
 
 app.add_middleware(
@@ -381,14 +382,15 @@ def _nest_components_by_screen_type(components: List[Dict], screen_type: str) ->
 @app.post("/generate_pipeline")
 async def generate_pipeline(request: Request):
     """
-    🚀 Production-Ready 4-API Architecture with Intelligent Component Screen Assignment
+    🚀 Production-Ready 4-API Architecture with Dynamic Backgrounds
     
     Pipeline:
     0. API 0 (REFINER) → Transform raw prompt into structured prompt
     1. API 1 (INTENT) → Generate Component Model JSON (single source of truth)
     2. ASSEMBLY → Intelligently assign components to screens + nest by type
-    3. API 2 (COMPONENT) → React Native Code Generation (deterministic)
-    4. API 3 (CODE) → Web Preview Generation (parallel)
+    3. API 2 (COMPONENT) → Component Generation
+    4. API 3 (BACKGROUND) → Dynamic Background Generation 🎨 NEW
+    5. CONVERTERS → React Native Code + Web Preview (deterministic)
     
     Returns:
         JSON response with component model, React Native code, and web preview
@@ -399,7 +401,7 @@ async def generate_pipeline(request: Request):
     if not raw_prompt:
         return JSONResponse({"error": "Missing prompt"}, status_code=400)
     
-    print(f"\n🔹 Beta Pipeline (React Native v2.2): {raw_prompt}\n")
+    print(f"\n🔹 Beta Pipeline (React Native v2.3): {raw_prompt}\n")
     
     # ========================================================================
     # STEP 0: API 0 (REFINER) → Enhance User Prompt
@@ -466,7 +468,7 @@ async def generate_pipeline(request: Request):
         )
     
     # ========================================================================
-    # STEP 1.5: INTELLIGENT COMPONENT-TO-SCREEN ASSIGNMENT (FIXED!)
+    # STEP 1.5: INTELLIGENT COMPONENT-TO-SCREEN ASSIGNMENT
     # ========================================================================
     print("\n🔵 [STEP 1.5] ASSEMBLY - Assigning components to screens intelligently...")
     
@@ -566,6 +568,28 @@ async def generate_pipeline(request: Request):
         
         # Enrich with styles from design strategy
         component_model_dict = enrich_styles(component_model_dict, intent_obj)
+        
+        # ====================================================================
+        # 🎨 STEP 1.6: API 3 (BACKGROUND) → Dynamic Background Generation
+        # ====================================================================
+        print("\n🎨 [STEP 1.6] API 3 (BACKGROUND) - Generating dynamic backgrounds...")
+        try:
+            component_model_dict["screens"] = await asyncio.wait_for(
+                generate_backgrounds(
+                    component_model_dict["screens"],
+                    component_model_dict["theme"],
+                    design_strategy
+                ),
+                timeout=STEP_TIMEOUT
+            )
+            
+            print(f"✅ [STEP 1.6] Backgrounds generated for {len(screens)} screens")
+            
+        except Exception as e:
+            print(f"⚠️  [STEP 1.6] Background generation failed: {e} - proceeding without")
+            import traceback
+            traceback.print_exc()
+        
         component_model = create_component_model(component_model_dict)
         
         print(f"✅ [STEP 1.5] Component hierarchy built for '{screen_type}' screen type")
@@ -580,9 +604,9 @@ async def generate_pipeline(request: Request):
         )
     
     # ========================================================================
-    # STEP 2 & 3: PARALLEL PROCESSING
-    # API 2 (COMPONENT) → React Native Code Generation
-    # API 3 (CODE) → Web Preview Generation
+    # STEP 2: PARALLEL PROCESSING
+    # RN Converter → React Native Code Generation
+    # Preview Adapter → Web Preview Generation
     # ========================================================================
     print("\n⚡ [STEP 2] Running RN Code Generation + Preview Adapter in PARALLEL (no API calls)...")
     
@@ -600,22 +624,19 @@ async def generate_pipeline(request: Request):
             raise
     
     async def generate_preview_task():
-        
         """Generate web preview from component model (pass-through adapter)"""
         try:
-            
             print("🔄 [PREVIEW ADAPTER] Generating web preview...")
             web_preview = await generate_preview_from_json(json_truth)
             print(f"✅ [PREVIEW ADAPTER] Web preview generated")
             return web_preview
         except Exception as e:
-            print(f"⚠️ [PREVIEW ADAPTER] Preview generation failed: {e}")
-        # Fallback to pass-through
+            print(f"⚠️  [PREVIEW ADAPTER] Preview generation failed: {e}")
+            # Fallback to pass-through
             try:
                 from preview_adapter import PreviewAdapter
                 return PreviewAdapter.to_web_preview(json_truth)
             except:
-                
                 return json_truth
     
     # Run both tasks in parallel
@@ -647,7 +668,7 @@ async def generate_pipeline(request: Request):
         )
     
     # ========================================================================
-    # STEP 4: Asset Prompts (optional metadata)
+    # STEP 3: Asset Prompts (optional metadata)
     # ========================================================================
     asset_prompts = await generate_asset_prompts([
         comp for screen in screens 
@@ -658,6 +679,7 @@ async def generate_pipeline(request: Request):
     print(f"   📝 API 0 (Refiner): {'Applied' if refinement_result['refinement_applied'] else 'Skipped'}")
     print(f"   🎯 API 1 (Intent): {len(screens)} screens detected")
     print(f"   🧩 API 2 (Component): {len(all_components)} components generated")
+    print(f"   🎨 API 3 (Background): Dynamic backgrounds added")
     print(f"   🔧 RN Converter: {len(rn_files)} files created")
     print(f"   🔄 Preview Adapter: Ready")
     
@@ -678,7 +700,8 @@ async def generate_pipeline(request: Request):
             "component_distribution": {
                 name: len(screen_component_map[name]) 
                 for name in screen_names
-            }
+            },
+            "backgrounds_generated": True
         }
     }
 
@@ -765,18 +788,76 @@ async def refine_endpoint(request: Request):
     return result
 
 
+@app.post("/test/backgrounds")
+async def test_backgrounds(request: Request):
+    """
+    🎨 NEW: Test endpoint to preview background generation without full pipeline.
+    
+    Request Body:
+        {
+            "screen_type": "auth|ecommerce|social|dashboard|onboarding|settings",
+            "design_style": "modern|minimal|bold",
+            "theme": { "primary": "#0D9488", ... }
+        }
+    """
+    body = await request.json()
+    
+    screen_type = body.get("screen_type", "auth")
+    design_style = body.get("design_style", "modern")
+    theme = body.get("theme", {
+        "primary": "#0D9488",
+        "background": "#F7FAFC"
+    })
+    
+    # Create test screens
+    test_screens = [
+        {"name": "Screen1", "components": []},
+        {"name": "Screen2", "components": []},
+    ]
+    
+    design_strategy = {
+        "screen_type": screen_type,
+        "design_style": design_style
+    }
+    
+    # Generate backgrounds
+    try:
+        enriched_screens = await generate_backgrounds(
+            test_screens,
+            theme,
+            design_strategy
+        )
+        
+        return {
+            "success": True,
+            "screens": enriched_screens,
+            "config": {
+                "screen_type": screen_type,
+                "design_style": design_style,
+                "api_used": "deepseek-v3 (API 3)"
+            }
+        }
+    except Exception as e:
+        return JSONResponse(
+            {"error": f"Background generation failed: {str(e)}"}, 
+            status_code=500
+        )
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
         "platform": "react-native",
-        "architecture": "4-API (Refiner → Intent → Assembly → Component → Preview)",
-        "version": "2.2.0",
+        "architecture": "4-API (Refiner → Intent → Component → Background)",
+        "version": "2.3.0",
         "features": {
             "intelligent_screen_assignment": True,
             "intelligent_nesting": True,
+            "dynamic_backgrounds": True,  # 🎨 NEW
             "screen_types": ["auth", "ecommerce", "dashboard", "social", "onboarding", "settings"],
+            "background_styles": ["gradient", "geometric", "floating_shapes", "glassmorphism", "mesh_gradient", "aurora"],  # 🎨 NEW
             "deterministic_generation": True,
             "fallback_strategies": ["explicit_field", "id_matching", "context_hints", "load_balancing"]
         }
@@ -787,27 +868,35 @@ async def health_check():
 def root():
     """Root endpoint with API documentation"""
     return {
-        "message": "✅ Beta Pipeline Ready (React Native Edition v2.2)", 
+        "message": "✅ Beta Pipeline Ready (React Native Edition v2.3)", 
         "platform": "React Native",
-        "version": "2.2.0",
+        "version": "2.3.0",
         "architecture": {
             "api_0": "Prompt Refiner (Groq - enhances user input)",
             "api_1": "Intent Extractor (DeepSeek Chat v3 - design strategy)",
             "api_2": "Component Generator (DeepSeek Chat v3 - component model JSON)",
+            "api_3": "Background Generator (DeepSeek Chat v3 - dynamic backgrounds) 🎨 NEW",
             "assembly": "Component-to-Screen Assignment (Python - multi-strategy)",
             "nesting": "Screen-type-aware Component Nesting (Python)",
             "rn_converter": "React Native Code Generator (Python - deterministic)",
-            "preview_adapter": "Web Preview Generator (Python - pass-through)",
-            "api_3": "🚫 UNUSED (reserved for future features)"
+            "preview_adapter": "Web Preview Generator (Python - pass-through)"
         },
         "endpoints": {
-            "POST /generate_pipeline": "Main pipeline - generates component model + RN code + preview",
+            "POST /generate_pipeline": "Main pipeline - generates component model + RN code + preview + backgrounds",
             "POST /export/react-native": "Export React Native code as ZIP",
             "POST /refine": "Standalone prompt refinement",
+            "POST /test/backgrounds": "🎨 NEW: Test background generation",
             "GET /refiner/stats": "Prompt refiner statistics",
             "GET /health": "Health check",
             "GET /": "This documentation"
         },
+        "new_in_v2_3": [
+            "🎨 Dynamic background generation using API 3 (DeepSeek v3)",
+            "✨ Screen-type-aware background styles (auth, ecommerce, etc.)",
+            "🌈 6 background types: gradient, geometric, floating_shapes, glassmorphism, mesh_gradient, aurora",
+            "🔄 Automatic fallback to solid colors if API fails",
+            "🧪 Test endpoint for background preview"
+        ],
         "fixes_in_v2_2": [
             "✅ FIXED: Components no longer bleed across screens",
             "✅ Multi-strategy component-to-screen assignment",
@@ -826,7 +915,8 @@ def root():
             "✅ Production-ready React Native output",
             "✅ Smart prompt enhancement",
             "✅ 40+ UI components supported",
-            "✅ Auto-detects: Auth, E-commerce, Dashboard, Social, Onboarding, Settings"
+            "✅ Auto-detects: Auth, E-commerce, Dashboard, Social, Onboarding, Settings",
+            "✅ 🎨 Dynamic backgrounds per screen"
         ]
     }
 
@@ -859,22 +949,21 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.on_event("startup")
 async def startup_event():
     print("\n" + "="*70)
-    print("🚀 UI PIPELINE BETA - REACT NATIVE EDITION v2.2")
+    print("🚀 UI PIPELINE BETA - REACT NATIVE EDITION v2.3")
     print("="*70)
     print(f"Platform: React Native")
-    print(f"Architecture: 3 LLM APIs + 2 Deterministic Converters")
+    print(f"Architecture: 4 LLM APIs + 2 Deterministic Converters")
     print(f"")
     print(f"🤖 LLM API Calls:")
     print(f"   API 0: Prompt Refiner (Groq)")
     print(f"   API 1: Intent Extractor (DeepSeek Chat v3)")
     print(f"   API 2: Component Generator (DeepSeek Chat v3)")
+    print(f"   API 3: Background Generator (DeepSeek Chat v3) 🎨 NEW")
     print(f"")
     print(f"🔧 Deterministic Converters (no LLM):")
     print(f"   - React Native Code Generator (Python)")
     print(f"   - Web Preview Adapter (Python)")
     print(f"")
-    print(f"🚫 Unused APIs:")
-    print(f"   API 3 (OR_API_KEY_CODE): Reserved for future features")
     
     # Check critical dependencies
     try:
@@ -891,12 +980,18 @@ async def startup_event():
         print("⚠️  Prompt Refiner not available")
     
     try:
-        from llm_client import extract_intent, componentize
-        print("✅ LLM Client loaded")
+        from llm_client import extract_intent, componentize, generate_backgrounds
+        print("✅ LLM Client loaded (with background generation)")
     except ImportError as e:
         print(f"❌ LLM Client error: {e}")
     
-    print("\n🆕 NEW FEATURES (v2.2):")
+    print("\n🆕 NEW FEATURES (v2.3):")
+    print("   🎨 Dynamic background generation using API 3")
+    print("   ✨ 6 background styles: gradient, geometric, floating_shapes,")
+    print("      glassmorphism, mesh_gradient, aurora")
+    print("   🔄 Automatic fallback to solid colors")
+    print("   🧪 Test endpoint: POST /test/backgrounds")
+    print("\n📋 PREVIOUS FEATURES (v2.2):")
     print("   ✅ FIXED: Cross-screen component bleeding bug")
     print("   ✅ Multi-strategy component-to-screen assignment:")
     print("      1. Explicit 'screen' field (highest priority)")

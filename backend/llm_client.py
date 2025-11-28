@@ -10,6 +10,8 @@ import asyncio
 import re
 from dotenv import load_dotenv
 from typing import Any, Dict, List, Union, Optional
+from background_generator import enrich_screens_with_backgrounds
+
 
 # Import CoT orchestration system
 from cot_orchestrator import (
@@ -33,7 +35,7 @@ OR_API_URL = os.getenv("OR_API_URL", "https://openrouter.ai/api/v1/chat/completi
 
 OR_MODEL_INTENT = os.getenv("OR_MODEL_INTENT", "deepseek/deepseek-chat-v3")
 OR_MODEL_COMPONENT = os.getenv("OR_MODEL_COMPONENT", "deepseek/deepseek-chat-v3")
-OR_MODEL_CODE = os.getenv("OR_MODEL_CODE", "deepseek/deepseek-r1-0528")
+OR_MODEL_CODE = os.getenv("OR_MODEL_CODE", "deepseek/deepseek-chat-v3")
 
 OR_SITE_URL = os.getenv("OR_SITE_URL", "http://localhost:5173")
 OR_APP_NAME = os.getenv("OR_APP_NAME", "Project-Beta-UI-Generator")
@@ -912,13 +914,6 @@ async def test_preview_conversion(component_model: dict) -> dict:
             "files_generated": 0,
         }
 
-
-# Export public API
-__all__ = [
-    'generate_preview_from_json',
-    'generate_react_native_from_json',  # ← NEW: RN generator
-    'test_preview_conversion',
-]
 ###############################################################################
 # HEALTH CHECK & DIAGNOSTICS
 ###############################################################################
@@ -982,6 +977,166 @@ async def test_route(route: str = "intent") -> Dict[str, Any]:
             "error": str(e)
         }
 
+###############################################################################
+# 🎨 API 3 (BACKGROUND) - Dynamic Background Generation
+###############################################################################
+
+async def generate_backgrounds(
+    screens: List[Dict[str, Any]],
+    theme: Dict[str, Any],
+    design_strategy: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    API 3: Generate dynamic backgrounds using DeepSeek v3 (with Llama fallback).
+    
+    This function enriches screens with contextual background configurations
+    without modifying existing component logic.
+    
+    Args:
+        screens: List of screen dictionaries
+        theme: Theme configuration
+        design_strategy: Design strategy from intent extraction
+        
+    Returns:
+        Enriched screens with background configurations
+    """
+    print("\n🎨 [API 3 - BACKGROUNDS] Generating dynamic backgrounds...")
+    
+    try:
+        # Use deterministic generator first (instant, no API call)
+        enriched_screens = enrich_screens_with_backgrounds(
+            screens, 
+            theme, 
+            design_strategy
+        )
+        
+        print(f"✅ [API 3 - BACKGROUNDS] Generated {len(enriched_screens)} backgrounds")
+        
+        # Optional: Use LLM to enhance backgrounds with creative suggestions
+        # This is where we use the 3rd DeepSeek API
+        if design_strategy.get("design_style") in ["bold", "modern"]:
+            enriched_screens = await _enhance_backgrounds_with_llm(
+                enriched_screens,
+                design_strategy
+            )
+        
+        return enriched_screens
+        
+    except Exception as e:
+        print(f"⚠️ [API 3 - BACKGROUNDS] Error: {e} - using basic backgrounds")
+        # Fallback: return screens with basic backgrounds
+        return enrich_screens_with_backgrounds(screens, theme, design_strategy)
+
+
+async def _enhance_backgrounds_with_llm(
+    screens: List[Dict[str, Any]],
+    design_strategy: Dict[str, Any]
+) -> List[Dict[str, Any]]:
+    """
+    Use LLM to suggest creative background enhancements.
+    This uses the 3rd OpenRouter API (DeepSeek v3) with Groq fallback.
+    """
+    print("🎨 [LLM ENHANCEMENT] Adding creative background suggestions...")
+    
+    # Build prompt for LLM
+    screen_types = [s.get("name", "Screen") for s in screens]
+    screen_type = design_strategy.get("screen_type", "general")
+    design_style = design_strategy.get("design_style", "modern")
+    
+    prompt = f"""You are a creative UI background designer.
+
+Given these screens: {', '.join(screen_types)}
+Screen type: {screen_type}
+Design style: {design_style}
+
+Suggest creative background enhancements for each screen. Consider:
+- Mood and emotion (welcoming, energetic, calm, professional)
+- Color harmonies (complementary, analogous, triadic)
+- Animation intensity (subtle, moderate, dramatic)
+- Shape complexity (minimal, balanced, rich)
+
+Output ONLY a JSON object with this structure:
+{{
+  "screens": [
+    {{
+      "name": "ScreenName",
+      "mood_adjustment": "energetic|calm|professional|playful",
+      "animation_intensity": "subtle|moderate|dramatic",
+      "shape_complexity": "minimal|balanced|rich",
+      "color_harmony": "complementary|analogous|triadic",
+      "special_effects": ["glassmorphism", "particles", "aurora"]
+    }}
+  ]
+}}
+
+Keep suggestions aligned with the {design_style} design style."""
+    
+    try:
+        # Call LLM using the "code" route (API 3)
+        response = await asyncio.wait_for(
+            send_chat(prompt, route="code", timeout=15),
+            timeout=20
+        )
+        
+        # Parse response
+        suggestions = _safe_json_loads(response, {"screens": []})
+        
+        # Apply suggestions to screens
+        for screen in screens:
+            screen_name = screen.get("name", "")
+            suggestion = next(
+                (s for s in suggestions.get("screens", []) if s.get("name") == screen_name),
+                None
+            )
+            
+            if suggestion and "background" in screen:
+                # Enhance existing background config
+                bg = screen["background"]
+                
+                # Update mood
+                if "mood_adjustment" in suggestion:
+                    bg["mood"] = suggestion["mood_adjustment"]
+                
+                # Update animation intensity
+                if "animation_intensity" in suggestion:
+                    intensity_map = {
+                        "subtle": 0.5,
+                        "moderate": 1.0,
+                        "dramatic": 1.5
+                    }
+                    multiplier = intensity_map.get(suggestion["animation_intensity"], 1.0)
+                    bg["animations"]["duration"] = int(20000 / multiplier)
+                
+                # Update shape complexity
+                if "shape_complexity" in suggestion:
+                    complexity_map = {
+                        "minimal": 2,
+                        "balanced": 4,
+                        "rich": 6
+                    }
+                    target_count = complexity_map.get(suggestion["shape_complexity"], 4)
+                    current_count = len(bg["floating_shapes"]["shapes"])
+                    
+                    if target_count > current_count:
+                        # Add more shapes
+                        bg["complexity"] = "high"
+                    elif target_count < current_count:
+                        # Reduce shapes
+                        bg["complexity"] = "low"
+                
+                print(f"   ✨ Enhanced {screen_name} background with LLM suggestions")
+        
+        print("✅ [LLM ENHANCEMENT] Background enhancement complete")
+        return screens
+        
+    except asyncio.TimeoutError:
+        print("⚠️ [LLM ENHANCEMENT] Timeout - using default backgrounds")
+        return screens
+    
+    except Exception as e:
+        print(f"⚠️ [LLM ENHANCEMENT] Error: {e} - using default backgrounds")
+        return screens
+
 
 ###############################################################################
 # EXPORT PUBLIC API
@@ -994,6 +1149,7 @@ __all__ = [
     "componentize",
     "generate_asset_prompts",
     "generate_preview_from_json",
+    "generate_backgrounds",
     
     # Diagnostics
     "check_api_availability",
