@@ -37,7 +37,7 @@ OR_MODEL_INTENT = os.getenv("OR_MODEL_INTENT", "deepseek/deepseek-chat-v3")
 OR_MODEL_COMPONENT = os.getenv("OR_MODEL_COMPONENT", "deepseek/deepseek-chat-v3")
 OR_MODEL_CODE = os.getenv("OR_MODEL_CODE", "deepseek/deepseek-chat-v3")
 
-OR_SITE_URL = os.getenv("OR_SITE_URL", "http://localhost:5173")
+OR_SITE_URL = os.getenv("OR_SITE_URL", "http://localhost:5177")
 OR_APP_NAME = os.getenv("OR_APP_NAME", "Project-Beta-UI-Generator")
 
 

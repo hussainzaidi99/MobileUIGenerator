@@ -29,7 +29,7 @@ export default function App() {
     setError(null);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/refine", {
+      const res = await fetch("http://127.0.0.1:8005/refine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: prompt.trim() }),
@@ -77,7 +77,7 @@ export default function App() {
     setProcessingStage("Extracting intent and analyzing screens...");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/generate_pipeline", {
+      const res = await fetch("http://127.0.0.1:8005/generate_pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: finalPrompt }),
