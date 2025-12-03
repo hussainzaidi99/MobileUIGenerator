@@ -34,11 +34,47 @@ from style_enricher import enrich_styles
 
 load_dotenv()
 
+# ============================================================================
+# CREATE FASTAPI APP FIRST
+# ============================================================================
+
 app = FastAPI(
     title="UI Pipeline Beta - React Native Edition",
     version="2.3.0",
     description="Production-ready 4-API architecture with intelligent component screen assignment and dynamic backgrounds"
 )
+
+# ============================================================================
+# INCLUDE AUTH ROUTES
+# ============================================================================
+
+from auth_routes import router as auth_router
+app.include_router(auth_router)
+
+
+# ============================================================================
+# RATE LIMITING (using SlowAPI)
+# ============================================================================
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# ============================================================================
+# DATABASE IMPORTS
+# ============================================================================
+
+from database import connect_to_mongo, close_mongo_connection
+
+
+# ============================================================================
+# CORS MIDDLEWARE
+# ============================================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -140,11 +176,7 @@ def assign_component_to_screen(
         if any(keyword in comp_id for keyword in ["stat", "chart", "analytics", "overview"]):
             return screen_names[0]  # Dashboard is usually first
     
-    # STRATEGY 4: Component position-based heuristic (for ordered generation)
-    # If first half of components are being assigned, prefer first screen
-    # This helps when LLM generates screens in order but without explicit labels
-    
-    # STRATEGY 5: Load balancing fallback
+    # STRATEGY 4: Load balancing fallback
     # Assign to screen with fewest components to prevent one screen getting everything
     min_screen = min(screen_names, key=lambda s: screen_component_count.get(s, 0))
     return min_screen
@@ -158,20 +190,6 @@ def _nest_auth_components(components: List[Dict]) -> List[Dict]:
     """
     Intelligently nest authentication screen components.
     Groups form inputs inside Card container.
-    
-    Pattern:
-    - IllustrationHeader (outside)
-    - Spacer
-    - Card (container)
-        - IconInput (email)
-        - Spacer
-        - IconInput (password)
-        - LinkButton (forgot password)
-        - Spacer
-        - GradientButton (submit)
-    - Divider (outside)
-    - SocialButtons (outside)
-    - LinkButtons (outside)
     """
     nested = []
     card_children = []
@@ -205,7 +223,6 @@ def _nest_auth_components(components: List[Dict]) -> List[Dict]:
             
             # Close card after primary CTA button
             if comp_type in ("gradientbutton", "customgradientbutton"):
-                # Add card with all children
                 if card_component:
                     card_component["children"] = card_children
                     nested.append(card_component)
@@ -236,16 +253,7 @@ def _nest_auth_components(components: List[Dict]) -> List[Dict]:
 
 
 def _nest_ecommerce_components(components: List[Dict]) -> List[Dict]:
-    """
-    Nest e-commerce components (SearchInput + Grid of ProductCards).
-    
-    Pattern:
-    - SearchInput (outside)
-    - Spacer
-    - Grid (container)
-        - ProductCard × N
-    - FloatingActionButton (outside)
-    """
+    """Nest e-commerce components (SearchInput + Grid of ProductCards)."""
     nested = []
     grid_children = []
     inside_grid = False
@@ -268,7 +276,6 @@ def _nest_ecommerce_components(components: List[Dict]) -> List[Dict]:
             grid_children.append(comp)
         
         elif comp_type in ("floatingactionbutton", "customfloatingactionbutton"):
-            # Close grid before FAB
             if grid_component and grid_children:
                 grid_component["children"] = grid_children
                 nested.append(grid_component)
@@ -283,7 +290,6 @@ def _nest_ecommerce_components(components: List[Dict]) -> List[Dict]:
             else:
                 nested.append(comp)
     
-    # Close grid if still open
     if grid_component and grid_children:
         grid_component["children"] = grid_children
         nested.append(grid_component)
@@ -292,16 +298,7 @@ def _nest_ecommerce_components(components: List[Dict]) -> List[Dict]:
 
 
 def _nest_dashboard_components(components: List[Dict]) -> List[Dict]:
-    """
-    Nest dashboard components (Grid of StatCards).
-    
-    Pattern:
-    - AppBar (outside)
-    - Grid (container)
-        - StatCard × N
-    - Card (container)
-        - ProgressBar
-    """
+    """Nest dashboard components (Grid of StatCards)."""
     nested = []
     grid_children = []
     inside_grid = False
@@ -321,7 +318,6 @@ def _nest_dashboard_components(components: List[Dict]) -> List[Dict]:
             grid_children.append(comp)
         
         elif comp_type in ("spacer", "customspacer") and inside_grid:
-            # Close grid before spacer
             if grid_component and grid_children:
                 grid_component["children"] = grid_children
                 nested.append(grid_component)
@@ -334,7 +330,6 @@ def _nest_dashboard_components(components: List[Dict]) -> List[Dict]:
             if inside_grid and comp_type in ("statcard", "customstatcard"):
                 grid_children.append(comp)
             else:
-                # Close grid
                 if inside_grid and grid_component and grid_children:
                     grid_component["children"] = grid_children
                     nested.append(grid_component)
@@ -343,7 +338,6 @@ def _nest_dashboard_components(components: List[Dict]) -> List[Dict]:
                     grid_children = []
                 nested.append(comp)
     
-    # Close grid if still open
     if grid_component and grid_children:
         grid_component["children"] = grid_children
         nested.append(grid_component)
@@ -352,16 +346,7 @@ def _nest_dashboard_components(components: List[Dict]) -> List[Dict]:
 
 
 def _nest_components_by_screen_type(components: List[Dict], screen_type: str) -> List[Dict]:
-    """
-    Route to appropriate nesting logic based on screen type.
-    
-    Args:
-        components: Flat list of components from LLM
-        screen_type: Screen type from design_strategy
-        
-    Returns:
-        Properly nested component hierarchy
-    """
+    """Route to appropriate nesting logic based on screen type."""
     screen_type = (screen_type or "").lower()
     
     if screen_type == "auth":
@@ -371,7 +356,6 @@ def _nest_components_by_screen_type(components: List[Dict], screen_type: str) ->
     elif screen_type in ("dashboard", "analytics"):
         return _nest_dashboard_components(components)
     else:
-        # Default: minimal nesting (just ensure root container)
         return components
 
 
@@ -403,9 +387,7 @@ async def generate_pipeline(request: Request):
     
     print(f"\n🔹 Beta Pipeline (React Native v2.3): {raw_prompt}\n")
     
-    # ========================================================================
-    # STEP 0: API 0 (REFINER) → Enhance User Prompt
-    # ========================================================================
+    # Step 0: Refine prompt
     print("🔵 [STEP 0] API 0 (REFINER) - Enhancing user prompt...")
     
     try:
@@ -421,7 +403,6 @@ async def generate_pipeline(request: Request):
             print(f"✅ [STEP 0] Prompt refined:")
             print(f"   Original ({refinement_result['metadata']['original_word_count']} words): {raw_prompt[:80]}...")
             print(f"   Refined ({refinement_result['metadata']['refined_word_count']} words): {prompt[:80]}...")
-            print(f"   Expansion: {refinement_result['metadata']['expansion_ratio']}x")
         else:
             print(f"ℹ️  [STEP 0] Using original prompt: {refinement_result['metadata']['reason']}")
             prompt = raw_prompt
@@ -436,9 +417,7 @@ async def generate_pipeline(request: Request):
             "metadata": {"reason": f"Error: {str(e)[:50]}"}
         }
     
-    # ========================================================================
-    # STEP 1: API 1 (INTENT) → Generate Component Model (JSON TRUTH)
-    # ========================================================================
+    # Step 1: Generate component model
     print("\n🔵 [STEP 1] API 1 (INTENT) - Generating Component Model...")
     
     try:
@@ -457,7 +436,6 @@ async def generate_pipeline(request: Request):
         )
         
         all_components = component_result.get("components", [])
-        
         print(f"✅ [STEP 1] Generated {len(all_components)} components (flat list)")
         
     except Exception as e:
@@ -467,22 +445,17 @@ async def generate_pipeline(request: Request):
             status_code=500
         )
     
-    # ========================================================================
-    # STEP 1.5: INTELLIGENT COMPONENT-TO-SCREEN ASSIGNMENT
-    # ========================================================================
+    # Step 1.5: Intelligent component assignment
     print("\n🔵 [STEP 1.5] ASSEMBLY - Assigning components to screens intelligently...")
     
     screen_type = intent_obj.get("design_strategy", {}).get("screen_type", "general")
     design_strategy = intent_obj.get("design_strategy", {})
     
     try:
-        # Initialize screen-component mapping
         screen_component_map = {screen_name: [] for screen_name in screen_names}
         screen_component_count = {screen_name: 0 for screen_name in screen_names}
         
-        # Assign each component to appropriate screen
         for idx, comp in enumerate(all_components):
-            # Use intelligent assignment function
             assigned_screen = assign_component_to_screen(
                 comp, 
                 screen_names, 
@@ -490,25 +463,13 @@ async def generate_pipeline(request: Request):
                 screen_component_count
             )
             
-            # Add to map
             screen_component_map[assigned_screen].append(comp)
             screen_component_count[assigned_screen] += 1
             
-            # Debug logging for first few components
             if idx < 5:
-                print(f"   📍 Component '{comp.get('id', 'unknown')}' ({comp.get('type')}) → {assigned_screen}")
+                print(f"   🔍 Component '{comp.get('id', 'unknown')}' ({comp.get('type')}) → {assigned_screen}")
         
-        # Validation: Check for empty screens
-        empty_screens = [name for name in screen_names if len(screen_component_map[name]) == 0]
-        if empty_screens:
-            print(f"   ⚠️  Warning: Empty screens detected: {empty_screens}")
-        
-        # Validation: Check distribution
-        total_assigned = sum(len(comps) for comps in screen_component_map.values())
-        if total_assigned != len(all_components):
-            print(f"   ⚠️  Warning: Assignment mismatch! Total: {len(all_components)}, Assigned: {total_assigned}")
-        
-        # Build screens with properly grouped and nested components
+        # Build screens with nesting
         screens = []
         
         print(f"\n📊 Component Distribution by Screen:")
@@ -517,7 +478,6 @@ async def generate_pipeline(request: Request):
             
             if not screen_comps:
                 print(f"   ⚠️  {screen_name}: 0 components (creating empty state)")
-                # Create empty screen with placeholder
                 screens.append({
                     "name": screen_name,
                     "components": [{
@@ -537,10 +497,8 @@ async def generate_pipeline(request: Request):
                 })
                 continue
             
-            # Apply intelligent nesting based on screen type
             nested_comps = _nest_components_by_screen_type(screen_comps, screen_type)
             
-            # Log component types for debugging
             comp_types = [c.get("type") for c in screen_comps]
             print(f"   📱 {screen_name}: {len(screen_comps)} components → {len(nested_comps)} top-level")
             print(f"      Types: {', '.join(comp_types[:5])}{'...' if len(comp_types) > 5 else ''}")
@@ -566,12 +524,9 @@ async def generate_pipeline(request: Request):
             }
         }
         
-        # Enrich with styles from design strategy
         component_model_dict = enrich_styles(component_model_dict, intent_obj)
         
-        # ====================================================================
-        # 🎨 STEP 1.6: API 3 (BACKGROUND) → Dynamic Background Generation
-        # ====================================================================
+        # Step 1.6: Generate backgrounds
         print("\n🎨 [STEP 1.6] API 3 (BACKGROUND) - Generating dynamic backgrounds...")
         try:
             component_model_dict["screens"] = await asyncio.wait_for(
@@ -587,11 +542,8 @@ async def generate_pipeline(request: Request):
             
         except Exception as e:
             print(f"⚠️  [STEP 1.6] Background generation failed: {e} - proceeding without")
-            import traceback
-            traceback.print_exc()
         
         component_model = create_component_model(component_model_dict)
-        
         print(f"✅ [STEP 1.5] Component hierarchy built for '{screen_type}' screen type")
         
     except Exception as e:
@@ -603,17 +555,12 @@ async def generate_pipeline(request: Request):
             status_code=500
         )
     
-    # ========================================================================
-    # STEP 2: PARALLEL PROCESSING
-    # RN Converter → React Native Code Generation
-    # Preview Adapter → Web Preview Generation
-    # ========================================================================
-    print("\n⚡ [STEP 2] Running RN Code Generation + Preview Adapter in PARALLEL (no API calls)...")
+    # Step 2: Parallel code generation
+    print("\n⚡ [STEP 2] Running RN Code Generation + Preview Adapter in PARALLEL...")
     
     json_truth = component_model.to_dict()
     
     async def generate_rn_task(): 
-        """Generate React Native code from component model (deterministic converter)"""
         try:
             print("🔧 [RN CONVERTER] Generating React Native code...")
             rn_files = await generate_react_native_from_json(json_truth)
@@ -624,7 +571,6 @@ async def generate_pipeline(request: Request):
             raise
     
     async def generate_preview_task():
-        """Generate web preview from component model (pass-through adapter)"""
         try:
             print("🔄 [PREVIEW ADAPTER] Generating web preview...")
             web_preview = await generate_preview_from_json(json_truth)
@@ -632,14 +578,12 @@ async def generate_pipeline(request: Request):
             return web_preview
         except Exception as e:
             print(f"⚠️  [PREVIEW ADAPTER] Preview generation failed: {e}")
-            # Fallback to pass-through
             try:
                 from preview_adapter import PreviewAdapter
                 return PreviewAdapter.to_web_preview(json_truth)
             except:
                 return json_truth
     
-    # Run both tasks in parallel
     try:
         rn_files, web_preview = await asyncio.gather(
             generate_rn_task(),
@@ -647,17 +591,13 @@ async def generate_pipeline(request: Request):
             return_exceptions=True
         )
         
-        # Handle exceptions
         if isinstance(rn_files, Exception):
-            print(f"❌ React Native generation failed: {rn_files}")
             return JSONResponse(
                 {"error": f"React Native code generation failed: {str(rn_files)}"}, 
                 status_code=500
             )
         
         if isinstance(web_preview, Exception):
-            print(f"⚠️  Preview generation exception: {web_preview}")
-            # Use raw model as fallback
             web_preview = json_truth
         
     except Exception as e:
@@ -667,9 +607,7 @@ async def generate_pipeline(request: Request):
             status_code=500
         )
     
-    # ========================================================================
-    # STEP 3: Asset Prompts (optional metadata)
-    # ========================================================================
+    # Step 3: Asset prompts
     asset_prompts = await generate_asset_prompts([
         comp for screen in screens 
         for comp in screen.get("components", [])
@@ -681,7 +619,6 @@ async def generate_pipeline(request: Request):
     print(f"   🧩 API 2 (Component): {len(all_components)} components generated")
     print(f"   🎨 API 3 (Background): Dynamic backgrounds added")
     print(f"   🔧 RN Converter: {len(rn_files)} files created")
-    print(f"   🔄 Preview Adapter: Ready")
     
     return {
         "refinement": refinement_result,
@@ -712,29 +649,12 @@ async def generate_pipeline(request: Request):
 
 @app.post("/export/react-native")
 async def export_react_native(request: Request):
-    """
-    Export React Native files as ZIP archive
-    
-    Request Body:
-        {
-            "react_native_code": {
-                "filename1.tsx": "content1",
-                "filename2.ts": "content2",
-                ...
-            }
-        }
-    
-    Returns:
-        ZIP file stream with all React Native project files
-    """
+    """Export React Native files as ZIP archive"""
     body = await request.json()
     rn_files = body.get("react_native_code", {})
     
     if not rn_files:
-        return JSONResponse(
-            {"error": "No React Native code provided"}, 
-            status_code=400
-        )
+        return JSONResponse({"error": "No React Native code provided"}, status_code=400)
     
     try:
         zip_buffer = io.BytesIO()
@@ -745,22 +665,14 @@ async def export_react_native(request: Request):
         
         zip_buffer.seek(0)
         
-        print(f"✅ Exported {len(rn_files)} React Native files as ZIP")
-        
         return StreamingResponse(
             zip_buffer,
             media_type="application/zip",
-            headers={
-                "Content-Disposition": "attachment; filename=react_native_app.zip"
-            }
+            headers={"Content-Disposition": "attachment; filename=react_native_app.zip"}
         )
     
     except Exception as e:
-        print(f"❌ Export failed: {e}")
-        return JSONResponse(
-            {"error": f"Export failed: {str(e)}"}, 
-            status_code=500
-        )
+        return JSONResponse({"error": f"Export failed: {str(e)}"}, status_code=500)
 
 
 # ============================================================================
@@ -775,7 +687,7 @@ async def get_refiner_stats():
 
 @app.post("/refine")
 async def refine_endpoint(request: Request):
-    """Standalone prompt refinement endpoint (for testing)"""
+    """Standalone prompt refinement endpoint"""
     body = await request.json()
     prompt = body.get("prompt", "")
     
@@ -784,32 +696,18 @@ async def refine_endpoint(request: Request):
     
     result = await refine_prompt(prompt)
     refiner_stats.record(result)
-    
     return result
 
 
 @app.post("/test/backgrounds")
 async def test_backgrounds(request: Request):
-    """
-    🎨 NEW: Test endpoint to preview background generation without full pipeline.
-    
-    Request Body:
-        {
-            "screen_type": "auth|ecommerce|social|dashboard|onboarding|settings",
-            "design_style": "modern|minimal|bold",
-            "theme": { "primary": "#0D9488", ... }
-        }
-    """
+    """Test background generation"""
     body = await request.json()
     
     screen_type = body.get("screen_type", "auth")
     design_style = body.get("design_style", "modern")
-    theme = body.get("theme", {
-        "primary": "#0D9488",
-        "background": "#F7FAFC"
-    })
+    theme = body.get("theme", {"primary": "#0D9488", "background": "#F7FAFC"})
     
-    # Create test screens
     test_screens = [
         {"name": "Screen1", "components": []},
         {"name": "Screen2", "components": []},
@@ -820,13 +718,8 @@ async def test_backgrounds(request: Request):
         "design_style": design_style
     }
     
-    # Generate backgrounds
     try:
-        enriched_screens = await generate_backgrounds(
-            test_screens,
-            theme,
-            design_strategy
-        )
+        enriched_screens = await generate_backgrounds(test_screens, theme, design_strategy)
         
         return {
             "success": True,
@@ -838,10 +731,7 @@ async def test_backgrounds(request: Request):
             }
         }
     except Exception as e:
-        return JSONResponse(
-            {"error": f"Background generation failed: {str(e)}"}, 
-            status_code=500
-        )
+        return JSONResponse({"error": f"Background generation failed: {str(e)}"}, status_code=500)
 
 
 @app.get("/health")
@@ -855,9 +745,9 @@ async def health_check():
         "features": {
             "intelligent_screen_assignment": True,
             "intelligent_nesting": True,
-            "dynamic_backgrounds": True,  # 🎨 NEW
+            "dynamic_backgrounds": True,
             "screen_types": ["auth", "ecommerce", "dashboard", "social", "onboarding", "settings"],
-            "background_styles": ["gradient", "geometric", "floating_shapes", "glassmorphism", "mesh_gradient", "aurora"],  # 🎨 NEW
+            "background_styles": ["gradient", "geometric", "floating_shapes", "glassmorphism", "mesh_gradient", "aurora"],
             "deterministic_generation": True,
             "fallback_strategies": ["explicit_field", "id_matching", "context_hints", "load_balancing"]
         }
@@ -927,7 +817,7 @@ def root():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler for unhandled errors"""
+    """Global exception handler"""
     print(f"❌ Unhandled exception: {exc}")
     import traceback
     traceback.print_exc()
@@ -943,11 +833,28 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 # ============================================================================
-# STARTUP EVENT
+# STARTUP/SHUTDOWN EVENTS
 # ============================================================================
 
 @app.on_event("startup")
 async def startup_event():
+    """Startup event - connect to MongoDB and show banner"""
+    # Connect to MongoDB
+    print("\n🔵 Connecting to MongoDB...")
+    await connect_to_mongo()
+    
+    # Verify connection
+    from database import Database
+    if Database.health_check():
+        print("✅ MongoDB Connected Successfully!")
+        print(f"   Database: {os.getenv('MONGODB_DB_NAME')}")
+        print(f"   Cluster: {os.getenv('MONGODB_CLUSTER', 'Unknown')}")
+    else:
+        print("❌ MongoDB Connection FAILED!")
+        print("   ⚠️  Authentication endpoints will not work!")
+        print(f"   Check your MONGODB_URL in .env file")
+    print()
+    
     print("\n" + "="*70)
     print("🚀 UI PIPELINE BETA - REACT NATIVE EDITION v2.3")
     print("="*70)
@@ -1004,11 +911,17 @@ async def startup_event():
     print("="*70 + "\n")
 
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Shutdown event - close MongoDB connection"""
+    await close_mongo_connection()
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         app, 
         host="0.0.0.0", 
-        port=8005,
+        port=8000,
         log_level="info"
     )

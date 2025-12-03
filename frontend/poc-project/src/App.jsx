@@ -1,4 +1,4 @@
-// frontend/src/App.jsx - WITH PRESET PROMPTS
+// frontend/src/App.jsx - WITH PRESET PROMPTS (workspace only)
 import React, { useState } from "react";
 import CanvasRendererLite from "./components/CanvasRendererLite";
 import CodePreview from "./components/CodePreview";
@@ -11,14 +11,16 @@ export default function App() {
   const [layout, setLayout] = useState(null);
   const [rnCode, setRnCode] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [prompt, setPrompt] = useState("Modern login and signup screens with social auth");
+  const [prompt, setPrompt] = useState(
+    "Modern login and signup screens with social auth"
+  );
   const [error, setError] = useState(null);
   const [showCode, setShowCode] = useState(false);
   const [processingStage, setProcessingStage] = useState("");
   const [enhancedPrompt, setEnhancedPrompt] = useState("");
   const [enhancing, setEnhancing] = useState(false);
-  
-  // NEW: Preset state
+
+  // Preset state
   const [inputMode, setInputMode] = useState("manual"); // "manual" or "preset"
   const [selectedPreset, setSelectedPreset] = useState(null);
 
@@ -29,7 +31,7 @@ export default function App() {
     setError(null);
 
     try {
-      const res = await fetch("http://127.0.0.1:8005/refine", {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/refine`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: prompt.trim() }),
@@ -59,7 +61,7 @@ export default function App() {
   const generate = async () => {
     // Get final prompt (from preset or manual input)
     let finalPrompt = prompt.trim();
-    
+
     if (inputMode === "preset" && selectedPreset) {
       const preset = getPresetById(selectedPreset);
       if (preset) {
@@ -77,11 +79,14 @@ export default function App() {
     setProcessingStage("Extracting intent and analyzing screens...");
 
     try {
-      const res = await fetch("http://127.0.0.1:8005/generate_pipeline", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: finalPrompt }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/generate_pipeline`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: finalPrompt }),
+        }
+      );
 
       if (!res.ok) {
         const text = await res.text();
@@ -113,9 +118,9 @@ export default function App() {
     }
   };
 
-  const toggleCodeView = () => setShowCode(!showCode);
+  const toggleCodeView = () => setShowCode((prev) => !prev);
 
-  // NEW: Handle preset selection
+  // Handle preset selection
   const handlePresetSelect = (presetId) => {
     setSelectedPreset(presetId);
     const preset = getPresetById(presetId);
@@ -127,32 +132,32 @@ export default function App() {
   const screenCount = layout?.screens?.length || 0;
   const fileCount = rnCode ? Object.keys(rnCode).length : 0;
   const originalWordCount = prompt.trim().split(/\s+/).filter(Boolean).length;
-  const enhancedWordCount = enhancedPrompt ? enhancedPrompt.trim().split(/\s+/).filter(Boolean).length : 0;
+  const enhancedWordCount = enhancedPrompt
+    ? enhancedPrompt.trim().split(/\s+/).filter(Boolean).length
+    : 0;
 
   return (
     <div className="app-container">
-      {/* Header */}
-      <header className="app-header">
-        <div className="header-content">
-          <h1 className="app-title">Mobile UI Generator</h1>
-          <p className="app-subtitle">AI-Powered Mobile User Interfaces Generator</p>
-        </div>
-      </header>
+      {/* NOTE: Global header now lives in LandingPage / Shell */}
 
       {/* Input Section */}
       <section className="input-section">
         <div className="input-card">
-          {/* NEW: Input Mode Toggle */}
+          {/* Input Mode Toggle */}
           <div className="input-mode-toggle">
             <button
               onClick={() => setInputMode("manual")}
-              className={`mode-btn ${inputMode === "manual" ? "active" : ""}`}
+              className={`mode-btn ${
+                inputMode === "manual" ? "active" : ""
+              }`}
             >
               ✍️ Write Prompt
             </button>
             <button
               onClick={() => setInputMode("preset")}
-              className={`mode-btn ${inputMode === "preset" ? "active" : ""}`}
+              className={`mode-btn ${
+                inputMode === "preset" ? "active" : ""
+              }`}
             >
               📋 Use Preset
             </button>
@@ -212,27 +217,34 @@ export default function App() {
                 </button>
 
                 {layout && (
-                  <button onClick={toggleCodeView} className="btn-secondary">
+                  <button
+                    onClick={toggleCodeView}
+                    className="btn-secondary"
+                  >
                     {showCode ? "Show Preview" : "Show Code"}
                   </button>
                 )}
 
-                {rnCode && Object.keys(rnCode).length > 0 && <ExportButton rnCode={rnCode} />}
+                {rnCode &&
+                  Object.keys(rnCode).length > 0 && (
+                    <ExportButton rnCode={rnCode} />
+                  )}
               </div>
 
               <p className="input-hint">
-                Try: Login & Signup with social auth · E-commerce grid + cart · Dashboard with sidebar
+                Try: Login & Signup with social auth · E-commerce grid + cart
+                · Dashboard with sidebar
               </p>
             </>
           )}
 
-          {/* NEW: Preset Selection Mode */}
+          {/* Preset Selection Mode */}
           {inputMode === "preset" && (
             <>
               <label className="input-label">
                 Choose a preset UI pattern:
               </label>
-              
+
               <PresetSelector
                 selectedPreset={selectedPreset}
                 onSelectPreset={handlePresetSelect}
@@ -255,16 +267,23 @@ export default function App() {
                 </button>
 
                 {layout && (
-                  <button onClick={toggleCodeView} className="btn-secondary">
+                  <button
+                    onClick={toggleCodeView}
+                    className="btn-secondary"
+                  >
                     {showCode ? "Show Preview" : "Show Code"}
                   </button>
                 )}
 
-                {rnCode && Object.keys(rnCode).length > 0 && <ExportButton rnCode={rnCode} />}
+                {rnCode &&
+                  Object.keys(rnCode).length > 0 && (
+                    <ExportButton rnCode={rnCode} />
+                  )}
               </div>
 
               <p className="input-hint">
-                💡 Tip: You can switch to "Write Prompt" mode to edit the selected preset
+                💡 Tip: You can switch to "Write Prompt" mode to edit the
+                selected preset
               </p>
             </>
           )}
@@ -308,7 +327,8 @@ export default function App() {
                 <div className="empty-icon">🎨</div>
                 <h3 className="empty-title">No UI Generated Yet</h3>
                 <p className="empty-text">
-                  Enter a prompt or select a preset, then click "Generate UI" to see your app come to life!
+                  Enter a prompt or select a preset, then click "Generate UI"
+                  to see your app come to life!
                 </p>
               </div>
             )}
