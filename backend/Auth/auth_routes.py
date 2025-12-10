@@ -1,4 +1,4 @@
-# backend/auth_routes.py - Authentication API Routes (UPDATED with Google OAuth)
+# backend/Auth/auth_routes.py - Authentication API Routes (UPDATED with Google OAuth)
 """
 FastAPI authentication endpoints with:
 - Rate limiting
@@ -14,7 +14,7 @@ from typing import Optional
 import logging
 import os
 
-from auth_models import (
+from Auth.auth_models import (
     UserSignupRequest,
     UserLoginRequest,
     TokenRefreshRequest,
@@ -29,8 +29,8 @@ from auth_models import (
     TokenResponse,
     UserResponse
 )
-from auth_service import AuthService
-from database import get_users_collection
+from Auth.auth_service import AuthService
+from db.database import get_users_collection
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ async def signup(request: UserSignupRequest, http_request: Request):
         
         # 🆕 Send verification email asynchronously
         try:
-            from email_service import EmailService
+            from Services.email_service import EmailService
             await EmailService.send_verification_email(
                 email=user["email"],
                 username=user["username"],
@@ -335,7 +335,7 @@ async def verify_token_endpoint(user: dict = Depends(get_current_user)):
 @router.get("/health")
 async def auth_health_check():
     """Check if auth system is operational"""
-    from database import Database
+    from db.database import Database
     
     db_healthy = Database.health_check()
     
@@ -361,7 +361,7 @@ async def send_verification_email(user: dict = Depends(get_current_user)):
     Only works for unverified users.
     REQUIRES AUTH: User must be logged in.
     """
-    from email_service import EmailService
+    from Services.email_service import EmailService
     
     try:
         # Check if already verified
@@ -413,7 +413,7 @@ async def confirm_email_verification(request: EmailVerificationConfirm):
        - One-time use
        - Rate limited per email
     """
-    from email_service import EmailService
+    from Services.email_service import EmailService
     
     try:
         # Verify code
@@ -453,7 +453,7 @@ async def send_password_reset_code(request: PasswordResetRequest):
     Works for both verified and unverified users.
     Returns success even if email doesn't exist (security best practice).
     """
-    from email_service import EmailService
+    from Services.email_service import EmailService
     
     try:
         # Get user to find username
@@ -488,7 +488,7 @@ async def verify_password_reset_code(request: PasswordResetCodeVerify):
     PUBLIC ENDPOINT - No authentication required.
     Returns success if code is valid.
     """
-    from email_service import EmailService
+    from Services.email_service import EmailService
     
     try:
         result = await EmailService.verify_reset_code(request.email, request.code)
@@ -521,7 +521,7 @@ async def reset_password_with_code(request: PasswordResetWithCode):
     PUBLIC ENDPOINT - No authentication required.
     Code must be valid and not expired.
     """
-    from email_service import EmailService
+    from Services.email_service import EmailService
     
     try:
         # Verify code first
@@ -561,7 +561,7 @@ async def reset_password_with_code(request: PasswordResetWithCode):
         )
         
         # Mark code as used
-        from database import Database
+        from db.database import Database
         verification_collection = Database.get_collection("email_verifications")
         verification_collection.update_many(
             {

@@ -1,4 +1,4 @@
-# backend/email_service.py - Production Email Verification & Password Reset Service
+# backend/Services/email_service.py - Production Email Verification & Password Reset Service
 """
 Handles:
 - Email verification codes (6-digit)
@@ -15,7 +15,7 @@ from typing import Optional, Dict, Any
 import logging
 import requests
 
-from database import Database
+from db.database import Database
 
 logger = logging.getLogger(__name__)
 

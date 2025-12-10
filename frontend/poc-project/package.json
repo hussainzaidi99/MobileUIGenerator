@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^8.5.3",
     "konva": "^10.0.8",
     "lucide-react": "^0.554.0",
     "react": "^19.1.1",

@@ -1,5 +1,5 @@
 """
-preview_to_react_native.py - Production-Ready Preview → React Native Converter
+backend/Services/preview_to_react_native.py - Production-Ready Preview → React Native Converter
 Converts web preview JSON directly to React Native code with 100% accuracy.
 
 Architecture:
@@ -15,15 +15,22 @@ Version: 2.3.0 PRODUCTION READY (Dynamic Backgrounds)
 Author: Generated for Project Beta UI Generator
 """
 
-from typing import Dict, List, Any, Set
+from typing import Dict, List, Any, Set, Union
 import re
 import json
 import traceback
 
+# Optional: allow passing ComponentModel instead of raw dict
+try:  # soft import; won't crash if not present
+    from Services.component_model import ComponentModel  # type: ignore
+except Exception:  # noqa: E722
+    ComponentModel = Any  # type: ignore
+
+
 class PreviewToReactNativeConverter:
     """
     Converts web preview component model to React Native code.
-   
+
     Features:
     - Direct component mapping (preview → React Native 1:1)
     - Automatic style extraction and conversion
@@ -186,11 +193,28 @@ class PreviewToReactNativeConverter:
         "notification": "bell",
     }
 
-    def __init__(self, component_model: Dict[str, Any]):
-        self.component_model = component_model
-        self.screens = component_model.get("screens", [])
-        self.theme = component_model.get("theme", {})
-        self.tokens = component_model.get("tokens", {})
+    def __init__(
+        self,
+        component_model: Union[Dict[str, Any], "ComponentModel"],  # type: ignore[name-defined]
+    ):
+        """
+        Accepts either:
+        - a plain dict (already flattened by PreviewAdapter), or
+        - a ComponentModel instance with .to_dict()
+        """
+        if isinstance(component_model, dict):
+            data = component_model or {}
+        else:
+            # very defensive: don't explode if something goes wrong here
+            try:
+                data = component_model.to_dict()  # type: ignore[attr-defined]
+            except Exception:
+                data = {}
+
+        self.component_model = data
+        self.screens = data.get("screens", [])
+        self.theme = data.get("theme", {})
+        self.tokens = data.get("tokens", {})
 
         self.used_components: Set[str] = set()
         self.used_icons: Set[str] = set()
@@ -241,7 +265,7 @@ class PreviewToReactNativeConverter:
                     tsx_code = self._generate_screen(screen)
                     rn_files[f"src/screens/{screen_name}Screen.tsx"] = tsx_code
                     print(f"✓ Generated {screen_name}Screen.tsx")
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     error_msg = (
                         f"Failed to generate screen '{screen.get('name')}': {str(e)}"
                     )
@@ -262,17 +286,17 @@ class PreviewToReactNativeConverter:
             print(f"\n✓ Successfully generated {len(rn_files)} files")
             components_used = ", ".join(sorted(self.used_components)) or "None"
             print(f"Components used: {components_used}")
-            
+
             # 🎨 NEW: Report background usage
             if self.uses_backgrounds:
-                print(f"🎨 Dynamic backgrounds: ENABLED")
+                print("🎨 Dynamic backgrounds: ENABLED")
 
             if self.warnings:
                 print(f"\n⚠ {len(self.warnings)} warnings")
             if self.errors:
                 print(f"\n✗ {len(self.errors)} errors occurred")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             error_msg = f"Critical converter error: {str(e)}"
             self.errors.append(error_msg)
             print(f"\n✗ {error_msg}")
@@ -285,15 +309,17 @@ class PreviewToReactNativeConverter:
     # -------------------------------------------------------------------------
     def _generate_screen(self, screen: Dict[str, Any]) -> str:
         screen_name = self._sanitize_name(screen.get("name", "Screen"))
-        components = screen.get("components", [])
-        
-        # 🎨 NEW: Extract background configuration
-        background_config = screen.get("background", {})
-        has_background = background_config.get("enabled", False)
-        
+        components = screen.get("components", []) or []
+
+        # 🎨 NEW: Extract + FLATTEN background configuration
+        raw_background = screen.get("background", {}) or {}
+        has_background = bool(raw_background.get("enabled"))
+        background_config: Dict[str, Any] = {}
+
         if has_background:
             self.uses_backgrounds = True
-        
+            background_config = self._flatten_background_config(raw_background)
+
         jsx_elements: List[str] = []
 
         for comp in components:
@@ -301,7 +327,7 @@ class PreviewToReactNativeConverter:
                 jsx_code = self._parse_component(comp, indent=6)
                 if jsx_code:
                     jsx_elements.append(jsx_code)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 self.warnings.append(f"Failed to parse component: {str(e)}")
 
         jsx_content = (
@@ -309,23 +335,27 @@ class PreviewToReactNativeConverter:
         )
 
         imports = self._generate_imports()
-        
+
         # 🎨 NEW: Add DynamicBackground import if backgrounds are enabled
         background_import = ""
         background_wrapper_start = ""
         background_wrapper_end = ""
         background_config_export = ""
-        
+
         if has_background:
-            background_import = "import DynamicBackground from '../components/backgrounds/DynamicBackground';"
-            
-            # Serialize background config as const
-            bg_json = json.dumps(background_config, separators=(',', ':'))
+            background_import = (
+                "import DynamicBackground from '../components/backgrounds/DynamicBackground';"
+            )
+
+            # Serialize flattened background config as const
+            bg_json = json.dumps(background_config, separators=(",", ":"))
             background_config_export = f"const backgroundConfig = {bg_json};\n"
-            
-            background_wrapper_start = "      <DynamicBackground config={backgroundConfig}>"
+
+            background_wrapper_start = (
+                "      <DynamicBackground config={backgroundConfig}>"
+            )
             background_wrapper_end = "      </DynamicBackground>"
-            
+
             # Increase indent for wrapped content
             jsx_content = "\n".join(
                 "  " + line if line.strip() else line
@@ -334,8 +364,7 @@ class PreviewToReactNativeConverter:
 
         return f"""{imports}
 {background_import}
-{background_config_export}
-export default function {screen_name}Screen() {{
+{background_config_export}export default function {screen_name}Screen() {{
   return (
     <SafeAreaView style={{styles.container}}>
 {background_wrapper_start}
@@ -362,6 +391,92 @@ const styles = StyleSheet.create({{
 """
 
     # -------------------------------------------------------------------------
+    # BACKGROUND FLATTENER
+    # -------------------------------------------------------------------------
+    def _flatten_background_config(self, raw: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize the rich background config from the preview model into the
+        small, RN-focused shape consumed by DynamicBackground.
+
+        Expected shapes (examples):
+
+        1) SIMPLE:
+        {
+          "enabled": true,
+          "type": "gradient",
+          "colors": ["#...", "#..."],
+          "opacity": 0.95,
+          "particles": true,
+          "gradientAngle": "diagonal"
+        }
+
+        2) RICH (from preview/background_generator):
+        {
+          "enabled": true,
+          "primary_style": "gradient" | "solid",
+          "gradient": {
+            "colors": [...],
+            "angle": 135,
+            "opacity": 0.9
+          },
+          "floating_shapes": { "enabled": true, ... },
+          "image": {...}   # etc.
+        }
+        """
+        if not isinstance(raw, dict) or not raw.get("enabled"):
+            # Should not be called if enabled = False, but keep it safe.
+            return {
+                "type": "solid",
+                "color": self.theme.get("background", "#F7FAFC"),
+                "opacity": 1,
+                "particles": False,
+            }
+
+        # If preview already gave us a minimal config, just use it
+        if "type" in raw:
+            return {
+                "type": raw.get("type", "solid"),
+                "color": raw.get("color"),
+                "colors": raw.get("colors"),
+                "image": raw.get("image"),
+                "opacity": raw.get("opacity", 1),
+                "particles": bool(raw.get("particles")),
+                "gradientAngle": raw.get("gradientAngle", "vertical"),
+            }
+
+        primary_style = str(raw.get("primary_style", "gradient"))
+        gradient_cfg = raw.get("gradient") or {}
+        opacity = gradient_cfg.get("opacity", 1)
+        floating_cfg = raw.get("floating_shapes") or {}
+        particles_enabled = bool(floating_cfg.get("enabled"))
+
+        if primary_style == "gradient" and gradient_cfg.get("colors"):
+            angle = gradient_cfg.get("angle", 135)
+
+            if angle in (0, 180):
+                gradient_angle = "vertical"
+            elif angle in (90, 270):
+                gradient_angle = "horizontal"
+            else:
+                gradient_angle = "diagonal"
+
+            return {
+                "type": "gradient",
+                "colors": gradient_cfg.get("colors", []),
+                "opacity": opacity,
+                "particles": particles_enabled,
+                "gradientAngle": gradient_angle,
+            }
+
+        # Fallback: solid
+        return {
+            "type": "solid",
+            "color": self.theme.get("background", "#F7FAFC"),
+            "opacity": opacity,
+            "particles": particles_enabled,
+        }
+
+    # -------------------------------------------------------------------------
     # COMPONENT DISPATCH
     # -------------------------------------------------------------------------
     def _parse_component(self, comp: Dict[str, Any], indent: int = 0) -> str:
@@ -380,114 +495,113 @@ const styles = StyleSheet.create({{
             # Layout
             if comp_type in ("container", "customcontainer"):
                 return self._generate_container(comp, children, indent)
-            elif comp_type in ("card", "customcard"):
+            if comp_type in ("card", "customcard"):
                 return self._generate_card(comp, children, indent)
-            elif comp_type in ("spacer", "customspacer"):
+            if comp_type in ("spacer", "customspacer"):
                 return self._generate_spacer(props, indent)
-            elif comp_type in ("grid", "customgrid"):
+            if comp_type in ("grid", "customgrid"):
                 return self._generate_grid(comp, children, indent)
-            elif comp_type == "stack":
+            if comp_type == "stack":
                 return self._generate_stack(children, indent)
 
             # Content
-            elif comp_type in ("header", "customheader"):
+            if comp_type in ("header", "customheader"):
                 return self._generate_header(props, indent)
-            elif comp_type in ("text", "customtext"):
+            if comp_type in ("text", "customtext"):
                 return self._generate_text(props, indent)
-            elif comp_type in ("divider", "customdivider"):
+            if comp_type in ("divider", "customdivider"):
                 return self._generate_divider(props, indent)
-            elif comp_type in ("badge", "custombadge", "chip"):
+            if comp_type in ("badge", "custombadge", "chip"):
                 return self._generate_badge(props, indent)
 
             # Input
-            elif comp_type == "iconinput":
+            if comp_type == "iconinput":
                 return self._generate_icon_input(props, indent)
-            elif comp_type == "searchinput":
+            if comp_type == "searchinput":
                 return self._generate_search_input(props, indent)
-            elif comp_type == "textinput":
+            if comp_type == "textinput":
                 is_password = bool(props.get("secure"))
                 return self._generate_text_input(props, is_password, indent)
-            elif comp_type == "passwordinput":
+            if comp_type == "passwordinput":
                 return self._generate_text_input(props, True, indent)
-            elif comp_type in ("checkbox", "customcheckbox"):
+            if comp_type in ("checkbox", "customcheckbox"):
                 return self._generate_checkbox(props, indent)
-            elif comp_type == "switch":
+            if comp_type == "switch":
                 return self._generate_switch(props, indent)
 
             # Buttons
-            elif comp_type == "button":
+            if comp_type == "button":
                 if props.get("gradient"):
                     return self._generate_gradient_button(props, indent)
                 return self._generate_button(props, indent)
-            elif comp_type == "gradientbutton":
+            if comp_type == "gradientbutton":
                 return self._generate_gradient_button(props, indent)
-            elif comp_type == "socialbutton":
+            if comp_type == "socialbutton":
                 return self._generate_social_button(props, indent)
-            elif comp_type == "iconbutton":
+            if comp_type == "iconbutton":
                 return self._generate_icon_button(props, indent)
-            elif comp_type == "floatingactionbutton":
+            if comp_type == "floatingactionbutton":
                 return self._generate_fab(props, indent)
-            elif comp_type in ("linkbutton", "link"):
+            if comp_type in ("linkbutton", "link"):
                 return self._generate_link_button(props, indent)
 
             # Media
-            elif comp_type in ("image", "customimage"):
+            if comp_type in ("image", "customimage"):
                 return self._generate_image(props, indent)
-            elif comp_type in ("avatar", "customavatar"):
+            if comp_type in ("avatar", "customavatar"):
                 return self._generate_avatar(props, indent)
-            elif comp_type == "illustrationheader":
+            if comp_type == "illustrationheader":
                 return self._generate_illustration_header(props, indent)
-            elif comp_type in ("hero", "herosection"):
+            if comp_type in ("hero", "herosection"):
                 return self._generate_hero_section(props, indent)
-            elif comp_type == "imagegallery":
+            if comp_type == "imagegallery":
                 return self._generate_image_gallery(props, indent)
 
             # Navigation
-            elif comp_type in ("appbar", "customappbar"):
+            if comp_type in ("appbar", "customappbar"):
                 return self._generate_appbar(props, indent)
-            elif comp_type in ("tabbar", "customtabbar"):
+            if comp_type in ("tabbar", "customtabbar"):
                 return self._generate_tabbar(props, indent)
 
             # Special / e-comm
-            elif comp_type == "productcard":
+            if comp_type == "productcard":
                 return self._generate_product_card(props, indent)
-            elif comp_type == "cartitem":
+            if comp_type == "cartitem":
                 return self._generate_cart_item(props, indent)
-            elif comp_type == "pricebreakdown":
+            if comp_type == "pricebreakdown":
                 return self._generate_price_breakdown(props, indent)
-            elif comp_type == "statcard":
+            if comp_type == "statcard":
                 return self._generate_stat_card(props, indent)
-            elif comp_type == "progressbar":
+            if comp_type == "progressbar":
                 return self._generate_progress_bar(props, indent)
-            elif comp_type == "formsection":
+            if comp_type == "formsection":
                 return self._generate_form_section(comp, children, indent)
-            elif comp_type == "listitem":
+            if comp_type == "listitem":
                 return self._generate_list_item(props, indent)
-            elif comp_type == "alert":
+            if comp_type == "alert":
                 return self._generate_alert(props, indent)
-            elif comp_type == "emptystate":
+            if comp_type == "emptystate":
                 return self._generate_empty_state(props, indent)
-            elif comp_type == "rating":
+            if comp_type == "rating":
                 return self._generate_rating(props, indent)
-            elif comp_type == "quantitycontrol":
+            if comp_type == "quantitycontrol":
                 return self._generate_quantity_control(props, indent)
 
             # Fallback: container
-            elif children:
+            if children:
                 return self._generate_container(comp, children, indent)
-            else:
-                self.warnings.append(f"Unknown component: {comp_type}")
-                return ""
 
-        except Exception as e:
+            self.warnings.append(f"Unknown component: {comp_type}")
+            return ""
+        except Exception as e:  # noqa: BLE001
             self.warnings.append(f"Error generating {comp_type}: {str(e)}")
             return ""
 
     # -------------------------------------------------------------------------
     # LAYOUT
     # -------------------------------------------------------------------------
-    def _generate_container(self, comp: Dict, children: List, indent: int) -> str:
-        props = comp.get("props", {})
+    def _generate_container(self, comp: Dict[str, Any], children: List[Any], indent: int) -> str:
+        props = comp.get("props", {}) or {}
         padding = self._safe_number(props.get("padding"), 16)
         direction = props.get("direction", "column")
         gap = self._safe_number(props.get("gap"), 0)
@@ -503,14 +617,14 @@ const styles = StyleSheet.create({{
         indent_str = " " * indent
 
         return (
-            f"{indent_str}<View style={{{{ padding: {padding}, "
-            f"flexDirection: '{flex_direction}'{gap_style} }}}}>\n"
+            f"{indent_str}<View style={{ padding: {padding}, "
+            f"flexDirection: '{flex_direction}'{gap_style} }}>\n"
             f"{children_content}\n"
             f"{indent_str}</View>"
         )
 
-    def _generate_card(self, comp: Dict, children: List, indent: int) -> str:
-        props = comp.get("props", {})
+    def _generate_card(self, comp: Dict[str, Any], children: List[Any], indent: int) -> str:
+        props = comp.get("props", {}) or {}
         padding = self._safe_number(props.get("padding"), 20)
         elevation = props.get("elevation", "md")
         elevation_map = {"none": 0, "sm": 2, "md": 4, "lg": 8, "xl": 12}
@@ -525,31 +639,30 @@ const styles = StyleSheet.create({{
         indent_str = " " * indent
 
         return (
-            f"{indent_str}<Card style={{{{ padding: {padding}, "
-            f"elevation: {elevation_value} }}}}>\n"
+            f"{indent_str}<Card style={{ padding: {padding}, "
+            f"elevation: {elevation_value} }}>\n"
             f"{children_content}\n"
             f"{indent_str}</Card>"
         )
 
-    def _generate_spacer(self, props: Dict, indent: int) -> str:
+    def _generate_spacer(self, props: Dict[str, Any], indent: int) -> str:
         height = self._safe_number(props.get("height"), 16)
         indent_str = " " * indent
-        return f"{indent_str}<View style={{{{ height: {height} }}}} />"
+        return f"{indent_str}<View style={{ height: {height} }} />"
 
-    def _generate_grid(self, comp: Dict, children: List, indent: int) -> str:
-        """FIXED: Simplified grid using flexWrap instead of complex FlatList"""
-        props = comp.get("props", {})
+    def _generate_grid(self, comp: Dict[str, Any], children: List[Any], indent: int) -> str:
+        """Simplified grid using flexWrap instead of complex FlatList"""
+        props = comp.get("props", {}) or {}
         columns = int(self._safe_number(props.get("columns"), 2))
         gap = self._safe_number(props.get("gap"), 16)
 
-        child_jsx = []
+        child_jsx: List[str] = []
         for child in children:
-            item_jsx = self._parse_component(child, indent + 2).strip()
+            item_jsx = self._parse_component(child, indent + 4).strip()
             if item_jsx:
-                # Wrap each child in a flex container with proper width
                 width_percent = (100 / columns) - (gap * (columns - 1) / columns)
                 child_jsx.append(
-                    f"{' ' * (indent + 2)}<View style={{{{ width: '{width_percent}%', marginBottom: {gap} }}}}>\n"
+                    f"{' ' * (indent + 2)}<View style={{ width: '{width_percent}%', marginBottom: {gap} }}>\n"
                     f"{' ' * (indent + 4)}{item_jsx}\n"
                     f"{' ' * (indent + 2)}</View>"
                 )
@@ -559,12 +672,11 @@ const styles = StyleSheet.create({{
 
         children_content = "\n".join(child_jsx)
         indent_str = " " * indent
-
-        return f"""{indent_str}<View style={{{{ flexDirection: 'row', flexWrap: 'wrap', gap: {gap} }}}}>
+        return f"""{indent_str}<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: {gap} }}>
 {children_content}
 {indent_str}</View>"""
 
-    def _generate_stack(self, children: List, indent: int) -> str:
+    def _generate_stack(self, children: List[Any], indent: int) -> str:
         child_jsx = [self._parse_component(c, indent + 2) for c in children]
         child_jsx = [c for c in child_jsx if c]
         if not child_jsx:
@@ -573,7 +685,7 @@ const styles = StyleSheet.create({{
         children_content = "\n".join(child_jsx)
         indent_str = " " * indent
         return (
-            f"{indent_str}<View style={{{{ position: 'relative' }}}}>\n"
+            f"{indent_str}<View style={{ position: 'relative' }}>\n"
             f"{children_content}\n"
             f"{indent_str}</View>"
         )
@@ -581,7 +693,7 @@ const styles = StyleSheet.create({{
     # -------------------------------------------------------------------------
     # CONTENT
     # -------------------------------------------------------------------------
-    def _generate_header(self, props: Dict, indent: int) -> str:
+    def _generate_header(self, props: Dict[str, Any], indent: int) -> str:
         title = self._escape_string(props.get("title", "Header"))
         size = props.get("size", "xl")
         align = props.get("align", "left")
@@ -596,11 +708,11 @@ const styles = StyleSheet.create({{
         }
         font_size = font_sizes.get(size, 24)
         indent_str = " " * indent
-        return f"""{indent_str}<Text style={{{{ fontSize: {font_size}, fontWeight: 'bold', textAlign: '{align}' }}}}>
+        return f"""{indent_str}<Text style={{ fontSize: {font_size}, fontWeight: 'bold', textAlign: '{align}' }}>
 {indent_str}  {title}
 {indent_str}</Text>"""
 
-    def _generate_text(self, props: Dict, indent: int) -> str:
+    def _generate_text(self, props: Dict[str, Any], indent: int) -> str:
         text = self._escape_string(props.get("text", ""))
         size = props.get("size", "base")
         color = props.get("color", "text")
@@ -612,22 +724,22 @@ const styles = StyleSheet.create({{
         elif color == "error":
             text_color = "theme.colors.error"
         indent_str = " " * indent
-        return f"""{indent_str}<Text style={{{{ fontSize: {font_size}, color: {text_color} }}}}>
+        return f"""{indent_str}<Text style={{ fontSize: {font_size}, color: {text_color} }}>
 {indent_str}  {text}
 {indent_str}</Text>"""
 
-    def _generate_divider(self, props: Dict, indent: int) -> str:
+    def _generate_divider(self, props: Dict[str, Any], indent: int) -> str:
         text = props.get("text")
         indent_str = " " * indent
         if text:
-            return f"""{indent_str}<View style={{{{ flexDirection: 'row', alignItems: 'center', marginVertical: 16 }}}}>
-{indent_str}  <Divider style={{{{ flex: 1 }}}} />
-{indent_str}  <Text style={{{{ marginHorizontal: 16, color: theme.colors.textSecondary }}}}>{self._escape_string(text)}</Text>
-{indent_str}  <Divider style={{{{ flex: 1 }}}} />
+            return f"""{indent_str}<View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 16 }}>
+{indent_str}  <Divider style={{ flex: 1 }} />
+{indent_str}  <Text style={{ marginHorizontal: 16, color: theme.colors.textSecondary }}>{self._escape_string(text)}</Text>
+{indent_str}  <Divider style={{ flex: 1 }} />
 {indent_str}</View>"""
-        return f"{indent_str}<Divider style={{{{ marginVertical: 8 }}}} />"
+        return f"{indent_str}<Divider style={{ marginVertical: 8 }} />"
 
-    def _generate_badge(self, props: Dict, indent: int) -> str:
+    def _generate_badge(self, props: Dict[str, Any], indent: int) -> str:
         text = self._escape_string(props.get("text", "Badge"))
         color = props.get("color", "blue")
         color_map = {
@@ -641,16 +753,16 @@ const styles = StyleSheet.create({{
         badge_color = color_map.get(color, "#3B82F6")
         indent_str = " " * indent
         return f"""{indent_str}<Chip
-{indent_str}  style={{{{ backgroundColor: '{badge_color}20', borderColor: '{badge_color}' }}}}
-{indent_str}  textStyle={{{{ color: '{badge_color}', fontSize: 12, fontWeight: '600' }}}}
+{indent_str}  style={{ backgroundColor: '{badge_color}20', borderColor: '{badge_color}' }}
+{indent_str}  textStyle={{ color: '{badge_color}', fontSize: 12, fontWeight: '600' }}
 >
 {indent_str}  {text}
 {indent_str}</Chip>"""
 
-# -------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # INPUT (WITH STATE MANAGEMENT)
     # -------------------------------------------------------------------------
-    def _generate_icon_input(self, props: Dict, indent: int) -> str:
+    def _generate_icon_input(self, props: Dict[str, Any], indent: int) -> str:
         self.uses_state = True
         icon = props.get("icon", "email")
         label = self._escape_string(props.get("label", ""))
@@ -658,11 +770,10 @@ const styles = StyleSheet.create({{
         icon_name = self._map_icon(icon)
         self.used_icons.add(icon_name)
         indent_str = " " * indent
-        
-        # Add state management
+
         state_id = f"input{self.style_counter}"
         self.style_counter += 1
-        
+
         return f"""{indent_str}(() => {{
 {indent_str}  const [{state_id}, set{state_id.capitalize()}] = React.useState('');
 {indent_str}  return (
@@ -673,19 +784,19 @@ const styles = StyleSheet.create({{
 {indent_str}      value={{{state_id}}}
 {indent_str}      onChangeText={{set{state_id.capitalize()}}}
 {indent_str}      left={{<TextInput.Icon icon="{icon_name}" />}}
-{indent_str}      style={{{{ marginBottom: 16 }}}}
+{indent_str}      style={{ marginBottom: 16 }}
 {indent_str}    />
 {indent_str}  );
-{indent_str})()}}"""
+{indent_str}}})()"""
 
-    def _generate_search_input(self, props: Dict, indent: int) -> str:
+    def _generate_search_input(self, props: Dict[str, Any], indent: int) -> str:
         self.uses_state = True
         placeholder = self._escape_string(props.get("placeholder", "Search..."))
         indent_str = " " * indent
-        
+
         state_id = f"search{self.style_counter}"
         self.style_counter += 1
-        
+
         return f"""{indent_str}(() => {{
 {indent_str}  const [{state_id}, set{state_id.capitalize()}] = React.useState('');
 {indent_str}  return (
@@ -693,25 +804,34 @@ const styles = StyleSheet.create({{
 {indent_str}      placeholder="{placeholder}"
 {indent_str}      onChangeText={{set{state_id.capitalize()}}}
 {indent_str}      value={{{state_id}}}
-{indent_str}      style={{{{ marginBottom: 16 }}}}
+{indent_str}      style={{ marginBottom: 16 }}
 {indent_str}    />
 {indent_str}  );
-{indent_str})()}}"""
+{indent_str}}})()"""
 
-    def _generate_text_input(self, props: Dict, is_password: bool, indent: int) -> str:
+    def _generate_text_input(
+        self,
+        props: Dict[str, Any],
+        is_password: bool,
+        indent: int,
+    ) -> str:
         self.uses_state = True
         label = self._escape_string(props.get("label", ""))
         placeholder = self._escape_string(props.get("placeholder", ""))
         indent_str = " " * indent
-        
+
         state_id = f"input{self.style_counter}"
         self.style_counter += 1
-        
+
         secure_attr = ""
         right_icon = ""
         if is_password:
-            secure_attr = "\n" + indent_str + f"      secureTextEntry={{true}}"
-            right_icon = "\n" + indent_str + f'      right={{<TextInput.Icon icon="eye" />}}'
+            secure_attr = "\n" + indent_str + "      secureTextEntry={true}"
+            right_icon = (
+                "\n"
+                + indent_str
+                + '      right={<TextInput.Icon icon="eye" />}'
+            )
 
         return f"""{indent_str}(() => {{
 {indent_str}  const [{state_id}, set{state_id.capitalize()}] = React.useState('');
@@ -722,54 +842,54 @@ const styles = StyleSheet.create({{
 {indent_str}      placeholder="{placeholder}"
 {indent_str}      value={{{state_id}}}
 {indent_str}      onChangeText={{set{state_id.capitalize()}}}{secure_attr}{right_icon}
-{indent_str}      style={{{{ marginBottom: 16 }}}}
+{indent_str}      style={{ marginBottom: 16 }}
 {indent_str}    />
 {indent_str}  );
-{indent_str})()}}"""
+{indent_str}}})()"""
 
-    def _generate_checkbox(self, props: Dict, indent: int) -> str:
+    def _generate_checkbox(self, props: Dict[str, Any], indent: int) -> str:
         self.uses_state = True
         label = self._escape_string(props.get("label", "Checkbox"))
         indent_str = " " * indent
-        
+
         state_id = f"checked{self.style_counter}"
         self.style_counter += 1
-        
+
         return f"""{indent_str}(() => {{
 {indent_str}  const [{state_id}, set{state_id.capitalize()}] = React.useState(false);
 {indent_str}  return (
-{indent_str}    <View style={{{{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}}}>
+{indent_str}    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
 {indent_str}      <Checkbox 
-{indent_str}        status={{{state_id} ? 'checked' : 'unchecked'}}
+{indent_str}        status={{{{ {state_id} ? 'checked' : 'unchecked' }}}}
 {indent_str}        onPress={{() => set{state_id.capitalize()}(!{state_id})}}
 {indent_str}      />
-{indent_str}      <Text style={{{{ marginLeft: 8 }}}}>{label}</Text>
+{indent_str}      <Text style={{ marginLeft: 8 }}>{label}</Text>
 {indent_str}    </View>
 {indent_str}  );
-{indent_str})()}}"""
+{indent_str}}})()"""
 
-    def _generate_switch(self, props: Dict, indent: int) -> str:
+    def _generate_switch(self, props: Dict[str, Any], indent: int) -> str:
         self.uses_state = True
         label = self._escape_string(props.get("label", "Switch"))
         indent_str = " " * indent
-        
+
         state_id = f"switch{self.style_counter}"
         self.style_counter += 1
-        
+
         return f"""{indent_str}(() => {{
 {indent_str}  const [{state_id}, set{state_id.capitalize()}] = React.useState(false);
 {indent_str}  return (
-{indent_str}    <View style={{{{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}}}>
+{indent_str}    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
 {indent_str}      <Text>{label}</Text>
 {indent_str}      <Switch value={{{state_id}}} onValueChange={{set{state_id.capitalize()}}} />
 {indent_str}    </View>
 {indent_str}  );
-{indent_str})()}}"""
+{indent_str}}})()"""
 
     # -------------------------------------------------------------------------
     # BUTTONS
     # -------------------------------------------------------------------------
-    def _generate_button(self, props: Dict, indent: int) -> str:
+    def _generate_button(self, props: Dict[str, Any], indent: int) -> str:
         text = self._escape_string(props.get("text", "Button"))
         variant = props.get("variant", "contained")
         size = props.get("size", "md")
@@ -782,19 +902,19 @@ const styles = StyleSheet.create({{
         )
         size_map = {"sm": 32, "md": 44, "lg": 56}
         content_style = (
-            f'contentStyle={{{{ height: {size_map.get(size, 44)} }}}}'
+            f"contentStyle={{{{ height: {size_map.get(size, 44)} }}}}"
         )
         indent_str = " " * indent
         return f"""{indent_str}<Button
 {indent_str}  mode="{mode}"
 {indent_str}  {content_style}
-{indent_str}  style={{{{ marginBottom: 12 }}}}
+{indent_str}  style={{ marginBottom: 12 }}
 {indent_str}  onPress={{() => {{}}}}
 >
 {indent_str}  {text}
 {indent_str}</Button>"""
 
-    def _generate_gradient_button(self, props: Dict, indent: int) -> str:
+    def _generate_gradient_button(self, props: Dict[str, Any], indent: int) -> str:
         text = self._escape_string(props.get("text", "Button"))
         gradient = props.get("gradient", "teal")
         gradient_map = {
@@ -821,7 +941,7 @@ const styles = StyleSheet.create({{
 {indent_str}  </Button>
 {indent_str}</LinearGradient>"""
 
-    def _generate_social_button(self, props: Dict, indent: int) -> str:
+    def _generate_social_button(self, props: Dict[str, Any], indent: int) -> str:
         provider = props.get("provider", "Google")
         icon = self._map_icon(provider.lower())
         self.used_icons.add(icon)
@@ -836,7 +956,7 @@ const styles = StyleSheet.create({{
 {indent_str}  Continue with {provider}
 {indent_str}</Button>"""
 
-    def _generate_icon_button(self, props: Dict, indent: int) -> str:
+    def _generate_icon_button(self, props: Dict[str, Any], indent: int) -> str:
         icon = props.get("icon", "plus")
         icon_name = self._map_icon(icon)
         self.used_icons.add(icon_name)
@@ -846,7 +966,7 @@ const styles = StyleSheet.create({{
             f'onPress={{() => {{}}}} />'
         )
 
-    def _generate_fab(self, props: Dict, indent: int) -> str:
+    def _generate_fab(self, props: Dict[str, Any], indent: int) -> str:
         icon = props.get("icon", "plus")
         icon_name = self._map_icon(icon)
         self.used_icons.add(icon_name)
@@ -857,7 +977,7 @@ const styles = StyleSheet.create({{
 {indent_str}  onPress={{() => {{}}}}
 />"""
 
-    def _generate_link_button(self, props: Dict, indent: int) -> str:
+    def _generate_link_button(self, props: Dict[str, Any], indent: int) -> str:
         text = self._escape_string(props.get("text", "Link"))
         align = props.get("align", "left")
         text_align = (
@@ -866,8 +986,8 @@ const styles = StyleSheet.create({{
         indent_str = " " * indent
         return f"""{indent_str}<Button
 {indent_str}  mode="text"
-{indent_str}  style={{{{ alignSelf: '{align}' }}}}
-{indent_str}  labelStyle={{{{ textAlign: '{text_align}' }}}}
+{indent_str}  style={{ alignSelf: '{align}' }}
+{indent_str}  labelStyle={{ textAlign: '{text_align}' }}
 {indent_str}  onPress={{() => {{}}}}
 >
 {indent_str}  {text}
@@ -876,23 +996,23 @@ const styles = StyleSheet.create({{
     # -------------------------------------------------------------------------
     # MEDIA
     # -------------------------------------------------------------------------
-    def _generate_image(self, props: Dict, indent: int) -> str:
+    def _generate_image(self, props: Dict[str, Any], indent: int) -> str:
         border_radius = self._safe_number(props.get("borderRadius"), 8)
         height = self._safe_number(props.get("height"), 200)
         indent_str = " " * indent
 
-        return f"""{indent_str}<View style={{{{
+        return f"""{indent_str}<View style={{
 {indent_str}  height: {height},
 {indent_str}  backgroundColor: '#E5E7EB',
 {indent_str}  borderRadius: {border_radius},
 {indent_str}  justifyContent: 'center',
 {indent_str}  alignItems: 'center',
 {indent_str}  marginBottom: 16
-}}}}>
+}}>
 {indent_str}  <Icon name="image" size={{64}} color="#9CA3AF" />
 {indent_str}</View>"""
 
-    def _generate_avatar(self, props: Dict, indent: int) -> str:
+    def _generate_avatar(self, props: Dict[str, Any], indent: int) -> str:
         name = self._escape_string(props.get("name", "User"))
         size = self._safe_number(props.get("size"), 48)
         initial = name[0].upper() if name else "U"
@@ -903,7 +1023,7 @@ const styles = StyleSheet.create({{
 {indent_str}  style={{{{ marginBottom: 12 }}}}
 />"""
 
-    def _generate_illustration_header(self, props: Dict, indent: int) -> str:
+    def _generate_illustration_header(self, props: Dict[str, Any], indent: int) -> str:
         indent_str = " " * indent
         title = self._escape_string(props.get("title", "Welcome"))
         subtitle = self._escape_string(props.get("subtitle", ""))
@@ -921,7 +1041,7 @@ const styles = StyleSheet.create({{
 {indent_str}  <Text style={{{{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginTop: 24 }}}}>{title}</Text>{subtitle_jsx}
 {indent_str}</View>"""
 
-    def _generate_hero_section(self, props: Dict, indent: int) -> str:
+    def _generate_hero_section(self, props: Dict[str, Any], indent: int) -> str:
         indent_str = " " * indent
         self.uses_linear_gradient = True
 
@@ -955,7 +1075,7 @@ const styles = StyleSheet.create({{
 {indent_str}  }}}}>{subtitle}</Text>
 {indent_str}</LinearGradient>"""
 
-    def _generate_image_gallery(self, props: Dict, indent: int) -> str:
+    def _generate_image_gallery(self, props: Dict[str, Any], indent: int) -> str:
         indent_str = " " * indent
         indent2 = indent_str + "  "
         indent4 = indent2 + "  "
@@ -989,7 +1109,7 @@ const styles = StyleSheet.create({{
     # -------------------------------------------------------------------------
     # NAVIGATION
     # -------------------------------------------------------------------------
-    def _generate_appbar(self, props: Dict, indent: int) -> str:
+    def _generate_appbar(self, props: Dict[str, Any], indent: int) -> str:
         indent_str = " " * indent
         title = self._escape_string(props.get("title", "App"))
         show_back = props.get("back", False)
@@ -1020,7 +1140,7 @@ const styles = StyleSheet.create({{
 {menu_action}
 {indent_str}</Appbar.Header>"""
 
-    def _generate_tabbar(self, props: Dict, indent: int) -> str:
+    def _generate_tabbar(self, props: Dict[str, Any], indent: int) -> str:
         tabs = props.get("tabs", ["Home", "Search", "Profile"])
         routes = ", ".join(
             [
@@ -1038,7 +1158,7 @@ const styles = StyleSheet.create({{
     # -------------------------------------------------------------------------
     # SPECIAL / E-COMMERCE
     # -------------------------------------------------------------------------
-    def _generate_product_card(self, props: Dict, indent: int) -> str:
+    def _generate_product_card(self, props: Dict[str, Any], indent: int) -> str:
         indent_str = " " * indent
         title = self._escape_string(props.get("title", "Premium Product"))
         price = self._escape_string(props.get("price", "$99.99"))
@@ -1063,7 +1183,7 @@ const styles = StyleSheet.create({{
 {indent_str} name={{i < {rating} ? 'star' : 'star-outline'}}
 {indent_str} size={{16}}
 {indent_str} color="#F59E0B"
-{indent_str} />
+/>
 {indent_str} ))}}
 {indent_str} </View>"""
         return f"""{indent_str}<Card mode="elevated" style={{{{ marginBottom: 16 }}}} onPress={{() => {{}}}}>
@@ -1080,7 +1200,7 @@ const styles = StyleSheet.create({{
 {indent_str} </Card.Content>
 {indent_str}</Card>"""
 
-    def _generate_cart_item(self, props: Dict, indent: int) -> str:
+    def _generate_cart_item(self, props: Dict[str, Any], indent: int) -> str:
         title = self._escape_string(props.get("title", "Item"))
         price = self._escape_string(props.get("price", "$0.00"))
         quantity = int(self._safe_number(props.get("quantity"), 1))
@@ -1104,7 +1224,7 @@ const styles = StyleSheet.create({{
 {indent_str} </Card.Content>
 {indent_str}</Card>"""
 
-    def _generate_price_breakdown(self, props: Dict, indent: int) -> str:
+    def _generate_price_breakdown(self, props: Dict[str, Any], indent: int) -> str:
         subtotal = self._escape_string(props.get("subtotal", "$0.00"))
         shipping = self._escape_string(props.get("shipping", "$0.00"))
         tax = self._escape_string(props.get("tax", "$0.00"))
@@ -1129,7 +1249,7 @@ const styles = StyleSheet.create({{
 {indent_str} </Card.Content>
 {indent_str}</Card>"""
 
-    def _generate_stat_card(self, props: Dict, indent: int) -> str:
+    def _generate_stat_card(self, props: Dict[str, Any], indent: int) -> str:
         value = self._escape_string(props.get("value", "0"))
         label = self._escape_string(props.get("label", "Stat"))
         color = props.get("color", "blue")
@@ -1149,7 +1269,7 @@ const styles = StyleSheet.create({{
 {indent_str} </Card.Content>
 {indent_str}</Card>"""
 
-    def _generate_progress_bar(self, props: Dict, indent: int) -> str:
+    def _generate_progress_bar(self, props: Dict[str, Any], indent: int) -> str:
         indent_str = " " * indent
         value = self._safe_number(props.get("value"), 0)
         label = props.get("label", "")
@@ -1174,8 +1294,8 @@ const styles = StyleSheet.create({{
 {label_jsx}{indent_str} <ProgressBar progress={{{progress_value}}} color="{bar_color}" style={{{{ height: 12, borderRadius: 8 }}}} />
 {indent_str}</View>"""
 
-    def _generate_form_section(self, comp: Dict, children: List, indent: int) -> str:
-        props = comp.get("props", {})
+    def _generate_form_section(self, comp: Dict[str, Any], children: List[Any], indent: int) -> str:
+        props = comp.get("props", {}) or {}
         title = self._escape_string(props.get("title", "Section"))
         child_jsx = [self._parse_component(c, indent + 2) for c in children]
         child_jsx = [c for c in child_jsx if c]
@@ -1188,7 +1308,7 @@ const styles = StyleSheet.create({{
 {children_content}
 {indent_str}</View>"""
 
-    def _generate_list_item(self, props: Dict, indent: int) -> str:
+    def _generate_list_item(self, props: Dict[str, Any], indent: int) -> str:
         title = self._escape_string(props.get("title", "Item"))
         subtitle = props.get("subtitle", "")
         icon = props.get("icon", "")
@@ -1201,7 +1321,7 @@ const styles = StyleSheet.create({{
                 f'left={{props => <List.Icon {{...props}} icon="{icon_name}" />}}'
             )
         right_icon = (
-            'right={props => <List.Icon {...props} icon="chevron-right" />}'
+            "right={props => <List.Icon {...props} icon=\"chevron-right\" />}"
             if trailing == "chevron-right"
             else "right={props => <Switch value={false} />}"
         )
@@ -1218,7 +1338,7 @@ const styles = StyleSheet.create({{
 {indent_str} style={{{{ marginBottom: 8 }}}}
 />"""
 
-    def _generate_alert(self, props: Dict, indent: int) -> str:
+    def _generate_alert(self, props: Dict[str, Any], indent: int) -> str:
         message = self._escape_string(props.get("message", "Alert"))
         alert_type = props.get("type", "info")
         icon = self._map_icon(alert_type)
@@ -1228,7 +1348,7 @@ const styles = StyleSheet.create({{
 {indent_str}  {message}
 {indent_str}</Banner>"""
 
-    def _generate_empty_state(self, props: Dict, indent: int) -> str:
+    def _generate_empty_state(self, props: Dict[str, Any], indent: int) -> str:
         indent_str = " " * indent
         title = self._escape_string(props.get("title", "No items"))
         subtitle = props.get("subtitle", "")
@@ -1245,21 +1365,24 @@ const styles = StyleSheet.create({{
 {indent_str} <Text style={{{{ fontSize: 20, fontWeight: '600', marginTop: 16, textAlign: 'center' }}}}>{title}</Text>{subtitle_jsx}
 {indent_str}</View>"""
 
-    def _generate_rating(self, props: Dict, indent: int) -> str:
+    def _generate_rating(self, props: Dict[str, Any], indent: int) -> str:
         indent_str = " " * indent
         value = int(self._safe_number(props.get("value"), 4))
         max_rating = int(self._safe_number(props.get("max"), 5))
         reviews = props.get("reviews", "")
         reviews_text = ""
         if reviews:
-            reviews_text = f"\n{indent_str}  <Text style={{marginLeft: 8, color: theme.colors.textSecondary}}>({self._escape_string(str(reviews))} reviews)</Text>"
+            reviews_text = (
+                f"\n{indent_str}  <Text style={{marginLeft: 8, color: theme.colors.textSecondary}}>"
+                f"({self._escape_string(str(reviews))} reviews)</Text>"
+            )
         return f"""{indent_str}<View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
 {indent_str}  {{[...Array({max_rating})].map((_, i) => (
 {indent_str}    <Icon key={{i}} name={{i < {value} ? "star" : "star-outline"}} size={{20}} color="#F59E0B" />
 {indent_str}  ))}}{reviews_text}
 {indent_str}</View>"""
 
-    def _generate_quantity_control(self, props: Dict, indent: int) -> str:
+    def _generate_quantity_control(self, props: Dict[str, Any], indent: int) -> str:
         quantity = int(self._safe_number(props.get("quantity"), 1))
         indent_str = " " * indent
         return f"""{indent_str}<View style={{{{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 8, paddingHorizontal: 4 }}}}>
@@ -1272,6 +1395,7 @@ const styles = StyleSheet.create({{
     # DYNAMIC BACKGROUND COMPONENT (v2.3)
     # -------------------------------------------------------------------------
     def _generate_dynamic_background_component(self) -> str:
+        # NOTE: theme import path fixed to ../../theme
         return """import React from 'react';
 import { View, StyleSheet, Dimensions, ImageBackground } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -1283,7 +1407,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { BlurView } from '@react-native-community/blur';
-import { theme } from '../theme';
+import { theme } from '../../theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -1404,38 +1528,31 @@ export default DynamicBackground;
         return self.ICON_MAP.get(icon_lower, icon_lower)
 
     def _generate_imports(self) -> str:
+        """
+        Generate imports for a screen TSX.
+
+        Simplified: always import React Native Paper + Icon.
+        This avoids weird cases where a component is used but not detected.
+        """
         base = (
             "import React from 'react';\n"
             "import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';"
         )
-        paper_imports: List[str] = []
-        needed_paper = [
-            "Card", "Button", "TextInput", "Searchbar", "Checkbox", "Switch",
-            "Chip", "Divider", "Avatar", "FAB", "IconButton", "List",
-            "Banner", "ProgressBar", "Appbar", "BottomNavigation",
-        ]
-        for comp in needed_paper:
-            if comp in self.used_components:
-                paper_imports.append(comp)
         paper_line = (
-            f"import {{ {', '.join(paper_imports)} }} from 'react-native-paper';"
-            if paper_imports
-            else ""
+            "import { Card, Button, TextInput, Searchbar, Checkbox, Switch, "
+            "Chip, Divider, Avatar, FAB, IconButton, List, Banner, ProgressBar, "
+            "Appbar, BottomNavigation } from 'react-native-paper';"
         )
         gradient = ""
         if self.uses_linear_gradient:
             gradient = "import LinearGradient from 'react-native-linear-gradient';"
-        icons = ""
-        if self.used_icons:
-            icons = "import Icon from 'react-native-vector-icons/MaterialCommunityIcons';"
+        icons = "import Icon from 'react-native-vector-icons/MaterialCommunityIcons';"
         theme = "import { theme } from '../theme';"
-        lines = [base]
-        if paper_line:
-            lines.append(paper_line)
+
+        lines = [base, paper_line]
         if gradient:
             lines.append(gradient)
-        if icons:
-            lines.append(icons)
+        lines.append(icons)
         lines.append(theme)
         return "\n".join(lines)
 
@@ -1470,18 +1587,23 @@ export default DynamicBackground;
             r, g, b = [int(hex_color[i : i + 2], 16) for i in (0, 2, 4)]
             r, g, b = [max(0, int(c * 0.8)) for c in (r, g, b)]
             return f"#{r:02x}{g:02x}{b:02x}"
-        except:
+        except Exception:  # noqa: BLE001
             return "#000000"
 
     def _escape_string(self, s: Any) -> str:
         if not isinstance(s, str):
             s = str(s)
-        return s.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace('"', '\\"')
+        return (
+            s.replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\n", "\\n")
+            .replace('"', '\\"')
+        )
 
     def _safe_number(self, value: Any, default: float = 0) -> float:
         try:
             return float(value) if value is not None else default
-        except Exception:
+        except Exception:  # noqa: BLE001
             return default
 
     def _sanitize_name(self, name: str) -> str:
@@ -1552,6 +1674,8 @@ export default function RootNavigator() {{
 """
 
     def _generate_complete_component_library(self) -> str:
+        # NOTE: theme import path fixed to ../../theme
+        # NOTE: DynamicBackground re-export path fixed to ../backgrounds/...
         return """// Complete UI Component Library for React Native
 // All custom components used throughout the app
 import React from 'react';
@@ -1559,7 +1683,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Card, Button, TextInput, Avatar, Chip } from 'react-native-paper';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { theme } from '../theme';
+import { theme } from '../../theme';
 
 // Custom Components
 export const GradientButton = ({ text, colors, onPress, style }) => (
@@ -1588,7 +1712,7 @@ export const SocialButton = ({ provider, icon, onPress, style }) => (
 );
 
 // Export DynamicBackground
-export { default as DynamicBackground } from './backgrounds/DynamicBackground';
+export { default as DynamicBackground } from '../backgrounds/DynamicBackground';
 
 const styles = StyleSheet.create({
   gradientButton: { borderRadius: 8, marginBottom: 12 },
@@ -1636,7 +1760,8 @@ const styles = StyleSheet.create({
 
     def _generate_app_json(self) -> str:
         return json.dumps(
-            {"name": "GeneratedRNApp", "displayName": "Generated RN App"}, indent=2
+            {"name": "GeneratedRNApp", "displayName": "Generated RN App"},
+            indent=2,
         )
 
     def _generate_gitignore(self) -> str:
@@ -1649,10 +1774,13 @@ android/app/build/
 """
 
     def _generate_readme(self) -> str:
-        screen_list = "\n".join(
-            f"- **{self._sanitize_name(s.get('name', 'Screen'))}Screen** → `src/screens/{self._sanitize_name(s.get('name', 'Screen'))}Screen.tsx`"
-            for s in self.screens
-        ) or "- HomeScreen"
+        screen_list = (
+            "\n".join(
+                f"- **{self._sanitize_name(s.get('name', 'Screen'))}Screen** → `src/screens/{self._sanitize_name(s.get('name', 'Screen'))}Screen.tsx`"
+                for s in self.screens
+            )
+            or "- HomeScreen"
+        )
 
         bg_status = "ENABLED" if self.uses_backgrounds else "DISABLED"
 
@@ -1664,38 +1792,4 @@ android/app/build/
 - React Native Paper + custom theme
 - Ready-to-use navigation
 - Animated DynamicBackground (gradient / image / particles / blur)
-- 100% deterministic output
-
-### Generated Screens
-{screen_list}
-
-### How to run
-```bash
-npm install
-# or
-yarn install
-
-npx react-native start
-npx react-native run-android   # or run-ios
-```
-
-### Project Structure
-```
-src/
-├── screens/          # All screen components
-├── components/
-│   ├── ui/          # UI component library
-│   └── backgrounds/ # DynamicBackground component
-├── theme/           # Theme configuration
-└── navigation/      # Navigation setup
-```
-
-### Dynamic Backgrounds
-Each screen can have a custom background configuration:
-- **Solid**: Single color background
-- **Gradient**: Linear gradients (vertical/horizontal/diagonal)
-- **Image**: Background image with optional blur
-- **Particles**: Animated floating particles
-
-Generated by Project Beta UI Generator v2.3.0
 """

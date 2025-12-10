@@ -1,18 +1,20 @@
-# backend/database.py - MongoDB Connection & Configuration
+# backend/db/database.py - FIXED with get_db() method
 """
 Production-grade MongoDB configuration with:
 - Connection pooling
 - Retry logic
 - Health checks
 - Index management
+- get_db() method for accessing database instance
 """
 
 import os
 from typing import Optional
-from pymongo import MongoClient, ASCENDING, IndexModel
+from pymongo import MongoClient, ASCENDING
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from dotenv import load_dotenv
 import logging
+import time
 
 load_dotenv()
 
@@ -33,42 +35,87 @@ class Database:
 
     client: Optional[MongoClient] = None
     db = None
+    _connection_attempts = 0
+    _max_retries = 3
 
     @classmethod
     def connect(cls):
         """Establish MongoDB connection with retry logic"""
-        try:
-            cls.client = MongoClient(
-                MONGODB_URL,
-                maxPoolSize=MAX_POOL_SIZE,
-                minPoolSize=MIN_POOL_SIZE,
-                maxIdleTimeMS=MAX_IDLE_TIME_MS,
-                serverSelectionTimeoutMS=5000,   # 5 second timeout
-                connectTimeoutMS=10000,          # 10 second connection timeout
-                retryWrites=True,
-                retryReads=True,
-            )
+        
+        for attempt in range(1, cls._max_retries + 1):
+            try:
+                logger.info(f"🔄 MongoDB connection attempt {attempt}/{cls._max_retries}...")
+                
+                cls.client = MongoClient(
+                    MONGODB_URL,
+                    maxPoolSize=MAX_POOL_SIZE,
+                    minPoolSize=MIN_POOL_SIZE,
+                    maxIdleTimeMS=MAX_IDLE_TIME_MS,
+                    serverSelectionTimeoutMS=10000,
+                    connectTimeoutMS=20000,
+                    socketTimeoutMS=20000,
+                    retryWrites=True,
+                    retryReads=True,
+                )
 
-            # Test connection
-            cls.client.admin.command("ping")
+                # Test connection with admin command
+                cls.client.admin.command("ping")
+                
+                # Get database reference
+                cls.db = cls.client[MONGODB_DB_NAME]
+                
+                # Verify we can actually access the database
+                cls.db.list_collection_names()
 
-            cls.db = cls.client[MONGODB_DB_NAME]
+                # Create indexes AFTER successful connection
+                cls._create_indexes()
 
-            # Create indexes
-            cls._create_indexes()
+                logger.info(f"✅ Connected to MongoDB: {MONGODB_DB_NAME}")
+                cls._connection_attempts = attempt
+                return True
 
-            logger.info(f"✅ Connected to MongoDB: {MONGODB_DB_NAME}")
-            return True
+            except (ConnectionFailure, ServerSelectionTimeoutError) as e:
+                logger.error(f"❌ MongoDB connection failed (attempt {attempt}/{cls._max_retries}): {e}")
+                
+                # Clean up failed connection
+                if cls.client:
+                    try:
+                        cls.client.close()
+                    except:
+                        pass
+                    cls.client = None
+                    cls.db = None
+                
+                # Wait before retry
+                if attempt < cls._max_retries:
+                    time.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    logger.error("❌ All MongoDB connection attempts failed!")
+                    return False
+                    
+            except Exception as e:
+                logger.error(f"❌ Unexpected MongoDB error: {e}")
+                cls.client = None
+                cls.db = None
+                return False
+        
+        return False
 
-        except (ConnectionFailure, ServerSelectionTimeoutError) as e:
-            logger.error(f"❌ MongoDB connection failed: {e}")
-            return False
+    @classmethod
+    def get_db(cls):
+        """
+        Get database instance.
+        This method is required by TierManager and payment routes.
+        """
+        if cls.db is None:
+            raise RuntimeError("Database not connected. Call connect() first.")
+        return cls.db
 
     @classmethod
     def _create_indexes(cls):
         """Create database indexes for performance"""
-        # ✅ FIXED: Check if db is None instead of using bool()
         if cls.db is None:
+            logger.warning("⚠️ Cannot create indexes - database not connected")
             return
 
         try:
@@ -96,6 +143,26 @@ class Database:
                 name="created_at_idx",
             )
 
+            # Tier index (for tier management)
+            users_collection.create_index(
+                [("tier", ASCENDING)],
+                name="tier_idx",
+            )
+
+            # Next credit reset index (for background jobs)
+            users_collection.create_index(
+                [("next_credit_reset", ASCENDING)],
+                sparse=True,
+                name="next_credit_reset_idx",
+            )
+
+            # Tier end date index (for expiration checks)
+            users_collection.create_index(
+                [("tier_end_date", ASCENDING)],
+                sparse=True,
+                name="tier_end_date_idx",
+            )
+
             # ============================
             # Sessions collection indexes
             # ============================
@@ -110,7 +177,7 @@ class Database:
             # Expires at index with TTL (auto-delete expired sessions)
             sessions_collection.create_index(
                 [("expires_at", ASCENDING)],
-                expireAfterSeconds=0,  # Delete when expires_at is reached
+                expireAfterSeconds=0,
                 name="expires_at_ttl_idx",
             )
 
@@ -136,28 +203,28 @@ class Database:
             # TTL index (auto-delete after 24 hours)
             login_attempts_collection.create_index(
                 [("created_at", ASCENDING)],
-                expireAfterSeconds=86400,  # 24 hours
+                expireAfterSeconds=86400,
                 name="login_attempts_ttl_idx",
             )
 
             # ==========================================
-            # 🆕 Email verifications collection indexes
+            # Email verifications collection indexes
             # ==========================================
             email_verifications_collection = cls.db.email_verifications
 
-            # Email + type index (e.g. "signup", "password_reset")
+            # Email + type index
             email_verifications_collection.create_index(
                 [("email", ASCENDING), ("type", ASCENDING)],
                 name="email_type_idx",
             )
 
-            # User ID index (fast lookup per user)
+            # User ID index
             email_verifications_collection.create_index(
                 [("user_id", ASCENDING)],
                 name="user_id_idx",
             )
 
-            # Code index (for quick lookups by verification code)
+            # Code index
             email_verifications_collection.create_index(
                 [("code", ASCENDING)],
                 name="code_idx",
@@ -166,26 +233,31 @@ class Database:
             # TTL index (auto-delete expired codes after 1 hour)
             email_verifications_collection.create_index(
                 [("expires_at", ASCENDING)],
-                expireAfterSeconds=3600,  # 1 hour after expiration
+                expireAfterSeconds=3600,
                 name="verifications_ttl_idx",
             )
 
             logger.info("✅ Database indexes created successfully")
 
         except Exception as e:
-            logger.error(f"⚠️  Index creation warning: {e}")
+            logger.error(f"⚠️ Index creation warning: {e}")
 
     @classmethod
     def disconnect(cls):
         """Close MongoDB connection"""
         if cls.client is not None:
-            cls.client.close()
-            logger.info("🔌 MongoDB connection closed")
+            try:
+                cls.client.close()
+                logger.info("🔌 MongoDB connection closed")
+            except Exception as e:
+                logger.error(f"Error closing MongoDB connection: {e}")
+            finally:
+                cls.client = None
+                cls.db = None
 
     @classmethod
     def get_collection(cls, name: str):
         """Get a collection by name"""
-        # ✅ FIXED: Check if db is None instead of using bool()
         if cls.db is None:
             raise RuntimeError("Database not connected. Call connect() first.")
         return cls.db[name]
@@ -194,11 +266,26 @@ class Database:
     def health_check(cls) -> bool:
         """Check if database connection is healthy"""
         try:
+            # Check if client exists
             if cls.client is None:
+                logger.warning("Health check failed: No client")
                 return False
+            
+            # Check if db exists
+            if cls.db is None:
+                logger.warning("Health check failed: No database")
+                return False
+                
+            # Ping the database
             cls.client.admin.command("ping")
+            
+            # Try to list collections
+            cls.db.list_collection_names()
+            
             return True
-        except Exception:
+            
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
             return False
 
 
@@ -231,7 +318,10 @@ def get_email_verifications_collection():
 # Startup/Shutdown handlers
 async def connect_to_mongo():
     """FastAPI startup handler"""
-    Database.connect()
+    success = Database.connect()
+    if not success:
+        logger.error("⚠️ WARNING: MongoDB connection failed! Auth features will not work.")
+    return success
 
 
 async def close_mongo_connection():

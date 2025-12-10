@@ -1,4 +1,4 @@
-# backend/auth_models.py - Pydantic Models for Authentication
+# backend/Auth/auth_models.py - Pydantic Models for Authentication
 # (UPDATED with Google OAuth, Email Verification & Reset Code models)
 """
 Type-safe authentication models with validation

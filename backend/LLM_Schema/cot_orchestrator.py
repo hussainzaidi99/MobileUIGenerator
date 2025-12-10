@@ -1,4 +1,4 @@
-# backend/cot_orchestrator.py - Category-Based Chain-of-Thought Orchestration
+# backend/LLM_Schema/cot_orchestrator.py - Category-Based Chain-of-Thought Orchestration
 """
 Smart CoT selection system that dynamically loads relevant examples based on screen categories.
 Optimized for DeepSeek API with generous token limits.

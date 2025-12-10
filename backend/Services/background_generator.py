@@ -1,4 +1,4 @@
-# backend/background_generator.py
+# backend/Services/background_generator.py
 """
 Dynamic Background Generation System
 Generates context-aware background configurations for mobile screens

@@ -1,33 +1,39 @@
-# backend/component_model.py
+# backend/Services/component_model.py
 from typing import Dict, Any, List, Optional
 import json
+
+# Import normalizer so all models are in consistent shape
+from LLM_Schema.normalize import normalize_layout
+
 
 class ComponentModel:
     """
     Manages the component model (single source of truth).
     In Beta, we don't persist to DB - just in-memory management.
     """
-    
+
     def __init__(self, layout: Dict[str, Any]):
-        self.layout = layout
-        self.screens = layout.get("screens", [])
-        self.theme = layout.get("theme", {})
-        self.tokens = layout.get("tokens", {})
-    
+        # 🔐 Always normalize input so downstream code gets a stable shape
+        normalized = normalize_layout(layout or {})
+        self.layout = normalized
+        self.screens = normalized.get("screens", [])
+        self.theme = normalized.get("theme", {})
+        self.tokens = normalized.get("tokens", {})
+
     def get_screen_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """Get a specific screen by name"""
         for screen in self.screens:
             if screen.get("name") == name:
                 return screen
         return None
-    
+
     def get_component_by_id(self, component_id: str) -> Optional[Dict[str, Any]]:
         """Find component by ID across all screens"""
         for screen in self.screens:
             for comp in self._find_in_tree(screen.get("components", []), component_id):
                 return comp
         return None
-    
+
     def _find_in_tree(self, components: List[Dict], target_id: str) -> List[Dict]:
         """Recursively search component tree"""
         results = []
@@ -41,15 +47,15 @@ class ComponentModel:
             if isinstance(children, list):
                 results.extend(self._find_in_tree(children, target_id))
         return results
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Export as dictionary"""
         return {
             "screens": self.screens,
             "theme": self.theme,
-            "tokens": self.tokens
+            "tokens": self.tokens,
         }
-    
+
     def to_json(self) -> str:
         """Export as JSON string"""
         return json.dumps(self.to_dict(), indent=2)

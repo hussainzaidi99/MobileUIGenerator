@@ -1,3 +1,4 @@
+#backend/Services/style_enricher.py
 THEME_PALETTES = {
     "teal":   {"primary": "#0D9488", "background": "#F7FAFC", "surface": "#FFFFFF", "text": "#0F172A"},
     "blue":   {"primary": "#2563EB", "background": "#F8FAFF", "surface": "#FFFFFF", "text": "#0B1220"},
