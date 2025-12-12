@@ -6,6 +6,7 @@ Optimized for DeepSeek API with generous token limits.
 
 import re
 from typing import List, Dict, Set, Tuple
+from LLM_Schema.image_guidance_system import enhance_prompt_with_images
 
 ###############################################################################
 # 📚 CATEGORY-SPECIFIC CoT LIBRARIES
@@ -753,6 +754,63 @@ def print_library_overview():
 
 
 ###############################################################################
+# 🖼️ IMAGE GUIDANCE INTEGRATION
+###############################################################################    
+def get_enhanced_prompt_with_images(
+    base_prompt: str,
+    user_prompt: str,
+    design_strategy: Dict = None
+) -> str:
+    """
+    Enhanced version of get_enhanced_prompt() that includes image selection guidance.
+    
+    Args:
+        base_prompt: The original compact prompt template
+        user_prompt: User's input prompt
+        design_strategy: Optional design strategy from intent extraction
+        
+    Returns:
+        Enhanced prompt with CoT examples AND image guidance
+    """
+    
+    # Step 1: Detect categories
+    categories = detect_categories(user_prompt, design_strategy)
+    
+    # Step 2: Build CoT section
+    cot_section = build_cot_prompt(categories, max_categories=3)
+    
+    # Step 3: Combine base prompt + CoT
+    if cot_section:
+        combined = f"""{base_prompt}
+
+# ==========================================
+# 📚 RELEVANT EXAMPLES & PATTERNS
+# ==========================================
+
+{cot_section}"""
+    else:
+        combined = base_prompt
+    
+    # Step 4: Add image selection guidance
+    enhanced = enhance_prompt_with_images(combined, categories)
+    
+    # Step 5: Add user task
+    enhanced += f"""
+
+# ==========================================
+# 🎯 YOUR TASK
+# ==========================================
+
+Now analyze this user prompt and apply the relevant patterns above:
+
+USER INPUT: {user_prompt}
+
+OUTPUT (strict JSON with proper image URLs):"""
+    
+    return enhanced
+
+
+###############################################################################
 # 🚀 EXPORT PUBLIC API
 ###############################################################################
 
@@ -761,6 +819,7 @@ __all__ = [
     "detect_categories",
     "build_cot_prompt",
     "get_enhanced_prompt",
+    "get_enhanced_prompt_with_images",
     
     # Testing
     "test_category_detection",

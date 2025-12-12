@@ -1,13 +1,14 @@
-# backend/services/tier_manager.py - FIXED with datetime serialization
+# backend/Services/tier_manager.py - FIXED with timezone awareness
 """
 Free Tier Management System
-FIXED: Properly converts datetime objects to ISO strings for JSON serialization
+FIXED: Properly handles timezone-aware and naive datetime objects
 """
 
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional, List
 import logging
 from bson import ObjectId
+from motor.motor_asyncio import AsyncIOMotorClient
 
 from db.database import Database
 
@@ -53,6 +54,31 @@ TIER_CONFIG = {
 }
 
 
+# ============================================================================
+# 🔧 HELPER FUNCTION - TIMEZONE FIX
+# ============================================================================
+
+def make_aware(dt):
+    """
+    Convert naive datetime to timezone-aware (UTC).
+    If already aware, return as-is.
+    """
+    if dt is None:
+        return None
+    
+    # Check if datetime is naive (no timezone info)
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        # Make it UTC-aware
+        return dt.replace(tzinfo=timezone.utc)
+    
+    # Already aware, return as-is
+    return dt
+
+
+# ============================================================================
+# TIER MANAGER CLASS
+# ============================================================================
+
 class TierManager:
     """Manages user tiers and credit allocations"""
     
@@ -74,12 +100,12 @@ class TierManager:
         return None
     
     @staticmethod
-    def get_free_tier_count() -> int:
+    async def get_free_tier_count() -> int:
         """Get current number of free-tier users"""
         db = Database.get_db()
         users_collection = db["users"]
         
-        count = users_collection.count_documents({
+        count = await users_collection.count_documents({
             "tier": "free",
             "is_active": True
         })
@@ -87,13 +113,13 @@ class TierManager:
         return count
     
     @staticmethod
-    def can_add_free_tier_user() -> bool:
+    async def can_add_free_tier_user() -> bool:
         """Check if we can add a new free-tier user"""
-        current_count = TierManager.get_free_tier_count()
+        current_count = await TierManager.get_free_tier_count()
         return current_count < FREE_TIER_LIMIT
     
     @staticmethod
-    def initialize_user_tier(user_id: str) -> Dict:
+    async def initialize_user_tier(user_id: str) -> Dict:
         """Initialize tier for a new user"""
         db = Database.get_db()
         users_collection = db["users"]
@@ -102,7 +128,7 @@ class TierManager:
         object_id = TierManager._to_object_id(user_id)
         
         # Check if we can assign free tier
-        can_assign_free = TierManager.can_add_free_tier_user()
+        can_assign_free = await TierManager.can_add_free_tier_user()
         
         now = datetime.now(timezone.utc)
         
@@ -122,7 +148,7 @@ class TierManager:
                 }]
             }
             
-            users_collection.update_one(
+            await users_collection.update_one(
                 {"_id": object_id},
                 {"$set": tier_data}
             )
@@ -151,7 +177,7 @@ class TierManager:
                 }]
             }
             
-            users_collection.update_one(
+            await users_collection.update_one(
                 {"_id": object_id},
                 {"$set": tier_data}
             )
@@ -167,7 +193,7 @@ class TierManager:
             }
     
     @staticmethod
-    def upgrade_user_tier(
+    async def upgrade_user_tier(
         user_id: str,
         new_tier: str,
         credits_to_add: int,
@@ -186,7 +212,7 @@ class TierManager:
                 "error": "Invalid tier"
             }
         
-        user = users_collection.find_one({"_id": object_id})
+        user = await users_collection.find_one({"_id": object_id})
         if not user:
             return {
                 "success": False,
@@ -212,7 +238,7 @@ class TierManager:
             "total_spent": user.get("total_spent", 0) + purchase_info.get("price", 0),
         }
         
-        users_collection.update_one(
+        await users_collection.update_one(
             {"_id": object_id},
             {
                 "$set": update_data,
@@ -239,7 +265,7 @@ class TierManager:
         }
     
     @staticmethod
-    def downgrade_expired_tiers() -> List[Dict]:
+    async def downgrade_expired_tiers() -> List[Dict]:
         """Background job: Check and downgrade expired paid tiers"""
         db = Database.get_db()
         users_collection = db["users"]
@@ -247,7 +273,7 @@ class TierManager:
         now = datetime.now(timezone.utc)
         
         # Find users with expired paid tiers
-        expired_users = list(users_collection.find({
+        expired_users = await list(users_collection.find({
             "tier": {"$in": ["basic", "pro", "premium"]},
             "tier_end_date": {"$lt": now}
         }))
@@ -279,7 +305,7 @@ class TierManager:
             # Update user
             reset_time = now + timedelta(days=FREE_TIER_RESET_INTERVAL_DAYS) if new_tier == "free" else None
             
-            users_collection.update_one(
+            await users_collection.update_one(
                 {"_id": user_id},
                 {
                     "$set": {
@@ -314,7 +340,7 @@ class TierManager:
         return downgraded
     
     @staticmethod
-    def reset_free_tier_credits() -> List[Dict]:
+    async def reset_free_tier_credits() -> List[Dict]:
         """Background job: Reset credits for free-tier users"""
         db = Database.get_db()
         users_collection = db["users"]
@@ -322,7 +348,7 @@ class TierManager:
         now = datetime.now(timezone.utc)
         
         # Find free-tier users due for credit reset
-        users_to_reset = list(users_collection.find({
+        users_to_reset = await list(users_collection.find({
             "tier": "free",
             "is_active": True,
             "next_credit_reset": {"$lte": now}
@@ -336,7 +362,7 @@ class TierManager:
             # Reset credits to 5
             next_reset = now + timedelta(days=FREE_TIER_RESET_INTERVAL_DAYS)
             
-            users_collection.update_one(
+            await users_collection.update_one(
                 {"_id": user_id},
                 {
                     "$set": {
@@ -368,8 +394,8 @@ class TierManager:
         return reset_results
     
     @staticmethod
-    def get_user_tier_info(user_id: str) -> Optional[Dict]:
-        """Get detailed tier information for a user - RETURNS JSON-SERIALIZABLE DATA"""
+    async def get_user_tier_info(user_id: str) -> Optional[Dict]:
+        """Get detailed tier information for a user - FIXED timezone issue"""
         db = Database.get_db()
         users_collection = db["users"]
         
@@ -380,7 +406,7 @@ class TierManager:
             logger.error(f"Invalid user_id format: {user_id}")
             return None
         
-        user = users_collection.find_one({"_id": object_id})
+        user = await users_collection.find_one({"_id": object_id})
         if not user:
             logger.warning(f"User not found: {user_id}")
             return None
@@ -388,11 +414,22 @@ class TierManager:
         tier = user.get("tier", "limited")
         tier_config = TIER_CONFIG.get(tier, {})
         
-        # Calculate days remaining
+        # 🔧 FIX: Make sure tier_end_date is timezone-aware before calculation
         tier_end_date = user.get("tier_end_date")
         days_remaining = None
+        
         if tier_end_date:
-            days_remaining = (tier_end_date - datetime.now(timezone.utc)).days
+            try:
+                # Make both datetimes timezone-aware
+                tier_end_date_aware = make_aware(tier_end_date)
+                now_aware = datetime.now(timezone.utc)
+                
+                # Now we can safely subtract them
+                delta = tier_end_date_aware - now_aware
+                days_remaining = max(0, delta.days)
+            except Exception as e:
+                logger.error(f"Failed to calculate days_remaining: {e}")
+                days_remaining = None
         
         # Return with all datetime fields serialized
         return {

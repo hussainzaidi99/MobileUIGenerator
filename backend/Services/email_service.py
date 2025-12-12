@@ -614,6 +614,432 @@ The {APP_NAME} Team
         }
 
     # ----------------------------------------------------------------------
+    # PAYMENT NOTIFICATIONS
+    # ----------------------------------------------------------------------
+
+    @staticmethod
+    async def send_payment_success_email(
+        email: str,
+        username: str,
+        package_name: str,
+        credits_purchased: float,
+        amount_paid: float,
+        new_balance: float,
+        transaction_id: str
+    ) -> bool:
+        """
+        Send payment success confirmation email with receipt.
+        """
+        subject = f"🎉 Payment Successful - {credits_purchased} Credits Added!"
+
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background: #f8fafc;
+                }}
+                .container {{
+                    background: white;
+                    border-radius: 20px;
+                    padding: 40px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    text-align: center;
+                    margin-bottom: 30px;
+                }}
+                .success-icon {{
+                    width: 80px;
+                    height: 80px;
+                    background: linear-gradient(135deg, #10B981, #059669);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 20px;
+                    font-size: 40px;
+                }}
+                h1 {{
+                    color: #0f172a;
+                    font-size: 28px;
+                    margin: 0 0 10px 0;
+                }}
+                .subtitle {{
+                    color: #64748b;
+                    font-size: 16px;
+                }}
+                .receipt {{
+                    background: linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%);
+                    border: 2px solid #10B981;
+                    border-radius: 16px;
+                    padding: 30px;
+                    margin: 30px 0;
+                }}
+                .receipt-row {{
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 12px 0;
+                    border-bottom: 1px solid #d1fae5;
+                }}
+                .receipt-row:last-child {{
+                    border-bottom: none;
+                    padding-top: 20px;
+                    margin-top: 10px;
+                    border-top: 2px solid #10B981;
+                    font-weight: bold;
+                    font-size: 18px;
+                }}
+                .receipt-label {{
+                    color: #065f46;
+                    font-weight: 600;
+                }}
+                .receipt-value {{
+                    color: #0f172a;
+                    font-weight: 600;
+                }}
+                .balance-highlight {{
+                    background: linear-gradient(135deg, #0D9488, #14B8A6);
+                    color: white;
+                    padding: 25px;
+                    border-radius: 16px;
+                    text-align: center;
+                    margin: 30px 0;
+                }}
+                .balance-label {{
+                    font-size: 14px;
+                    opacity: 0.9;
+                    margin-bottom: 10px;
+                }}
+                .balance-amount {{
+                    font-size: 36px;
+                    font-weight: 800;
+                    margin: 10px 0;
+                }}
+                .cta-button {{
+                    display: inline-block;
+                    background: linear-gradient(135deg, #0D9488, #14B8A6);
+                    color: white;
+                    padding: 16px 40px;
+                    border-radius: 12px;
+                    text-decoration: none;
+                    font-weight: 700;
+                    font-size: 16px;
+                    margin: 20px 0;
+                }}
+                .footer {{
+                    margin-top: 40px;
+                    padding-top: 30px;
+                    border-top: 2px solid #e2e8f0;
+                    text-align: center;
+                    color: #64748b;
+                    font-size: 14px;
+                }}
+                .transaction-id {{
+                    background: #f1f5f9;
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin-top: 20px;
+                    font-size: 12px;
+                    color: #64748b;
+                    text-align: center;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="success-icon">✓</div>
+                    <h1>Payment Successful!</h1>
+                    <p class="subtitle">Thank you for your purchase, {username}</p>
+                </div>
+
+                <div class="receipt">
+                    <h2 style="color: #065f46; margin-top: 0;">Purchase Receipt</h2>
+                    
+                    <div class="receipt-row">
+                        <span class="receipt-label">Package:</span>
+                        <span class="receipt-value">{package_name}</span>
+                    </div>
+                    
+                    <div class="receipt-row">
+                        <span class="receipt-label">Credits Purchased:</span>
+                        <span class="receipt-value">{credits_purchased} Credits</span>
+                    </div>
+                    
+                    <div class="receipt-row">
+                        <span class="receipt-label">Amount Paid:</span>
+                        <span class="receipt-value">${amount_paid:.2f} USD</span>
+                    </div>
+                    
+                    <div class="receipt-row">
+                        <span class="receipt-label">New Balance:</span>
+                        <span class="receipt-value">{new_balance:.2f} Credits</span>
+                    </div>
+                </div>
+
+                <div class="balance-highlight">
+                    <div class="balance-label">Your Current Balance</div>
+                    <div class="balance-amount">{new_balance:.2f} Credits</div>
+                    <p style="margin: 15px 0 0 0; opacity: 0.95;">
+                        ≈ {int(new_balance * 70000):,} tokens available
+                    </p>
+                </div>
+
+                <div style="text-align: center;">
+                    <a href="{FRONTEND_URL}/app" class="cta-button">
+                        Start Generating UIs →
+                    </a>
+                </div>
+
+                <div class="transaction-id">
+                    <strong>Transaction ID:</strong> {transaction_id}
+                </div>
+
+                <div class="footer">
+                    <p><strong>Need help?</strong> Contact us at support@example.com</p>
+                    <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
+                        This is an automated receipt from {APP_NAME}<br>
+                        Please keep this email for your records.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        text = f"""
+Payment Successful!
+
+Hi {username},
+
+Thank you for your purchase! Your payment has been processed successfully.
+
+PURCHASE RECEIPT
+================
+Package: {package_name}
+Credits Purchased: {credits_purchased} Credits
+Amount Paid: ${amount_paid:.2f} USD
+New Balance: {new_balance:.2f} Credits
+
+YOUR CURRENT BALANCE
+{new_balance:.2f} Credits (≈ {int(new_balance * 70000):,} tokens)
+
+Start generating UIs now: {FRONTEND_URL}/app
+
+Transaction ID: {transaction_id}
+
+Need help? Contact us at support@example.com
+
+Best regards,
+The {APP_NAME} Team
+        """.strip()
+
+        result = _send_email_via_resend(email, subject, html, text)
+
+        if result["success"]:
+            logger.info("✅ Payment success email sent to %s", email)
+            return True
+
+        logger.error("❌ Failed to send payment success email to %s", email)
+        return False
+
+    @staticmethod
+    async def send_payment_failed_email(
+        email: str,
+        username: str,
+        package_name: str,
+        amount: float,
+        reason: str = "Payment was cancelled or declined"
+    ) -> bool:
+        """
+        Send payment failure notification email.
+        """
+        subject = f"Payment Unsuccessful - {APP_NAME}"
+
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background: #f8fafc;
+                }}
+                .container {{
+                    background: white;
+                    border-radius: 20px;
+                    padding: 40px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    text-align: center;
+                    margin-bottom: 30px;
+                }}
+                .warning-icon {{
+                    width: 80px;
+                    height: 80px;
+                    background: linear-gradient(135deg, #F59E0B, #F97316);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 20px;
+                    font-size: 40px;
+                }}
+                h1 {{
+                    color: #0f172a;
+                    font-size: 28px;
+                    margin: 0 0 10px 0;
+                }}
+                .subtitle {{
+                    color: #64748b;
+                    font-size: 16px;
+                }}
+                .info-box {{
+                    background: #fef3c7;
+                    border: 2px solid #F59E0B;
+                    border-radius: 16px;
+                    padding: 25px;
+                    margin: 30px 0;
+                }}
+                .info-row {{
+                    padding: 10px 0;
+                    color: #92400e;
+                }}
+                .cta-button {{
+                    display: inline-block;
+                    background: linear-gradient(135deg, #0D9488, #14B8A6);
+                    color: white;
+                    padding: 16px 40px;
+                    border-radius: 12px;
+                    text-decoration: none;
+                    font-weight: 700;
+                    font-size: 16px;
+                    margin: 20px 0;
+                }}
+                .help-section {{
+                    background: #f8fafc;
+                    padding: 25px;
+                    border-radius: 12px;
+                    margin: 30px 0;
+                }}
+                .footer {{
+                    margin-top: 40px;
+                    padding-top: 30px;
+                    border-top: 2px solid #e2e8f0;
+                    text-align: center;
+                    color: #64748b;
+                    font-size: 14px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div class="warning-icon">⚠️</div>
+                    <h1>Payment Unsuccessful</h1>
+                    <p class="subtitle">We couldn't process your payment</p>
+                </div>
+
+                <p style="color: #64748b; font-size: 16px; text-align: center;">
+                    Hi <strong>{username}</strong>, we were unable to complete your purchase.
+                </p>
+
+                <div class="info-box">
+                    <div class="info-row">
+                        <strong>Package:</strong> {package_name}
+                    </div>
+                    <div class="info-row">
+                        <strong>Amount:</strong> ${amount:.2f} USD
+                    </div>
+                    <div class="info-row">
+                        <strong>Status:</strong> {reason}
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h3 style="color: #0f172a; margin-top: 0;">What can you do?</h3>
+                    <ul style="color: #64748b; line-height: 2;">
+                        <li>Try a different payment method</li>
+                        <li>Check your card details and billing address</li>
+                        <li>Contact your bank if the issue persists</li>
+                        <li>Reach out to our support team for assistance</li>
+                    </ul>
+                </div>
+
+                <div style="text-align: center;">
+                    <a href="{FRONTEND_URL}/pricing" class="cta-button">
+                        Try Again →
+                    </a>
+                </div>
+
+                <div class="footer">
+                    <p><strong>Need help?</strong> Contact us at support@example.com</p>
+                    <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
+                        No charges were made to your account.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        text = f"""
+Payment Unsuccessful
+
+Hi {username},
+
+We were unable to complete your purchase.
+
+PAYMENT DETAILS
+===============
+Package: {package_name}
+Amount: ${amount:.2f} USD
+Status: {reason}
+
+WHAT CAN YOU DO?
+- Try a different payment method
+- Check your card details and billing address
+- Contact your bank if the issue persists
+- Reach out to our support team for assistance
+
+Try again: {FRONTEND_URL}/pricing
+
+Need help? Contact us at support@example.com
+
+Note: No charges were made to your account.
+
+Best regards,
+The {APP_NAME} Team
+        """.strip()
+
+        result = _send_email_via_resend(email, subject, html, text)
+
+        if result["success"]:
+            logger.info("✅ Payment failed email sent to %s", email)
+            return True
+
+        logger.error("❌ Failed to send payment failed email to %s", email)
+        return False
+
+    # ----------------------------------------------------------------------
     # GOOGLE-ONLY USER NOTIFICATION
     # ----------------------------------------------------------------------
 

@@ -162,11 +162,11 @@ class AuthService:
         users_collection = get_users_collection()
         
         # Check if user exists
-        existing_user = users_collection.find_one({"email": email.lower()})
+        existing_user = await users_collection.find_one({"email": email.lower()})
         if existing_user:
             raise ValueError("Email already registered")
         
-        existing_username = users_collection.find_one({"username": username.lower()})
+        existing_username = await users_collection.find_one({"username": username.lower()})
         if existing_username:
             raise ValueError("Username already taken")
         
@@ -193,14 +193,14 @@ class AuthService:
         }
         
         # Insert user first
-        result = users_collection.insert_one(user_doc)
+        result = await users_collection.insert_one(user_doc)
         user_id = result.inserted_id
         
         # 🆕 Initialize tier (free tier if available, limited otherwise)
         tier_result = await TierManager.initialize_user_tier(user_id)
         
         # Fetch updated user with tier info
-        user_doc = users_collection.find_one({"_id": user_id})
+        user_doc = await users_collection.find_one({"_id": user_id})
         
         logger.info(
             f"✅ User created: {email} | "
@@ -221,7 +221,7 @@ class AuthService:
         login_attempts_collection = get_login_attempts_collection()
         
         # Get user
-        user = users_collection.find_one({"email": email.lower()})
+        user = await users_collection.find_one({"email": email.lower()})
         if not user:
             AuthService._record_login_attempt(email, success=False, ip_address=ip_address)
             logger.warning(f"❌ Login failed: User not found - {email}")
@@ -240,7 +240,7 @@ class AuthService:
                 logger.warning(f"🔒 Account locked: {email} (remaining: {remaining} min)")
                 raise ValueError(f"Account locked. Try again in {remaining} minutes.")
             else:
-                users_collection.update_one(
+                await users_collection.update_one(
                     {"_id": user["_id"]},
                     {"$set": {"locked_until": None, "login_attempts": 0}}
                 )
@@ -261,7 +261,7 @@ class AuthService:
                 update_data["locked_until"] = lockout_until
                 logger.warning(f"🔒 Account locked due to failed attempts: {email}")
             
-            users_collection.update_one({"_id": user["_id"]}, {"$set": update_data})
+            await users_collection.update_one({"_id": user["_id"]}, {"$set": update_data})
             AuthService._record_login_attempt(email, success=False, ip_address=ip_address)
             
             logger.warning(f"❌ Login failed: Invalid password - {email} (attempts: {attempts})")
@@ -273,7 +273,7 @@ class AuthService:
             raise ValueError("Account is disabled. Contact support.")
         
         # Successful login - reset attempts
-        users_collection.update_one(
+        await users_collection.update_one(
             {"_id": user["_id"]},
             {
                 "$set": {
@@ -324,7 +324,7 @@ class AuthService:
             logger.info(f"✅ Google token verified for: {email}")
             
             # Check if user exists
-            existing_user = users_collection.find_one({"email": email})
+            existing_user = await users_collection.find_one({"email": email})
             
             if existing_user:
                 # Update Google info
@@ -334,7 +334,7 @@ class AuthService:
                     auth_provider = "both"
                     logger.info(f"🔗 Linking Google account to existing user: {email}")
                 
-                users_collection.update_one(
+                await users_collection.update_one(
                     {"_id": existing_user["_id"]},
                     {
                         "$set": {
@@ -348,7 +348,7 @@ class AuthService:
                     }
                 )
                 
-                user = users_collection.find_one({"_id": existing_user["_id"]})
+                user = await users_collection.find_one({"_id": existing_user["_id"]})
                 logger.info(f"✅ Google login successful (existing user): {email}")
                 return user
             
@@ -358,7 +358,7 @@ class AuthService:
                 username = base_username
                 
                 counter = 1
-                while users_collection.find_one({"username": username}):
+                while await users_collection.find_one({"username": username}):
                     username = f"{base_username}{counter}"
                     counter += 1
                 
@@ -385,14 +385,14 @@ class AuthService:
                     "last_purchase": None,
                 }
                 
-                result = users_collection.insert_one(new_user)
+                result = await users_collection.insert_one(new_user)
                 user_id = result.inserted_id
                 
                 # 🆕 Initialize tier
                 tier_result = await TierManager.initialize_user_tier(user_id)
                 
                 # Fetch updated user
-                new_user = users_collection.find_one({"_id": user_id})
+                new_user = await users_collection.find_one({"_id": user_id})
                 
                 logger.info(
                     f"✅ New Google user created: {email} | "
@@ -414,10 +414,10 @@ class AuthService:
     # ========================================================================
     
     @staticmethod
-    def _record_login_attempt(email: str, success: bool, ip_address: Optional[str] = None):
+    async def _record_login_attempt(email: str, success: bool, ip_address: Optional[str] = None):
         """Record login attempt"""
         login_attempts_collection = get_login_attempts_collection()
-        login_attempts_collection.insert_one({
+        await login_attempts_collection.insert_one({
             "email": email.lower(),
             "success": success,
             "ip_address": ip_address,
@@ -450,7 +450,7 @@ class AuthService:
             "is_active": True
         }
         
-        sessions_collection.insert_one(session_doc)
+        await sessions_collection.insert_one(session_doc)
         
         return TokenResponse(
             access_token=access_token,
@@ -469,7 +469,7 @@ class AuthService:
         if not token_payload:
             return None
         
-        session = sessions_collection.find_one({
+        session = await sessions_collection.find_one({
             "refresh_token": refresh_token,
             "is_active": True
         })
@@ -483,19 +483,19 @@ class AuthService:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
         
         if now > expires_at:
-            sessions_collection.update_one(
+            await sessions_collection.update_one(
                 {"_id": session["_id"]},
                 {"$set": {"is_active": False}}
             )
             return None
         
-        user = users_collection.find_one({"_id": ObjectId(token_payload.sub)})
+        user = await users_collection.find_one({"_id": ObjectId(token_payload.sub)})
         if not user or not user.get("is_active", True):
             return None
         
         new_access_token = AuthService.create_access_token(user)
         
-        sessions_collection.update_one(
+        await sessions_collection.update_one(
             {"_id": session["_id"]},
             {"$set": {"access_token": new_access_token}}
         )
@@ -511,7 +511,7 @@ class AuthService:
     async def logout(refresh_token: str) -> bool:
         """Logout user"""
         sessions_collection = get_sessions_collection()
-        result = sessions_collection.update_one(
+        result = await sessions_collection.update_one(
             {"refresh_token": refresh_token},
             {"$set": {"is_active": False}}
         )
@@ -522,7 +522,7 @@ class AuthService:
         """Get user by ID"""
         users_collection = get_users_collection()
         try:
-            return users_collection.find_one({"_id": ObjectId(user_id)})
+            return await users_collection.find_one({"_id": ObjectId(user_id)})
         except Exception as e:
             logger.error(f"Error fetching user: {e}")
             return None

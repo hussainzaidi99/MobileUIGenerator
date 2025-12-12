@@ -7,33 +7,58 @@ export function PaymentSuccess() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const sessionId = searchParams.get("session_id");
     
     if (sessionId) {
-      // Verify payment and fetch updated credits
       verifyPayment(sessionId);
     } else {
       setLoading(false);
     }
   }, [searchParams]);
 
-  const verifyPayment = async (sessionId: string) => {
+  const verifyPayment = async (sessionId) => {
     try {
-      const userId = localStorage.getItem("user_id");
+      const userId = sessionStorage.getItem("auth_user");
+      const user = userId ? JSON.parse(userId) : null;
       
+      if (!user?.id) {
+        setError("User not authenticated");
+        setLoading(false);
+        return;
+      }
+
+      // Verify payment with backend
+      const verifyRes = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/payment/verify-session`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session_id: sessionId,
+            user_id: user.id
+          })
+        }
+      );
+
+      if (!verifyRes.ok) {
+        throw new Error("Payment verification failed");
+      }
+
       // Fetch updated balance
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/payment/balance/${userId}`
+      const balanceRes = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/payment/balance/${user.id}`
       );
       
-      if (res.ok) {
-        const data = await res.json();
+      if (balanceRes.ok) {
+        const data = await balanceRes.json();
         setCredits(data);
       }
     } catch (error) {
       console.error("Failed to verify payment:", error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -41,96 +66,100 @@ export function PaymentSuccess() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-teal-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Verifying payment...</p>
+      <div className="payment-status-container">
+        <div className="payment-status-card">
+          <div className="loading-spinner"></div>
+          <p className="status-text">Verifying payment...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="payment-status-container">
+        <div className="payment-status-card">
+          <div className="status-icon error-icon">⚠️</div>
+          <h1 className="status-title">Verification Error</h1>
+          <p className="status-message">{error}</p>
+          <button onClick={() => navigate("/pricing")} className="status-button primary">
+            Back to Pricing
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-teal-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        {/* Success Animation */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-green-500 rounded-full mb-4 animate-bounce">
-            <svg
-              className="w-12 h-12 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={3}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
+    <div className="payment-status-container success-bg">
+      <div className="payment-status-card success-card">
+        {/* Animated Success Icon */}
+        <div className="status-icon-wrapper">
+          <div className="success-checkmark">
+            <div className="check-icon">
+              <span className="icon-line line-tip"></span>
+              <span className="icon-line line-long"></span>
+              <div className="icon-circle"></div>
+              <div className="icon-fix"></div>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Payment Successful! 🎉
-          </h1>
-          <p className="text-gray-600">
-            Your credits have been added to your account
-          </p>
         </div>
+
+        {/* Header */}
+        <h1 className="status-title success-title">Payment Successful! 🎉</h1>
+        <p className="status-subtitle">Your credits have been added to your account</p>
 
         {/* Credits Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
-          {credits ? (
-            <>
-              <div className="text-center mb-6">
-                <p className="text-sm text-gray-500 mb-2">New Balance</p>
-                <p className="text-5xl font-bold text-teal-600 mb-2">
-                  {credits.credits.toFixed(2)}
-                </p>
-                <p className="text-lg text-gray-600">Credits</p>
-              </div>
-
-              <div className="border-t border-gray-200 pt-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Tokens Available:</span>
-                  <span className="font-semibold text-gray-900">
-                    {new Intl.NumberFormat().format(credits.tokens_remaining)}
-                  </span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-600">
-                Your credits will be available shortly
-              </p>
+        {credits ? (
+          <div className="credits-display-card">
+            <div className="credits-main">
+              <div className="credits-label">New Balance</div>
+              <div className="credits-amount">{credits.credits.toFixed(2)}</div>
+              <div className="credits-text">Credits</div>
             </div>
-          )}
-        </div>
 
-        {/* Actions */}
-        <div className="space-y-3">
+            <div className="credits-divider"></div>
+
+            <div className="credits-secondary">
+              <div className="credits-detail">
+                <span className="detail-label">Tokens Available:</span>
+                <span className="detail-value">
+                  {new Intl.NumberFormat().format(credits.tokens_remaining)}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="credits-display-card">
+            <p className="credits-pending">Your credits will be available shortly</p>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="status-actions">
           <button
-            onClick={() => navigate("/")}
-            className="w-full py-4 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
+            onClick={() => navigate("/app")}
+            className="status-button primary large"
           >
-            Start Generating UIs
+            <span>Start Generating UIs</span>
+            <span className="button-arrow">→</span>
           </button>
           
           <button
             onClick={() => navigate("/pricing")}
-            className="w-full py-4 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-xl transition-all duration-300 border-2 border-gray-200"
+            className="status-button secondary"
           >
             View Pricing Plans
           </button>
         </div>
 
         {/* Receipt Info */}
-        <div className="mt-8 text-center text-sm text-gray-500">
+        <div className="receipt-info">
+          <div className="receipt-icon">📧</div>
           <p>A receipt has been sent to your email</p>
-          <p className="mt-2">
+          <p className="support-text">
             Need help?{" "}
-            <a href="mailto:support@example.com" className="text-teal-600 hover:underline">
+            <a href="mailto:support@example.com" className="support-link">
               Contact Support
             </a>
           </p>
@@ -145,101 +174,68 @@ export function PaymentCancelled() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="payment-status-container cancelled-bg">
+      <div className="payment-status-card cancelled-card">
         {/* Cancel Icon */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-yellow-500 rounded-full mb-4">
-            <svg
-              className="w-12 h-12 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Payment Cancelled
-          </h1>
-          <p className="text-gray-600">
-            You cancelled the payment process
-          </p>
-        </div>
-
-        {/* Info Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-6">
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <svg
-                className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <div>
-                <p className="font-semibold text-gray-900 mb-1">
-                  No charges were made
-                </p>
-                <p className="text-sm text-gray-600">
-                  Your payment method was not charged. You can try again anytime.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3">
-              <svg
-                className="w-6 h-6 text-teal-500 flex-shrink-0 mt-0.5"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-              </svg>
-              <div>
-                <p className="font-semibold text-gray-900 mb-1">
-                  Need a different plan?
-                </p>
-                <p className="text-sm text-gray-600">
-                  Check out our pricing page to find the perfect plan for your needs.
-                </p>
-              </div>
+        <div className="status-icon-wrapper">
+          <div className="cancel-icon-circle">
+            <div className="cancel-x">
+              <span className="x-line x-line-1"></span>
+              <span className="x-line x-line-2"></span>
             </div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="space-y-3">
+        {/* Header */}
+        <h1 className="status-title">Payment Cancelled</h1>
+        <p className="status-subtitle">You cancelled the payment process</p>
+
+        {/* Info Cards */}
+        <div className="info-cards">
+          <div className="info-card">
+            <div className="info-icon blue">ℹ️</div>
+            <div className="info-content">
+              <h3 className="info-title">No charges were made</h3>
+              <p className="info-text">
+                Your payment method was not charged. You can try again anytime.
+              </p>
+            </div>
+          </div>
+
+          <div className="info-card">
+            <div className="info-icon teal">💡</div>
+            <div className="info-content">
+              <h3 className="info-title">Need a different plan?</h3>
+              <p className="info-text">
+                Check out our pricing page to find the perfect plan for your needs.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="status-actions">
           <button
             onClick={() => navigate("/pricing")}
-            className="w-full py-4 bg-teal-500 hover:bg-teal-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
+            className="status-button primary large"
           >
-            Try Again
+            <span>Try Again</span>
+            <span className="button-arrow">→</span>
           </button>
           
           <button
             onClick={() => navigate("/")}
-            className="w-full py-4 bg-white hover:bg-gray-50 text-gray-700 font-semibold rounded-xl transition-all duration-300 border-2 border-gray-200"
+            className="status-button secondary"
           >
             Continue Without Purchase
           </button>
         </div>
 
-        {/* Support */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Questions about pricing?</p>
-          <p className="mt-2">
-            <a href="mailto:support@example.com" className="text-teal-600 hover:underline">
+        {/* Support Info */}
+        <div className="receipt-info">
+          <p className="support-text">
+            Questions about pricing?{" "}
+            <a href="mailto:support@example.com" className="support-link">
               Contact our support team
             </a>
           </p>
@@ -249,7 +245,6 @@ export function PaymentCancelled() {
   );
 }
 
-// Export both components
 export default function PaymentPages() {
   const location = window.location.pathname;
   

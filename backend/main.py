@@ -12,7 +12,6 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv
 import io
 import zipfile
-
 from Services.prompt_refiner import refine_prompt, refiner_stats
 from LLM_Schema.llm_client import (
     extract_intent,
@@ -468,7 +467,7 @@ async def generate_pipeline(request: Request):
     if not has_credits:
         # Try to fetch current balance for better error message
         try:
-            balance = await get_user_credits(user_id)
+            balance = get_user_credits(user_id)
             current_credits = balance.get("credits")
         except Exception:
             current_credits = None
@@ -1049,7 +1048,7 @@ async def health_check():
     db_healthy = Database.health_check()
     
     try:
-        free_tier_count = await TierManager.get_free_tier_count()
+        free_tier_count = TierManager.get_free_tier_count()
         tier_system_healthy = True
     except:
         free_tier_count = "unknown"

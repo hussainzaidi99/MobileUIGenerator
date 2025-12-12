@@ -171,12 +171,36 @@ export default function AuthPage({ onSuccess }) {
   // Handle Signup
   const handleSignup = async (e) => {
     e.preventDefault();
+
+  // Validate the form data before proceeding
     if (!validateForm()) return;
 
-    setLocalError('');
-    setIsProcessing(true);
+    setLocalError(''); // Reset previous errors
+    setIsProcessing(true); // Set processing state
 
     try {
+
+    // Check free tier availability
+      const freeTierRes = await fetch(`${API_BASE}/payment/free-tier/status`);
+
+      if (freeTierRes.ok) {
+        const freeTierData = await freeTierRes.json();
+
+      // If the free tier is full, show an error and exit the function
+        if (!freeTierData.can_add_new_user) {
+          setLocalError(
+            `Free tier is full (${freeTierData.current_free_tier_users}/20 users). ` +
+            `Please check our paid plans for instant access.`
+          );
+        // Optionally, you can show a modal or take other actions here
+          return; // Stop the function here
+        }
+      } else {
+        setLocalError('Failed to fetch free tier status. Please try again.');
+        return;
+      }
+
+    // Proceed with signup after free tier check
       const result = await signup(
         formData.email,
         formData.password,
@@ -185,10 +209,9 @@ export default function AuthPage({ onSuccess }) {
       );
 
       if (result.success) {
-        // Store email for verification
+      // Store email for verification
         setPendingEmail(formData.email);
-
-        // Switch to verification flow
+      // Switch to verification flow
         setAuthFlow('verify-email');
         setSuccessMessage('Account created! Check your email for verification code.');
         setResendTimer(60); // 60 seconds cooldown

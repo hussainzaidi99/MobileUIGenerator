@@ -1,4 +1,3 @@
-// frontend/src/pages/LandingPage.jsx
 import React from "react";
 import {
   BrowserRouter,
@@ -11,8 +10,10 @@ import {
 } from "react-router-dom";
 
 import { useAuth } from "../contexts/AuthContext";
-import AuthPage from "../components/AuthPage";
+import AuthPage from "./AuthPage";
 import App from "../App";
+import { PaymentSuccess, PaymentCancelled } from './PaymentStatusPage';
+import PricingPage from './PricingPage';
 
 /**
  * Protects routes that require authentication.
@@ -242,6 +243,26 @@ function Shell() {
       <Routes>
         <Route path="/" element={<HomeHero />} />
         <Route path="/auth" element={<AuthRoute />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        
+        {/* NEW: Payment status routes */}
+        <Route 
+          path="/payment/success" 
+          element={
+            <RequireAuth>
+              <PaymentSuccess />
+            </RequireAuth>
+          } 
+        />
+        <Route 
+          path="/payment/cancel" 
+          element={
+            <RequireAuth>
+              <PaymentCancelled />
+            </RequireAuth>
+          } 
+        />
+        
         <Route
           path="/app"
           element={
@@ -250,7 +271,6 @@ function Shell() {
             </RequireAuth>
           }
         />
-        {/* Fallback: anything unknown goes to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

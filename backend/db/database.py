@@ -1,7 +1,7 @@
-# backend/db/database.py - FIXED with get_db() method
+# backend/db/database.py - MOTOR (ASYNC) VERSION
 """
 Production-grade MongoDB configuration with:
-- Connection pooling
+- Async connection pooling (Motor)
 - Retry logic
 - Health checks
 - Index management
@@ -10,11 +10,12 @@ Production-grade MongoDB configuration with:
 
 import os
 from typing import Optional
-from pymongo import MongoClient, ASCENDING
-from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
+from motor.motor_asyncio import AsyncIOMotorClient  
+from pymongo import ASCENDING 
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError  
 from dotenv import load_dotenv
 import logging
-import time
+import asyncio  # ✅ NEW - needed for async sleep
 
 load_dotenv()
 
@@ -33,20 +34,20 @@ MAX_IDLE_TIME_MS = 30000  # 30 seconds
 class Database:
     """MongoDB Database Manager with connection pooling"""
 
-    client: Optional[MongoClient] = None
+    client: Optional[AsyncIOMotorClient] = None
     db = None
     _connection_attempts = 0
     _max_retries = 3
 
     @classmethod
-    def connect(cls):
+    async def connect(cls):
         """Establish MongoDB connection with retry logic"""
         
         for attempt in range(1, cls._max_retries + 1):
             try:
                 logger.info(f"🔄 MongoDB connection attempt {attempt}/{cls._max_retries}...")
                 
-                cls.client = MongoClient(
+                cls.client = AsyncIOMotorClient(
                     MONGODB_URL,
                     maxPoolSize=MAX_POOL_SIZE,
                     minPoolSize=MIN_POOL_SIZE,
@@ -59,16 +60,16 @@ class Database:
                 )
 
                 # Test connection with admin command
-                cls.client.admin.command("ping")
+                await cls.client.admin.command("ping")
                 
                 # Get database reference
                 cls.db = cls.client[MONGODB_DB_NAME]
                 
                 # Verify we can actually access the database
-                cls.db.list_collection_names()
+                await cls.db.list_collection_names()
 
                 # Create indexes AFTER successful connection
-                cls._create_indexes()
+                await cls._create_indexes()
 
                 logger.info(f"✅ Connected to MongoDB: {MONGODB_DB_NAME}")
                 cls._connection_attempts = attempt
@@ -88,7 +89,7 @@ class Database:
                 
                 # Wait before retry
                 if attempt < cls._max_retries:
-                    time.sleep(2 ** attempt)  # Exponential backoff
+                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
                 else:
                     logger.error("❌ All MongoDB connection attempts failed!")
                     return False
@@ -112,7 +113,7 @@ class Database:
         return cls.db
 
     @classmethod
-    def _create_indexes(cls):
+    async def _create_indexes(cls):
         """Create database indexes for performance"""
         if cls.db is None:
             logger.warning("⚠️ Cannot create indexes - database not connected")
@@ -125,39 +126,39 @@ class Database:
             users_collection = cls.db.users
 
             # Unique email index
-            users_collection.create_index(
+            await users_collection.create_index(
                 [("email", ASCENDING)],
                 unique=True,
                 name="email_unique_idx",
             )
 
             # Username index (for search)
-            users_collection.create_index(
+            await users_collection.create_index(
                 [("username", ASCENDING)],
                 name="username_idx",
             )
 
             # Created at index (for sorting)
-            users_collection.create_index(
+            await users_collection.create_index(
                 [("created_at", ASCENDING)],
                 name="created_at_idx",
             )
 
             # Tier index (for tier management)
-            users_collection.create_index(
+            await users_collection.create_index(
                 [("tier", ASCENDING)],
                 name="tier_idx",
             )
 
             # Next credit reset index (for background jobs)
-            users_collection.create_index(
+            await users_collection.create_index(
                 [("next_credit_reset", ASCENDING)],
                 sparse=True,
                 name="next_credit_reset_idx",
             )
 
             # Tier end date index (for expiration checks)
-            users_collection.create_index(
+            await users_collection.create_index(
                 [("tier_end_date", ASCENDING)],
                 sparse=True,
                 name="tier_end_date_idx",
@@ -169,20 +170,20 @@ class Database:
             sessions_collection = cls.db.sessions
 
             # User ID index
-            sessions_collection.create_index(
+            await sessions_collection.create_index(
                 [("user_id", ASCENDING)],
                 name="user_id_idx",
             )
 
             # Expires at index with TTL (auto-delete expired sessions)
-            sessions_collection.create_index(
+            await sessions_collection.create_index(
                 [("expires_at", ASCENDING)],
                 expireAfterSeconds=0,
                 name="expires_at_ttl_idx",
             )
 
             # Refresh token index
-            sessions_collection.create_index(
+            await sessions_collection.create_index(
                 [("refresh_token", ASCENDING)],
                 unique=True,
                 sparse=True,
@@ -195,13 +196,13 @@ class Database:
             login_attempts_collection = cls.db.login_attempts
 
             # Email index
-            login_attempts_collection.create_index(
+            await login_attempts_collection.create_index(
                 [("email", ASCENDING)],
                 name="login_email_idx",
             )
 
             # TTL index (auto-delete after 24 hours)
-            login_attempts_collection.create_index(
+            await login_attempts_collection.create_index(
                 [("created_at", ASCENDING)],
                 expireAfterSeconds=86400,
                 name="login_attempts_ttl_idx",
@@ -213,25 +214,25 @@ class Database:
             email_verifications_collection = cls.db.email_verifications
 
             # Email + type index
-            email_verifications_collection.create_index(
+            await email_verifications_collection.create_index(
                 [("email", ASCENDING), ("type", ASCENDING)],
                 name="email_type_idx",
             )
 
             # User ID index
-            email_verifications_collection.create_index(
+            await email_verifications_collection.create_index(
                 [("user_id", ASCENDING)],
                 name="user_id_idx",
             )
 
             # Code index
-            email_verifications_collection.create_index(
+            await email_verifications_collection.create_index(
                 [("code", ASCENDING)],
                 name="code_idx",
             )
 
             # TTL index (auto-delete expired codes after 1 hour)
-            email_verifications_collection.create_index(
+            await email_verifications_collection.create_index(
                 [("expires_at", ASCENDING)],
                 expireAfterSeconds=3600,
                 name="verifications_ttl_idx",
@@ -263,7 +264,7 @@ class Database:
         return cls.db[name]
 
     @classmethod
-    def health_check(cls) -> bool:
+    async def health_check(cls) -> bool:
         """Check if database connection is healthy"""
         try:
             # Check if client exists
@@ -277,10 +278,10 @@ class Database:
                 return False
                 
             # Ping the database
-            cls.client.admin.command("ping")
+            await cls.client.admin.command("ping")
             
             # Try to list collections
-            cls.db.list_collection_names()
+            await cls.db.list_collection_names()
             
             return True
             
@@ -318,7 +319,7 @@ def get_email_verifications_collection():
 # Startup/Shutdown handlers
 async def connect_to_mongo():
     """FastAPI startup handler"""
-    success = Database.connect()
+    success = await Database.connect()
     if not success:
         logger.error("⚠️ WARNING: MongoDB connection failed! Auth features will not work.")
     return success

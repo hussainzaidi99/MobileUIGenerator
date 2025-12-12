@@ -150,6 +150,7 @@ def estimate_tokens(prompt: str) -> int:
 
 
 async def check_user_credits(user_id: str, estimated_tokens: int) -> bool:
+    
     """
     Check if user has sufficient credits before generation.
     Returns True if user has enough credits, False otherwise.

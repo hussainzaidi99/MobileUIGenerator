@@ -337,7 +337,7 @@ async def auth_health_check():
     """Check if auth system is operational"""
     from db.database import Database
     
-    db_healthy = Database.health_check()
+    db_healthy = await Database.health_check()
     
     return {
         "status": "healthy" if db_healthy else "degraded",
@@ -458,7 +458,7 @@ async def send_password_reset_code(request: PasswordResetRequest):
     try:
         # Get user to find username
         users_collection = get_users_collection()
-        user = users_collection.find_one({"email": request.email.lower()})
+        user = await users_collection.find_one({"email": request.email.lower()})
         
         username = user.get("username", "User") if user else "User"
         
@@ -535,7 +535,7 @@ async def reset_password_with_code(request: PasswordResetWithCode):
         
         # Get user
         users_collection = get_users_collection()
-        user = users_collection.find_one({"email": request.email.lower()})
+        user = await users_collection.find_one({"email": request.email.lower()})
         
         if not user:
             raise HTTPException(
@@ -548,7 +548,7 @@ async def reset_password_with_code(request: PasswordResetWithCode):
         hashed_password = AuthService.hash_password(request.new_password)
         
         # Update password
-        users_collection.update_one(
+        await users_collection.update_one(
             {"_id": user["_id"]},
             {
                 "$set": {
@@ -563,7 +563,7 @@ async def reset_password_with_code(request: PasswordResetWithCode):
         # Mark code as used
         from db.database import Database
         verification_collection = Database.get_collection("email_verifications")
-        verification_collection.update_many(
+        await verification_collection.update_many(
             {
                 "email": request.email.lower(),
                 "type": "password_reset",

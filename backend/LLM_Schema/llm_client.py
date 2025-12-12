@@ -267,6 +267,32 @@ async def call_gemini(
         if "API_KEY" in error_msg.upper():
             raise RuntimeError("Invalid Gemini API key - get one at https://aistudio.google.com/apikey")
         raise RuntimeError(f"Gemini API error: {error_msg}")
+    
+# ============================================================================
+# UNIVERSAL send_chat DISPATCHER – fixes all LLM errors permanently
+# ============================================================================
+
+async def send_chat(
+    prompt: str,
+    route: str = "intent",
+    timeout: int | None = None,
+    **kwargs
+) -> str:
+    """
+    Universal dispatcher - fixes all route errors:
+    • route="refiner"  → Groq (free)
+    • route="intent" / "component" / "code" → Gemini 2.0 Flash
+    """
+    timeout = timeout or LLM_TIMEOUT
+
+    if route == "refiner":
+        return await call_groq(prompt, timeout=timeout)
+    else:
+        # Remove 'route' from kwargs to avoid passing it to call_gemini
+        kwargs.pop('route', None)
+        return await call_gemini(prompt, timeout=timeout, **kwargs)    
+    
+    
 # ============================================================================
 # MOCK MODE (For Testing)
 # ============================================================================
@@ -1434,9 +1460,10 @@ async def componentize(intent_obj: dict, original_prompt: str) -> dict:
         },
         indent=2,
     )
+    from LLM_Schema.cot_orchestrator import get_enhanced_prompt_with_images
 
     # STEP 2: Get enhanced prompt with CoT examples
-    enhanced_prompt = get_enhanced_prompt(
+    enhanced_prompt = get_enhanced_prompt_with_images(
         base_prompt=COMPACT_COMPONENTIZE_PROMPT,
         user_prompt=task_json,
         design_strategy=design_strategy,
@@ -1975,7 +2002,7 @@ async def test_route(route: str = "intent") -> Dict[str, Any]:
     try:
         print(f"\n🧪 Testing {route.upper()} route...")
         result = await asyncio.wait_for(
-            send_chat(prompt, route=route, timeout=15),
+            call_groq(prompt, route=route, timeout=15),
             timeout=20,
         )
 
@@ -2099,3 +2126,5 @@ if __name__ == "__main__":
             print("   python llm_client.py --demo           # Interactive demo")
 
     asyncio.run(main())
+    
+    

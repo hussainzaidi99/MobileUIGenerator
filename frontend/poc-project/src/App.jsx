@@ -1,11 +1,12 @@
-// frontend/src/App.jsx - WITH CREDITS INTEGRATION
 import React, { useState, useEffect } from "react";
 import CanvasRendererLite from "./components/CanvasRendererLite";
 import CodePreview from "./components/CodePreview";
 import ExportButton from "./components/ExportButton";
 import PresetSelector from "./components/PresetSelector";
+import TierBadge from "./components/TierBadge"; // 🆕 ADD THIS LINE
 import { getPresetById } from "./constants/presetPrompts";
 import "./index.css";
+import { useAuth } from "./contexts/AuthContext";
 
 export default function App() {
   const [layout, setLayout] = useState(null);
@@ -29,13 +30,23 @@ export default function App() {
   const [estimatedCost, setEstimatedCost] = useState(null);
   const [usageStats, setUsageStats] = useState(null);
   const [showLowCreditsWarning, setShowLowCreditsWarning] = useState(false);
+  const [tierInfo, setTierInfo] = useState(null);
+
+  // 🆕 Modal state
+  const [showInsufficientCreditsModal, setShowInsufficientCreditsModal] = useState(false);
+
+  const { user } = useAuth(); // Import from AuthContext
 
   // Get user ID from auth (replace with your auth system)
-  const userId = localStorage.getItem("user_id") || "demo_user";
-
+  const userId = user?.id;
+  if (!userId) {
+    return <div>Please log in to use the app</div>;
+  }
+  
   // Fetch user credits on mount
   useEffect(() => {
     fetchUserCredits();
+    fetchTierInfo();
   }, []);
 
   const fetchUserCredits = async () => {
@@ -55,6 +66,28 @@ export default function App() {
       }
     } catch (error) {
       console.error("Failed to fetch credits:", error);
+    }
+  };
+
+  const fetchTierInfo = async () => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/payment/tier/${userId}`
+      );
+      
+      if (res.ok) {
+        const data = await res.json();
+        setTierInfo(data);
+        
+        // Check for tier-specific warnings
+        if (data.tier === 'limited') {
+          setError('Your account is in limited mode. Please purchase a plan to continue.');
+        } else if (data.days_remaining && data.days_remaining < 7) {
+          setShowLowCreditsWarning(true); // Reuse existing warning banner
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch tier info:", error);
     }
   };
 
@@ -162,6 +195,7 @@ export default function App() {
           setError(
             `Insufficient credits. You need ${errorData.details?.required_credits?.toFixed(2)} credits but have ${errorData.details?.current_credits?.toFixed(2)} credits.`
           );
+          setShowInsufficientCreditsModal(true); // Show modal on insufficient credits error
           return;
         }
         
@@ -219,6 +253,8 @@ export default function App() {
       {/* 🆕 Credits Header Bar */}
       <div className="credits-header">
         <div className="credits-info">
+          {/* Existing credits display */}
+
           {userCredits ? (
             <>
               <div className="credit-badge">
@@ -237,16 +273,29 @@ export default function App() {
           ) : (
             <div className="loading-credits">Loading balance...</div>
           )}
+           {/* NEW: Tier Badge */}
+        {tierInfo && (
+          <TierBadge 
+            tier={tierInfo.tier}
+            expiresAt={tierInfo.tier_end_date}
+            daysRemaining={tierInfo.days_remaining}
+          />
+        )}
         </div>
-        
+        {/* Conditional button based on tier */}
+        {tierInfo?.can_upgrade ? (
         <a 
           href="/pricing" 
           className="buy-credits-btn"
         >
+          ⬆️ Upgrade Plan
+        </a>
+        ) : (
+          <a href="/pricing" className="buy-credits-btn">
           ➕ Buy More Credits
         </a>
-      </div>
-
+      )}
+    </div>
       {/* 🆕 Low Credits Warning */}
       {showLowCreditsWarning && userCredits && userCredits.credits < 10 && (
         <div className="warning-banner">
@@ -266,7 +315,36 @@ export default function App() {
         </div>
       )}
 
-      {/* Input Section */}
+      {/* 🆕 Insufficient Credits Modal */}
+      {showInsufficientCreditsModal && (
+        <div className="credits-modal-overlay" onClick={() => setShowInsufficientCreditsModal(false)}>
+          <div className="credits-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-icon">💳</div>
+            <h2 className="modal-title">Insufficient Credits</h2>
+            <p className="modal-message">
+              You need <strong>{estimatedCost?.credits}</strong> credits but only have{' '}
+              <strong>{userCredits?.credits}</strong> credits.
+            </p>
+            <div className="modal-actions">
+              <button 
+                className="modal-btn modal-btn-primary"
+                onClick={() => window.location.href = '/pricing'}
+              >
+                Buy Credits
+              </button>
+              <button 
+                className="modal-btn modal-btn-secondary"
+                onClick={() => setShowInsufficientCreditsModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Other sections and content */}
+      {/* Input Section, Processing Stage, Error Handling, etc. */}
       <section className="input-section">
         <div className="input-card">
           {/* Input Mode Toggle */}
