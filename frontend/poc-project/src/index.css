@@ -3557,3 +3557,660 @@ kbd {
     transform: translateY(50px) scale(0.95);
   }
 }
+/* ============================================================================
+   STITCH LAYOUT - MODERN GENERATION PAGE
+   ============================================================================ */
+
+.stitch-layout {
+  background: #FFFFFF;
+}
+
+.stitch-main-container {
+  display: flex;
+  min-height: 100vh;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stitch-main-container.center-mode {
+  justify-content: center;
+  align-items: center;
+  padding: 40px 0;
+}
+
+.stitch-main-container.split-mode {
+  justify-content: flex-start;
+  min-height: calc(100vh - 140px);
+}
+
+/* ============================================
+   LEFT PANEL - Input Section
+   ============================================ */
+.stitch-left-panel {
+  width: 100%;
+  max-width: 1200px;
+  padding: 100px 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stitch-main-container.split-mode .stitch-left-panel {
+  width: 45%;
+  max-width: none;
+  padding: 60px 50px;
+  justify-content: flex-start;
+  border-right: 1px solid #E5E7EB;
+  overflow-y: auto;
+}
+
+.stitch-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  align-items: center;
+  text-align: center;
+}
+
+/* Hero Text */
+.stitch-title {
+  font-size: 64px;
+  font-weight: 900;
+  color: #0F172A;
+  line-height: 1.1;
+  margin: 0 0 24px 0;
+  letter-spacing: -0.03em;
+}
+
+.gradient-text-stitch {
+  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: block;
+}
+
+.stitch-subtitle {
+  font-size: 22px;
+  color: #64748B;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 900px;
+}
+
+/* Input Container */
+.stitch-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.stitch-input-container {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+
+.sparkle-icon-stitch {
+  position: absolute;
+  left: 22px;
+  top: 22px;
+  font-size: 26px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.stitch-input {
+  width: 100%;
+  min-height: 68px;
+  max-height: 200px;
+  padding: 20px 170px 20px 65px;
+  font-size: 17px;
+  font-family: inherit;
+  color: #0F172A;
+  background: #F8FAFC;
+  border: 2px solid #E2E8F0;
+  border-radius: 16px;
+  outline: none;
+  transition: all 0.2s;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.5;
+}
+
+.stitch-input::placeholder {
+  color: #94A3B8;
+}
+
+.stitch-input:focus {
+  background: #FFFFFF;
+  border-color: #667EEA;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.stitch-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Button inside input field */
+.stitch-btn-inline {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.stitch-btn-inline:hover:not(:disabled) {
+  transform: translateY(-50%) scale(1.02);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.stitch-btn-inline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #94A3B8;
+}
+
+.arrow-icon-stitch {
+  font-size: 18px;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.stitch-btn-inline:hover:not(:disabled) .arrow-icon-stitch {
+  transform: translateX(3px);
+}
+
+/* Enhance button below input */
+.stitch-enhance-btn {
+  padding: 10px 20px;
+  background: transparent;
+  color: #667EEA;
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  align-self: flex-start;
+  font-family: inherit;
+}
+
+.stitch-enhance-btn:hover:not(:disabled) {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+.stitch-enhance-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  font-size: 16px;
+}
+
+/* Preset Chips */
+.stitch-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
+  max-width: 900px;
+}
+
+.stitch-preset-chip {
+  padding: 14px 24px;
+  background: #F8FAFC;
+  border: 2px solid #E2E8F0;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.stitch-preset-chip:hover {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.stitch-preset-chip.active {
+  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.preset-icon-stitch {
+  font-size: 18px;
+}
+
+.preset-label-stitch {
+  font-size: 14px;
+}
+
+/* Processing State */
+.stitch-processing {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border: 2px solid rgba(102, 126, 234, 0.2);
+  border-radius: 16px;
+  animation: fadeIn 0.3s ease-out;
+  width: 100%;
+  max-width: 900px;
+}
+
+.processing-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(102, 126, 234, 0.2);
+  border-top-color: #667EEA;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.processing-content {
+  flex: 1;
+}
+
+.processing-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #667EEA;
+  margin-bottom: 4px;
+}
+
+.processing-subtitle {
+  font-size: 14px;
+  color: #64748B;
+}
+
+/* Error Message */
+.stitch-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+  color: #DC2626;
+  font-size: 14px;
+  font-weight: 600;
+  animation: shake 0.4s;
+  width: 100%;
+  max-width: 900px;
+}
+
+.error-icon {
+  font-size: 20px;
+}
+
+/* Results Actions */
+.stitch-results-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 900px;
+}
+
+.stitch-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.stitch-btn-secondary {
+  background: #F8FAFC;
+  color: #334155;
+  border: 2px solid #E2E8F0;
+}
+
+.stitch-btn-secondary:hover {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Usage Stats */
+.stitch-usage-stats {
+  padding: 20px;
+  background: #F8FAFC;
+  border: 2px solid #E2E8F0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #64748B;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-size: 16px;
+  color: #0F172A;
+  font-weight: 700;
+}
+
+/* ============================================
+   RIGHT PANEL - Canvas Preview
+   ============================================ */
+.stitch-right-panel {
+  flex: 1;
+  background: #F8FAFC;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.4s ease-out;
+  overflow-y: auto;
+}
+
+.stitch-main-container.split-mode .stitch-right-panel {
+  display: block;
+}
+
+.stitch-right-panel.visible {
+  opacity: 1;
+}
+
+.stitch-canvas-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 60px 40px;
+  text-align: center;
+}
+
+.placeholder-icon {
+  font-size: 80px;
+  margin-bottom: 24px;
+  opacity: 0.6;
+  animation: float 3s ease-in-out infinite;
+}
+
+.placeholder-text {
+  font-size: 20px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 32px;
+}
+
+.placeholder-progress {
+  width: 100%;
+  max-width: 400px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #E2E8F0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667EEA, #764BA2);
+  border-radius: 10px;
+  animation: progressFill 2s ease-in-out infinite;
+}
+
+@keyframes progressFill {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 100%; }
+}
+
+.stitch-canvas-container {
+  padding: 40px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #E2E8F0;
+}
+
+.canvas-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0;
+}
+
+.canvas-badge {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 1024px) {
+  .stitch-left-panel {
+    padding: 80px 60px;
+  }
+
+  .stitch-main-container.split-mode {
+    flex-direction: column;
+  }
+
+  .stitch-main-container.split-mode .stitch-left-panel {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #E5E7EB;
+  }
+
+  .stitch-right-panel {
+    min-height: 500px;
+  }
+}
+
+@media (max-width: 640px) {
+  .stitch-left-panel {
+    padding: 60px 32px;
+  }
+
+  .stitch-title {
+    font-size: 40px;
+  }
+
+  .stitch-subtitle {
+    font-size: 18px;
+  }
+
+  .stitch-input {
+    padding: 16px 140px 16px 50px;
+    font-size: 15px;
+  }
+
+  .sparkle-icon-stitch {
+    left: 16px;
+    top: 16px;
+    font-size: 20px;
+  }
+
+  .stitch-btn-inline {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+
+  .stitch-canvas-container {
+    padding: 24px;
+  }
+
+  .canvas-title {
+    font-size: 20px;
+  }
+}
+/* ============================================
+   USER DROPDOWN - Modern Navigation Style
+   ============================================ */
+.user-dropdown-container {
+  position: relative;
+}
+
+.user-dropdown-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.user-dropdown-button:hover {
+  background: #FFFFFF;
+  border-color: #CBD5E1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.user-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 320px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  animation: dropdownSlideIn 0.2s ease-out;
+}
+
+@keyframes dropdownSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus visible for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+/* ============================================================================
+   CREDITS ESTIMATE CARD
+   ============================================================================ */
+
+.credits-estimate-card {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.credits-estimate-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .credits-estimate-card {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .credits-estimate-card button {
+    width: 100%;
+  }
+}

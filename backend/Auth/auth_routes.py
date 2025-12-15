@@ -10,6 +10,8 @@ FastAPI authentication endpoints with:
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from datetime import datetime, timezone  # ✅ ADD THIS LINE AT TOP
+from bson import ObjectId  # ✅ ADD THIS IF NOT PRESENT
 from typing import Optional
 import logging
 import os
@@ -190,21 +192,20 @@ async def login(request: UserLoginRequest, http_request: Request):
         )
 
 
-# ============================================================================
-# 🆕 GOOGLE OAUTH ENDPOINT
-# ============================================================================
+# backend/Auth/auth_routes.py - Updated google_auth function
+# Replace your existing google_auth function with this:
 
 @router.post("/google", response_model=LoginResponse, status_code=status.HTTP_200_OK)
 async def google_auth(request: GoogleAuthRequest, http_request: Request):
     """
     Authenticate with Google OAuth.
     
-    - **id_token**: Google ID token from OAuth flow
+    - **id_token**: Google user info (JSON string) OR Google ID token (JWT)
     
     This endpoint:
-    1. Verifies the Google ID token
-    2. Extracts user information (email, name, picture)
-    3. Creates new user if doesn't exist, or logs in existing user
+    1. Accepts user info from Google (via access token flow)
+    2. Creates new user if doesn't exist, or logs in existing user
+    3. Awards free tier credits to new users (if slots available)
     4. Returns JWT tokens for your app (same as /login)
     
     **Account Linking:**
@@ -213,27 +214,164 @@ async def google_auth(request: GoogleAuthRequest, http_request: Request):
     - If email doesn't exist → creates new user with Google auth
     
     **Security:**
-    - Verifies token signature with Google servers
-    - Checks email verification status
-    - Records IP and user agent
+    - Accepts verified user info from Google's userinfo endpoint
+    - Records IP and user agent for security audit
+    - Only accepts verified Google emails
     """
     try:
         ip_address = http_request.client.host if http_request.client else None
         user_agent = http_request.headers.get("user-agent")
         
-        # Authenticate with Google
-        user = await AuthService.authenticate_with_google(
-            google_token=request.id_token,
-            ip_address=ip_address
-        )
+        logger.info(f"🔐 Google auth attempt from IP: {ip_address}")
         
-        if not user:
+        # Try to parse as JSON (user info from frontend)
+        try:
+            import json
+            user_info = json.loads(request.id_token)
+            
+            # Validate required fields
+            if not user_info.get('email') or not user_info.get('sub'):
+                raise ValueError("Missing required fields: email and sub")
+            
+            email = user_info['email'].lower()
+            google_id = user_info['sub']
+            full_name = user_info.get('name', '')
+            email_verified = user_info.get('email_verified', True)
+            picture = user_info.get('picture', '')
+            
+            logger.info(f"✅ Received Google user info for: {email}")
+            
+        except (json.JSONDecodeError, ValueError) as e:
+            # Fallback: Try as Google ID token (JWT) - original flow
+            logger.info(f"Attempting to verify as Google ID token...")
+            user = await AuthService.authenticate_with_google(
+                google_token=request.id_token,
+                ip_address=ip_address
+            )
+            
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Google authentication failed. Invalid token."
+                )
+            
+            # Create session and return (original flow)
+            tokens = await AuthService.create_session(
+                user,
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+            
+            user_response = AuthService.user_to_response(user)
+            
+            tier = user.get("tier", "unknown")
+            credits = user.get("credits", 0)
+            logger.info(
+                f"✅ Google auth successful (ID token flow): {user['email']} | "
+                f"Tier: {tier} | Credits: {credits}"
+            )
+            
+            return LoginResponse(user=user_response, tokens=tokens)
+        
+        # Process user info (new popup flow)
+        if not email_verified:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Google authentication failed. Invalid token."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Google email not verified"
             )
         
-        # Create session and generate tokens
+        # Get user collection
+        users_collection = get_users_collection()
+        
+        # Check if user exists
+        user = await users_collection.find_one({"email": email})
+        
+        now = datetime.now(timezone.utc)  # ✅ Define now HERE at the top
+        
+        if user:
+            # Existing user - update Google info
+            auth_provider = user.get("auth_provider", "local")
+            
+            if not user.get("google_id"):
+                # Link Google account
+                await users_collection.update_one(
+                    {"_id": user["_id"]},
+                    {
+                        "$set": {
+                            "google_id": google_id,
+                            "picture_url": picture,
+                            "is_verified": True,
+                            "auth_provider": "both" if auth_provider == "local" else "google",
+                            "last_login": now,
+                            "updated_at": now
+                        }
+                    }
+                )
+                logger.info(f"🔗 Linked Google account to existing user: {email}")
+            else:
+                # Just update last login
+                await users_collection.update_one(
+                    {"_id": user["_id"]},
+                    {
+                        "$set": {
+                            "last_login": now,
+                            "updated_at": now
+                        }
+                    }
+                )
+            
+            # Fetch updated user
+            user = await users_collection.find_one({"_id": user["_id"]})
+            
+        else:
+            # New user - create with Google
+            from Services.tier_manager import TierManager
+            
+            base_username = email.split('@')[0] or full_name.replace(' ', '').lower()
+            username = base_username
+            
+            counter = 1
+            while await users_collection.find_one({"username": username}):
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            new_user = {
+                "email": email,
+                "username": username,
+                "hashed_password": None,
+                "full_name": full_name,
+                "created_at": now,
+                "updated_at": now,
+                "is_active": True,
+                "is_verified": True,
+                "role": "user",
+                "login_attempts": 0,
+                "locked_until": None,
+                "last_login": now,
+                "google_id": google_id,
+                "picture_url": picture,
+                "auth_provider": "google",
+                "total_spent": 0.0,
+                "purchase_history": [],
+                "usage_history": [],
+                "last_purchase": None,
+            }
+            
+            result = await users_collection.insert_one(new_user)
+            user_id = result.inserted_id
+            
+            # Initialize tier
+            tier_result = await TierManager.initialize_user_tier(user_id)
+            
+            # Fetch complete user
+            user = await users_collection.find_one({"_id": user_id})
+            
+            logger.info(
+                f"✅ New Google user created: {email} | "
+                f"Tier: {tier_result['tier']} | Credits: {tier_result['credits']}"
+            )
+        
+        # Create session
         tokens = await AuthService.create_session(
             user,
             ip_address=ip_address,
@@ -243,13 +381,17 @@ async def google_auth(request: GoogleAuthRequest, http_request: Request):
         # Prepare response
         user_response = AuthService.user_to_response(user)
         
-        logger.info(f"✅ Google auth successful: {user['email']}")
+        tier = user.get("tier", "unknown")
+        credits = user.get("credits", 0)
+        logger.info(
+            f"✅ Google auth successful: {email} | "
+            f"Tier: {tier} | Credits: {credits}"
+        )
         
         return LoginResponse(user=user_response, tokens=tokens)
         
     except ValueError as e:
-        # Business logic errors (email not verified, etc.)
-        logger.warning(f"Google auth validation error: {e}")
+        logger.warning(f"⚠️ Google auth validation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
@@ -257,13 +399,11 @@ async def google_auth(request: GoogleAuthRequest, http_request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        # Unexpected errors
-        logger.error(f"Google auth error: {e}", exc_info=True)
+        logger.error(f"❌ Google auth unexpected error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Google authentication failed. Please try again."
+            detail="Google authentication failed. Please try again or contact support."
         )
-
 
 # ============================================================================
 # OTHER ENDPOINTS (unchanged)

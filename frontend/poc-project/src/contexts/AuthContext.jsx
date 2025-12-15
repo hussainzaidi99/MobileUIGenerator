@@ -1,5 +1,4 @@
-// frontend/src/contexts/AuthContext.jsx - Production-Ready Authentication Context
-// Features: Google OAuth, Email/Password Auth, Token Management, Auto-refresh
+// frontend/poc-project/src/contexts/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext(null);
@@ -18,36 +17,29 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ✅ Use environment variable with fallback
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-  // Debug: Log configuration on mount
-  useEffect(() => {
-    if (import.meta.env.VITE_DEBUG === 'true') {
-      console.log('🔧 AuthContext initialized');
-      console.log('🔗 API Base URL:', API_BASE);
-    }
-  }, [API_BASE]);
-
-  // Load auth state from sessionStorage on mount
+  // ✅ STEP 1: Load auth state from sessionStorage on mount
   useEffect(() => {
     const loadAuthState = () => {
       try {
         const savedTokens = sessionStorage.getItem('auth_tokens');
         const savedUser = sessionStorage.getItem('auth_user');
 
+        console.log('🔍 Checking auth state...', {
+          hasTokens: !!savedTokens,
+          hasUser: !!savedUser
+        });
+
         if (savedTokens && savedUser) {
           const parsedTokens = JSON.parse(savedTokens);
           const parsedUser = JSON.parse(savedUser);
 
-          // Validate token structure
           if (parsedTokens?.access_token && parsedTokens?.refresh_token) {
             setTokens(parsedTokens);
             setUser(parsedUser);
 
-            if (import.meta.env.VITE_DEBUG === 'true') {
-              console.log('✅ Auth state restored from session storage');
-            }
+            console.log('✅ Auth state restored:', parsedUser.email);
           } else {
             throw new Error('Invalid token structure');
           }
@@ -64,26 +56,19 @@ export const AuthProvider = ({ children }) => {
     loadAuthState();
   }, []);
 
-  // Save auth state to sessionStorage
+  // ✅ STEP 2: Define ALL functions BEFORE the value object
+
   const saveAuthState = (userData, tokensData) => {
     try {
       sessionStorage.setItem('auth_user', JSON.stringify(userData));
       sessionStorage.setItem('auth_tokens', JSON.stringify(tokensData));
       setUser(userData);
       setTokens(tokensData);
-
-      if (import.meta.env.VITE_DEBUG === 'true') {
-        console.log('✅ Auth state saved:', {
-          user: userData.email,
-          hasTokens: !!(tokensData?.access_token && tokensData?.refresh_token)
-        });
-      }
     } catch (e) {
       console.error('❌ Failed to save auth state:', e);
     }
   };
 
-  // Clear auth state
   const clearAuthState = () => {
     try {
       sessionStorage.removeItem('auth_user');
@@ -91,16 +76,11 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setTokens(null);
       setError(null);
-
-      if (import.meta.env.VITE_DEBUG === 'true') {
-        console.log('✅ Auth state cleared');
-      }
     } catch (e) {
       console.error('❌ Failed to clear auth state:', e);
     }
   };
 
-  // Signup with email/password
   const signup = async (email, password, username, fullName = '') => {
     try {
       setError(null);
@@ -108,15 +88,8 @@ export const AuthProvider = ({ children }) => {
 
       const response = await fetch(`${API_BASE}/auth/signup`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          username,
-          full_name: fullName
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, username, full_name: fullName })
       });
 
       const data = await response.json();
@@ -125,21 +98,17 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.detail || 'Signup failed');
       }
 
-      // Save auth state
       saveAuthState(data.user, data.tokens);
-
       return { success: true, user: data.user };
     } catch (err) {
       const errorMessage = err.message || 'Signup failed. Please try again.';
       setError(errorMessage);
-      console.error('❌ Signup error:', err);
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
   };
 
-  // Login with email/password
   const login = async (email, password) => {
     try {
       setError(null);
@@ -147,9 +116,7 @@ export const AuthProvider = ({ children }) => {
 
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
 
@@ -159,35 +126,25 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.detail || 'Login failed');
       }
 
-      // Save auth state
       saveAuthState(data.user, data.tokens);
-
       return { success: true, user: data.user };
     } catch (err) {
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
       setError(errorMessage);
-      console.error('❌ Login error:', err);
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
   };
 
-  // Login with Google OAuth
   const loginWithGoogle = async (googleIdToken) => {
     try {
       setError(null);
       setLoading(true);
 
-      if (import.meta.env.VITE_DEBUG === 'true') {
-        console.log('🔐 Attempting Google OAuth login...');
-      }
-
       const response = await fetch(`${API_BASE}/auth/google`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_token: googleIdToken })
       });
 
@@ -197,34 +154,23 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.detail || 'Google login failed');
       }
 
-      // Save auth state (same structure as email/password login)
       saveAuthState(data.user, data.tokens);
-
-      if (import.meta.env.VITE_DEBUG === 'true') {
-        console.log('✅ Google OAuth login successful');
-      }
-
       return { success: true, user: data.user };
     } catch (err) {
-      const errorMessage = err.message || 'Google authentication failed. Please try again.';
+      const errorMessage = err.message || 'Google authentication failed.';
       setError(errorMessage);
-      console.error('❌ Google OAuth error:', err);
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
   };
 
-  // Logout
   const logout = async () => {
     try {
       if (tokens?.refresh_token) {
-        // Attempt to invalidate session on backend (don't wait for response)
         fetch(`${API_BASE}/auth/logout`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refresh_token: tokens.refresh_token })
         }).catch(err => console.error('Logout request failed:', err));
       }
@@ -232,14 +178,9 @@ export const AuthProvider = ({ children }) => {
       console.error('❌ Logout error:', err);
     } finally {
       clearAuthState();
-
-      if (import.meta.env.VITE_DEBUG === 'true') {
-        console.log('✅ User logged out');
-      }
     }
   };
 
-  // Refresh access token
   const refreshAccessToken = async () => {
     try {
       if (!tokens?.refresh_token) {
@@ -248,9 +189,7 @@ export const AuthProvider = ({ children }) => {
 
       const response = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: tokens.refresh_token })
       });
 
@@ -270,10 +209,6 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.setItem('auth_tokens', JSON.stringify(updatedTokens));
       setTokens(updatedTokens);
 
-      if (import.meta.env.VITE_DEBUG === 'true') {
-        console.log('✅ Access token refreshed');
-      }
-
       return data.access_token;
     } catch (err) {
       console.error('❌ Token refresh failed:', err);
@@ -282,24 +217,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Get access token (with auto-refresh if needed)
   const getAccessToken = async () => {
     if (!tokens?.access_token) {
       return null;
     }
-
-    try {
-      // In a real app, you'd check token expiration here
-      // For now, just return the current token
-      return tokens.access_token;
-    } catch (err) {
-      // If token is expired, try to refresh
-      console.warn('⚠️ Token may be expired, attempting refresh...');
-      return await refreshAccessToken();
-    }
+    return tokens.access_token;
   };
 
-  // Authenticated fetch wrapper (with auto-retry on 401)
   const authFetch = async (url, options = {}) => {
     try {
       const token = await getAccessToken();
@@ -317,14 +241,10 @@ export const AuthProvider = ({ children }) => {
         }
       });
 
-      // Auto-retry on 401 (token expired)
       if (response.status === 401) {
-        console.warn('⚠️ Received 401, refreshing token...');
-        
         try {
           const newToken = await refreshAccessToken();
           
-          // Retry request with new token
           const retryResponse = await fetch(url, {
             ...options,
             headers: {
@@ -336,7 +256,6 @@ export const AuthProvider = ({ children }) => {
 
           return retryResponse;
         } catch (refreshError) {
-          console.error('❌ Token refresh failed, logging out...');
           clearAuthState();
           throw new Error('Session expired. Please login again.');
         }
@@ -349,6 +268,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ✅ STEP 3: Create value object LAST (after all functions are defined)
   const value = {
     // State
     user,
