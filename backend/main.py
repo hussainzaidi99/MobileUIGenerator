@@ -3,11 +3,13 @@
 # - Keeps CRITICAL FIX: Image enrichment BEFORE preview generation
 # - Adds Stripe-based credits system, token tracking, and usage reporting
 
+from asyncio.log import logger
 import os
 import asyncio
 from typing import Dict, List
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv
 import io
@@ -916,8 +918,8 @@ async def export_react_native(request: Request):
 async def tier_system_status():
     """Get tier system status and statistics"""
     try:
-        free_tier_count = TierManager.get_free_tier_count()
-        can_add = TierManager.can_add_free_tier_user()
+        free_tier_count = await TierManager.get_free_tier_count()
+        can_add = await TierManager.can_add_free_tier_user()
         
         # Get tier distribution
         from db.database import Database
@@ -926,7 +928,7 @@ async def tier_system_status():
         
         tier_distribution = {}
         for tier in ["free", "limited", "basic", "pro", "premium"]:
-            count = users_collection.count_documents({"tier": tier})
+            count = await users_collection.count_documents({"tier": tier})
             tier_distribution[tier] = count
         
         return {
@@ -1045,10 +1047,10 @@ async def health_check():
     """Health check endpoint with tier system status"""
     from db.database import Database
     
-    db_healthy = Database.health_check()
+    db_healthy = await Database.health_check()
     
     try:
-        free_tier_count = TierManager.get_free_tier_count()
+        free_tier_count = await TierManager.get_free_tier_count()
         tier_system_healthy = True
     except:
         free_tier_count = "unknown"
@@ -1228,7 +1230,7 @@ async def startup_event():
     # Verify connection
     from db.database import Database
 
-    if connection_success and Database.health_check():
+    if connection_success and await Database.health_check():  # ✅ ADD await
         print("✅ MongoDB Connected Successfully!")
         print(f"   Database: {os.getenv('MONGODB_DB_NAME')}")
         print(f"   Cluster: {os.getenv('MONGODB_CLUSTER', 'Unknown')}")
@@ -1327,6 +1329,28 @@ async def shutdown_event():
     
     # Close MongoDB
     await close_mongo_connection()
+    
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle validation errors with detailed messages"""
+    errors = exc.errors()
+    logger.error(f"❌ Validation Error: {errors}")
+    
+    # Format errors nicely
+    error_messages = []
+    for error in errors:
+        field = " -> ".join(str(loc) for loc in error["loc"])
+        message = error["msg"]
+        error_messages.append(f"{field}: {message}")
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": error_messages,
+            "errors": errors,
+            "message": "Validation failed. Please check your request."
+        }
+    )
 
 
 

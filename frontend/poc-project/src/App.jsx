@@ -1,4 +1,4 @@
-// frontend/poc-project/src/App.jsx - COMPLETE FILE WITH CREDITS ESTIMATE
+// frontend/poc-project/src/App.jsx - UPDATED WITH STITCH-STYLE TOOLBAR
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CanvasRendererLite from "./components/CanvasRendererLite";
@@ -18,10 +18,8 @@ export default function App() {
   const [processingStage, setProcessingStage] = useState("");
   const [enhancing, setEnhancing] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(null);
-  const [usageStats, setUsageStats] = useState(null);
   const [showInsufficientCreditsModal, setShowInsufficientCreditsModal] = useState(false);
 
-  // ✅ NEW: Credits estimate state
   const [estimatedCost, setEstimatedCost] = useState(null);
   const [userCredits, setUserCredits] = useState(null);
   const [showCostWarning, setShowCostWarning] = useState(false);
@@ -32,7 +30,6 @@ export default function App() {
 
   const userId = user?.id;
 
-  // ✅ NEW: Fetch user credits on mount and when userId changes
   useEffect(() => {
     if (userId) {
       fetchUserCredits();
@@ -56,33 +53,22 @@ export default function App() {
     }
   };
 
-  // ✅ NEW: Calculate estimated cost whenever prompt changes
   useEffect(() => {
     if (prompt.trim().length > 20) {
-      // Estimation logic:
-      // - Average: ~5 tokens per word
-      // - UI generation uses ~15,000-50,000 tokens depending on complexity
-      // - 1 credit = 70,000 tokens
-      
       const wordCount = prompt.trim().split(/\s+/).length;
       const sentenceCount = prompt.split(/[.!?]+/).filter(s => s.trim()).length;
       const hasMultipleScreens = /screen|page|tab/i.test(prompt);
       const hasComplexFeatures = /animation|interaction|chart|graph|map/i.test(prompt);
       
-      // Base estimate: 20k tokens for simple, 40k for complex
       let estimatedTokens = 20000;
       
-      // Adjust based on complexity indicators
       if (wordCount > 100 || sentenceCount > 5 || hasComplexFeatures) {
-        estimatedTokens = 45000; // Complex UI
+        estimatedTokens = 45000;
       } else if (wordCount > 50 || sentenceCount > 3 || hasMultipleScreens) {
-        estimatedTokens = 32000; // Medium complexity
+        estimatedTokens = 32000;
       }
       
-      // Add 3k tokens per 40 words beyond baseline
       estimatedTokens += Math.floor(wordCount / 40) * 3000;
-      
-      // Cap at reasonable maximum
       estimatedTokens = Math.min(estimatedTokens, 65000);
       
       const estimatedCredits = estimatedTokens / 70000;
@@ -92,7 +78,6 @@ export default function App() {
         credits: estimatedCredits
       });
 
-      // ✅ Show warning if user doesn't have enough credits
       if (userCredits && estimatedCredits > userCredits.credits) {
         setShowCostWarning(true);
       } else {
@@ -127,7 +112,7 @@ export default function App() {
       if (data.refinement_applied && data.refined_prompt) {
         setPrompt(data.refined_prompt);
       } else {
-        setError("Prompt is already detailed enough — no changes made.");
+        setError("Prompt is already detailed enough – no changes made.");
       }
     } catch (e) {
       console.error("Prompt enhancement error:", e);
@@ -153,7 +138,6 @@ export default function App() {
       return;
     }
 
-    // ✅ NEW: Pre-check credits before starting generation
     if (userCredits && estimatedCost && estimatedCost.credits > userCredits.credits) {
       setShowInsufficientCreditsModal(true);
       return;
@@ -161,7 +145,6 @@ export default function App() {
 
     setLoading(true);
     setError(null);
-    setUsageStats(null);
     setProcessingStage("Analyzing your request...");
 
     try {
@@ -202,18 +185,15 @@ export default function App() {
       setLayout(data?.web_preview || data?.component_model);
       setRnCode(data?.react_native_code || {});
 
-      if (data.usage) {
-        setUsageStats(data.usage);
-        // ✅ Refresh credits after successful generation
-        fetchUserCredits();
-      }
-
       if (data?.react_native_code && Object.keys(data.react_native_code).length > 0) {
         setShowCode(false);
       }
 
       setProcessingStage("Complete!");
       setTimeout(() => setProcessingStage(""), 2000);
+      
+      // Refresh credits after generation
+      fetchUserCredits();
     } catch (e) {
       console.error("Generation error:", e);
       setError(e.message || "Generation failed. Please try again.");
@@ -239,7 +219,6 @@ export default function App() {
     setShowCode(false);
     setPrompt("");
     setSelectedPreset(null);
-    setUsageStats(null);
     setError(null);
     setProcessingStage("");
     setEstimatedCost(null);
@@ -351,7 +330,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* ✅ NEW: Credits Estimate Display */}
+              {/* Credits Estimate Display */}
               {estimatedCost && !loading && !layout && (
                 <div 
                   className="credits-estimate-card"
@@ -419,23 +398,25 @@ export default function App() {
               )}
 
               {/* Enhance Button */}
-              <button
-                onClick={enhancePrompt}
-                className="stitch-enhance-btn"
-                disabled={enhancing || loading || !prompt.trim()}
-              >
-                {enhancing ? (
-                  <>
-                    <span className="spinner-small"></span>
-                    Enhancing...
-                  </>
-                ) : (
-                  <>
-                    <span className="btn-icon">✨</span>
-                    Enhance Prompt
-                  </>
-                )}
-              </button>
+              {!layout && !loading && (
+                <button
+                  onClick={enhancePrompt}
+                  className="stitch-enhance-btn"
+                  disabled={enhancing || loading || !prompt.trim()}
+                >
+                  {enhancing ? (
+                    <>
+                      <span className="spinner-small"></span>
+                      Enhancing...
+                    </>
+                  ) : (
+                    <>
+                      <span className="btn-icon">✨</span>
+                      Enhance Prompt
+                    </>
+                  )}
+                </button>
+              )}
             </div>
 
             {/* Preset Chips */}
@@ -473,42 +454,39 @@ export default function App() {
               </div>
             )}
 
-            {/* Results Actions */}
+            {/* 🆕 STITCH-STYLE TOOLBAR (when results are ready) */}
             {layout && !loading && (
               <div className="stitch-results-actions">
-                <button onClick={toggleCodeView} className="stitch-btn stitch-btn-secondary">
-                  {showCode ? "👁️ Preview" : "💻 Code"}
+                <button 
+                  onClick={toggleCodeView} 
+                  className="stitch-btn stitch-btn-secondary"
+                  title={showCode ? "View Preview" : "View Code"}
+                >
+                  {showCode ? (
+                    <>
+                      <span style={{ fontSize: '16px' }}>👁️</span>
+                      Preview
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: '16px' }}>💻</span>
+                      Code
+                    </>
+                  )}
                 </button>
 
                 {rnCode && Object.keys(rnCode).length > 0 && (
                   <ExportButton rnCode={rnCode} />
                 )}
 
-                <button onClick={handleNewGeneration} className="stitch-btn stitch-btn-secondary">
-                  🔄 New
+                <button 
+                  onClick={handleNewGeneration} 
+                  className="stitch-btn stitch-btn-secondary"
+                  title="Start New Generation"
+                >
+                  <span style={{ fontSize: '16px' }}>🔄</span>
+                  New
                 </button>
-              </div>
-            )}
-
-            {/* Usage Stats */}
-            {usageStats && !loading && (
-              <div className="stitch-usage-stats">
-                <div className="stat-row">
-                  <span className="stat-label">Tokens Used:</span>
-                  <span className="stat-value">{new Intl.NumberFormat().format(usageStats.tokens.total_tokens)}</span>
-                </div>
-                <div className="stat-row">
-                  <span className="stat-label">Credits Deducted:</span>
-                  <span className="stat-value">{usageStats.credits.credits_deducted?.toFixed(4) || "N/A"}</span>
-                </div>
-                <div className="stat-row">
-                  <span className="stat-label">Remaining Credits:</span>
-                  <span className="stat-value">{usageStats.credits.remaining_credits?.toFixed(4) || "N/A"}</span>
-                </div>
-                <div className="stat-row">
-                  <span className="stat-label">Estimated Cost:</span>
-                  <span className="stat-value">${usageStats.tokens.estimated_cost?.toFixed(6) || "N/A"}</span>
-                </div>
               </div>
             )}
           </div>
@@ -536,7 +514,37 @@ export default function App() {
                       {screenCount} screen{screenCount > 1 ? "s" : ""}
                     </span>
                   </div>
-                  <CanvasRendererLite layout={layout} />
+                  
+                  {/* Phone Mockups Grid */}
+                  <div className="phone-mockups-grid">
+                    {layout.screens?.map((screen, idx) => (
+                      <div key={screen.name || idx} className="phone-mockup">
+                        <div className="phone-frame-wrapper">
+                          <div className="phone-notch"></div>
+                          
+                          <div className="phone-screen-area">
+                            <div className="phone-screen-header">
+                              <div className="screen-name-display">
+                                {screen.name || `Screen ${idx + 1}`}
+                              </div>
+                            </div>
+                            
+                            <div className="phone-screen-content">
+                              <CanvasRendererLite 
+                                layout={{ 
+                                  screens: [screen],
+                                  theme: layout.theme,
+                                  tokens: layout.tokens
+                                }} 
+                              />
+                            </div>
+                            
+                            <div className="phone-home-indicator"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </>
               ) : (
                 <>

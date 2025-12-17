@@ -3557,9 +3557,10 @@ kbd {
     transform: translateY(50px) scale(0.95);
   }
 }
-/* ============================================================================
+
+/* ============================================
    STITCH LAYOUT - MODERN GENERATION PAGE
-   ============================================================================ */
+   ============================================ */
 
 .stitch-layout {
   background: #FFFFFF;
@@ -3582,13 +3583,14 @@ kbd {
   min-height: calc(100vh - 140px);
 }
 
+
 /* ============================================
-   LEFT PANEL - Input Section
+   LEFT PANEL - Input Section (Stitch-style)
    ============================================ */
 .stitch-left-panel {
   width: 100%;
   max-width: 1200px;
-  padding: 100px 120px;
+  padding: 80px 120px 60px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -3596,12 +3598,15 @@ kbd {
 }
 
 .stitch-main-container.split-mode .stitch-left-panel {
-  width: 45%;
-  max-width: none;
-  padding: 60px 50px;
+  width: 380px;
+  max-width: 380px;
+  min-width: 380px;
+  padding: 32px 20px;
   justify-content: flex-start;
   border-right: 1px solid #E5E7EB;
   overflow-y: auto;
+  flex-shrink: 0;
+  background: #FAFBFC;
 }
 
 .stitch-input-section {
@@ -4213,4 +4218,179 @@ kbd {
   .credits-estimate-card button {
     width: 100%;
   }
+}
+/* ============================================
+   SPLIT MODE RESPONSIVE OVERRIDES
+   ============================================ */
+/* ✅ NEW IMPROVED CODE (PASTE THIS): */
+.stitch-main-container.split-mode .stitch-input-section {
+  gap: 16px;
+  align-items: stretch;
+  text-align: left;
+  padding: 0;
+}
+
+.stitch-main-container.split-mode .stitch-title {
+  font-size: 20px;
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+}
+
+.stitch-main-container.split-mode .stitch-subtitle {
+  font-size: 12px;
+  margin-bottom: 20px;
+  color: #6B7280;
+}
+
+.stitch-main-container.split-mode .stitch-input-wrapper {
+  max-width: 100%;
+}
+
+.stitch-main-container.split-mode .sparkle-icon-stitch {
+  display: none;
+}
+
+.stitch-main-container.split-mode .stitch-input {
+  min-height: 120px;
+  max-height: 240px;
+  padding: 14px;
+  font-size: 13px;
+  background: #FFFFFF;
+  border: 1px solid #D1D5DB;
+}
+
+.stitch-main-container.split-mode .stitch-btn-inline {
+  position: static;
+  transform: none;
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 14px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.stitch-main-container.split-mode .stitch-enhance-btn,
+.stitch-main-container.split-mode .stitch-presets,
+.stitch-main-container.split-mode .credits-estimate-card {
+  display: none;
+}
+
+/* 🆕 IMPROVED TOOLBAR STYLING */
+.stitch-main-container.split-mode .stitch-results-actions {
+  flex-direction: row;
+  gap: 8px;
+  padding: 16px;
+  margin: 0 -20px;
+  border-top: 1px solid #E5E7EB;
+  border-bottom: 1px solid #E5E7EB;
+  background: rgba(248, 250, 252, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.stitch-main-container.split-mode .stitch-btn {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 13px;
+  border-radius: 8px;
+  font-weight: 600;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.stitch-main-container.split-mode .stitch-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+
+
+
+
+
+
+/* ============================================
+   PHONE MOCKUP FRAMES
+   ============================================ */
+.phone-mockups-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 40px;
+  padding: 0;
+}
+
+.phone-mockup {
+  width: 100%;
+  max-width: 340px;
+  animation: fadeInUp 0.6s ease-out both;
+}
+
+.phone-frame-wrapper {
+  position: relative;
+  background: linear-gradient(145deg, #1F2937 0%, #111827 100%);
+  border-radius: 42px;
+  padding: 14px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.phone-notch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150px;
+  height: 28px;
+  background: #1F2937;
+  border-radius: 0 0 20px 20px;
+  z-index: 10;
+}
+
+.phone-screen-area {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9 / 19.5;
+  background: #FFFFFF;
+  border-radius: 32px;
+  overflow: hidden;
+}
+
+.phone-screen-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 44px 16px 12px;
+  background: rgba(248, 250, 252, 0.98);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #E5E7EB;
+  z-index: 5;
+}
+
+.screen-name-display {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0F172A;
+  text-align: center;
+}
+
+.phone-screen-content {
+  position: absolute;
+  top: 76px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+}
+
+.phone-home-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+  z-index: 10;
 }

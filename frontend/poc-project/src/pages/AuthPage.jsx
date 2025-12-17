@@ -1,5 +1,5 @@
 // frontend/poc-project/src/pages/AuthPage.jsx
-// COMPLETE FILE - COPY AND REPLACE ENTIRE FILE
+// COMPLETE FILE WITH EMAIL VERIFICATION & PASSWORD RESET
 
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
@@ -11,15 +11,25 @@ export default function AuthPage({ onSuccess }) {
   
   const initialMode = location.state?.mode || "login";
   
-  const [mode, setMode] = useState(initialMode);
+  // Main flow state
+  const [mode, setMode] = useState(initialMode); // "login" | "signup" | "verify" | "forgot" | "reset"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Verification & Reset state
+  const [verificationCode, setVerificationCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetToken, setResetToken] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
 
-  // ✅ Initialize Google Sign-In SDK
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+  // Initialize Google Sign-In SDK
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     
@@ -39,7 +49,8 @@ export default function AuthPage({ onSuccess }) {
     checkGoogleLoaded();
   }, []);
 
-  // ✅ Google Sign-In with POPUP (works perfectly on localhost)
+  // Google Sign-In Handler
+    // ✅ FIX: Update handleGoogleLogin to use AuthContext
   const handleGoogleLogin = () => {
     if (!window.google || !window.google.accounts) {
       setError("Google Sign-In is not loaded. Please refresh the page.");
@@ -55,7 +66,6 @@ export default function AuthPage({ onSuccess }) {
     setError(null);
 
     try {
-      // Initialize token client (popup flow)
       const client = window.google.accounts.oauth2.initTokenClient({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         scope: 'email profile openid',
@@ -68,8 +78,6 @@ export default function AuthPage({ onSuccess }) {
           }
 
           try {
-            console.log('🔐 Received Google access token, fetching user info...');
-            
             // Get user info from Google
             const userInfoResponse = await fetch(
               'https://www.googleapis.com/oauth2/v3/userinfo',
@@ -85,60 +93,34 @@ export default function AuthPage({ onSuccess }) {
             }
 
             const userInfo = await userInfoResponse.json();
-            console.log('✅ Google user info received:', userInfo.email);
             
-            // Send to backend (backend will create/login user)
-            const backendResponse = await fetch(
-              `${import.meta.env.VITE_API_BASE_URL}/auth/google`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  id_token: JSON.stringify({
-                    email: userInfo.email,
-                    name: userInfo.name,
-                    picture: userInfo.picture,
-                    email_verified: userInfo.email_verified,
-                    sub: userInfo.sub
-                  })
-                })
-              }
-            );
+            // Create the ID token payload
+            const idTokenPayload = JSON.stringify({
+              email: userInfo.email,
+              name: userInfo.name,
+              picture: userInfo.picture,
+              email_verified: userInfo.email_verified,
+              sub: userInfo.sub
+            });
 
-            if (!backendResponse.ok) {
-              const errorData = await backendResponse.json();
-              throw new Error(errorData.detail || 'Backend authentication failed');
-            }
+            // ✅ FIX: Use AuthContext's loginWithGoogle method
+            const result = await loginWithGoogle(idTokenPayload);
 
-            const authData = await backendResponse.json();
-            
-            // ✅ FIXED: Use loginWithGoogle from AuthContext instead of manual storage
-            if (authData.user && authData.tokens) {
-              // The AuthContext expects just the tokens, not the whole response
-              // We need to manually store and trigger a re-render
-              
-              // Store in sessionStorage (AuthContext will read this on mount)
-              sessionStorage.setItem('auth_user', JSON.stringify(authData.user));
-              sessionStorage.setItem('auth_tokens', JSON.stringify(authData.tokens));
-              
-              console.log('✅ Google Sign-In successful - tokens stored!');
-              
-              // Trigger success callback (will redirect)
+            if (result.success) {
+              console.log('✅ Google authentication successful:', result.user.email);
               onSuccess?.();
             } else {
-              throw new Error('Invalid response from backend');
+              throw new Error(result.error || 'Authentication failed');
             }
             
           } catch (err) {
             console.error('❌ Google authentication error:', err);
             setError(err.message || "Failed to authenticate with Google");
-          } finally {
             setLoading(false);
           }
         },
       });
 
-      // Open Google popup
       client.requestAccessToken();
       
     } catch (err) {
@@ -148,24 +130,163 @@ export default function AuthPage({ onSuccess }) {
     }
   };
 
-  const handleSubmit = async (e) => {
+  // Email/Password Signup
+  const handleSignup = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
+  // ✅ ADD VALIDATION BEFORE SENDING
+  console.log("Signup attempt:", {
+    email,
+    password: `${password.length} chars`,
+    username,
+    fullName
+  });
+
+  // ✅ CHECK PASSWORD STRENGTH
+  if (password.length < 8) {
+    setError("Password must be at least 8 characters");
+    setLoading(false);
+    return;
+  }
+    const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasDigit = /[0-9]/.test(password);
+
+  if (!hasUpper || !hasLower || !hasDigit) {
+    setError("Password must contain uppercase, lowercase, and a number");
+    setLoading(false);
+    return;
+  }
+
+  // ✅ CHECK USERNAME
+  if (username.length < 3) {
+    setError("Username must be at least 3 characters");
+    setLoading(false);
+    return;
+  }
+  if (!/^[a-zA-Z0-9]+$/.test(username)) {
+    setError("Username must be alphanumeric (no special characters)");
+    setLoading(false);
+    return;
+  }
+
+
+  try {
+    const result = await fetch(`${API_BASE}/auth/signup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        username,
+        full_name: fullName,  // ✅ FIXED - matches backend expectation
+      }),
+    });
+
+    const data = await result.json();  // ✅ FIXED - correct variable name
+
+    if (!result.ok) {  // ✅ FIXED - use result instead of response
+      throw new Error(data.detail || "Signup failed");
+    }
+
+    // ✅ Move to verification screen
+    setMode("verify");
+    setSuccessMessage("Verification code sent to your email!");
+
+  } catch (err) {
+    setError(err.message || "An error occurred. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Email Verification
+  const handleVerifyEmail = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      let result;
-      
-      if (mode === "login") {
-        result = await login(email, password);
-      } else {
-        result = await signup(email, password, username, fullName);
+      const response = await fetch(`${API_BASE}/auth/verify-email/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.toLowerCase(),
+          code: verificationCode
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Verification failed');
       }
+
+      setSuccessMessage("Email verified successfully! Redirecting...");
+      
+      // Auto-login after verification
+      setTimeout(() => {
+        onSuccess?.();
+      }, 1500);
+
+    } catch (err) {
+      setError(err.message || "Verification failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend Verification Code
+  const handleResendVerification = async () => {
+  setLoading(true);
+  setError(null);
+
+  try {
+    // ⚠️ ISSUE: Your backend's /verify-email/send requires AUTH token
+    // But user isn't logged in during signup verification
+    // SOLUTION: Create a public resend endpoint OR use the send endpoint differently
+    
+    // For now, let's use a workaround - re-trigger signup email send
+    // You'll need to add a PUBLIC resend endpoint to your backend
+    
+    const response = await fetch(`${API_BASE}/auth/resend-verification`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.toLowerCase() })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || 'Failed to resend code');
+    }
+
+    setSuccessMessage("New verification code sent!");
+    setTimeout(() => setSuccessMessage(""), 3000);
+
+  } catch (err) {
+    setError(err.message || "Failed to resend code.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Login
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await login(email, password);
 
       if (result.success) {
         onSuccess?.();
       } else {
-        setError(result.error || "Authentication failed");
+        setError(result.error || "Login failed");
       }
     } catch (err) {
       setError(err.message || "An error occurred. Please try again.");
@@ -174,28 +295,570 @@ export default function AuthPage({ onSuccess }) {
     }
   };
 
+  // Request Password Reset
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/password-reset/send-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase() })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Request failed');
+      }
+
+      setMode("reset");
+      setSuccessMessage("Password reset code sent to your email!");
+
+    } catch (err) {
+      setError(err.message || "Failed to send reset code.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify Reset Code & Reset Password
+  // Verify Reset Code & Reset Password
+const handleResetPassword = async (e) => {
+  e.preventDefault();
+  
+  if (newPassword !== confirmPassword) {
+    setError("Passwords don't match");
+    return;
+  }
+
+  if (newPassword.length < 8) {
+    setError("Password must be at least 8 characters");
+    return;
+  }
+
+  setLoading(true);
+  setError(null);
+
+  try {
+    // ✅ FIXED: Send all 3 fields in ONE request
+    const response = await fetch(`${API_BASE}/auth/password-reset/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.toLowerCase(),
+        code: verificationCode,
+        new_password: newPassword  // ✅ ADD THIS!
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || 'Password reset failed');
+    }
+
+    setSuccessMessage("Password reset successful! Redirecting to login...");
+    
+    setTimeout(() => {
+      setMode("login");
+      setPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setVerificationCode("");
+      setSuccessMessage("");
+    }, 2000);
+
+  } catch (err) {
+    setError(err.message || "Password reset failed.");
+  } finally {
+    setLoading(false);
+  }
+};
+
   const displayError = error || authError;
 
-  return (
-    <div style={{
-      minHeight: "calc(100vh - 80px)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "24px",
-      background: "#0f172a",
-    }}>
-      <div style={{
-        width: "100%",
-        maxWidth: "560px",
-        background: "rgba(30, 41, 59, 0.8)",
-        backdropFilter: "blur(20px)",
-        padding: "48px",
-        borderRadius: "28px",
-        boxShadow: "0 30px 80px rgba(0, 0, 0, 0.5)",
-        border: "1px solid rgba(99, 102, 241, 0.3)",
-      }}>
-        {/* Header */}
+  // Render different UI based on mode
+  const renderContent = () => {
+    // EMAIL VERIFICATION MODE
+    if (mode === "verify") {
+      return (
+        <>
+          <div style={{ textAlign: "center", marginBottom: "32px" }}>
+            <div style={{
+              width: "80px",
+              height: "80px",
+              background: "linear-gradient(135deg, #667EEA 0%, #764BA2 100%)",
+              borderRadius: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "40px",
+              margin: "0 auto 20px",
+              boxShadow: "0 8px 32px rgba(99, 102, 241, 0.4)",
+            }}>
+              📧
+            </div>
+            <h2 style={{
+              fontSize: "32px",
+              fontWeight: "900",
+              marginBottom: "12px",
+              color: "#f8fafc",
+              letterSpacing: "-0.02em",
+            }}>
+              Verify your email
+            </h2>
+            <p style={{ fontSize: "16px", color: "#94a3b8" }}>
+              We sent a 6-digit code to <strong>{email}</strong>
+            </p>
+          </div>
+
+          {successMessage && (
+            <div style={{
+              padding: "14px 18px",
+              background: "rgba(16, 185, 129, 0.15)",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              borderRadius: "12px",
+              color: "#6ee7b7",
+              fontSize: "14px",
+              marginBottom: "24px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}>
+              <span style={{ fontSize: "20px" }}>✅</span>
+              <span>{successMessage}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleVerifyEmail}>
+            <div style={{ marginBottom: "28px" }}>
+              <label style={{
+                display: "block",
+                fontSize: "14px",
+                fontWeight: "700",
+                color: "#f8fafc",
+                marginBottom: "8px",
+              }}>
+                Verification Code
+              </label>
+              <input
+                type="text"
+                value={verificationCode}
+                onChange={(e) => {
+                  const cleaned = e.target.value.replace(/\D/g, ''); 
+                  setVerificationCode(cleaned)
+                }}
+                required
+                placeholder="Enter 6-digit code"
+                maxLength={6}
+                style={{
+                  width: "100%",
+                  padding: "16px",
+                  border: "2px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "12px",
+                  fontSize: "24px",
+                  letterSpacing: "8px",
+                  textAlign: "center",
+                  outline: "none",
+                  transition: "all 0.2s",
+                  background: "rgba(30, 41, 59, 0.6)",
+                  color: "#f8fafc",
+                  boxSizing: "border-box",
+                  fontWeight: "700",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#667EEA";
+                  e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || verificationCode.length !== 6}
+              style={{
+                width: "100%",
+                padding: "14px",
+                background: loading || verificationCode.length !== 6
+                  ? "#94A3B8"
+                  : "linear-gradient(135deg, #667EEA 0%, #764BA2 100%)",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: "12px",
+                fontSize: "16px",
+                fontWeight: "700",
+                cursor: loading || verificationCode.length !== 6 ? "not-allowed" : "pointer",
+                transition: "all 0.3s",
+                boxShadow: loading || verificationCode.length !== 6
+                  ? "none"
+                  : "0 4px 16px rgba(99, 102, 241, 0.4)",
+              }}
+            >
+              {loading ? "Verifying..." : "Verify Email"}
+            </button>
+          </form>
+
+          <div style={{ marginTop: "24px", textAlign: "center" }}>
+            <p style={{ fontSize: "14px", color: "#94a3b8" }}>
+              Didn't receive the code?{" "}
+              <button
+                onClick={handleResendVerification}
+                disabled={loading}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#818cf8",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  textDecoration: "underline",
+                }}
+              >
+                Resend Code
+              </button>
+            </p>
+          </div>
+        </>
+      );
+    }
+
+    // FORGOT PASSWORD MODE
+    if (mode === "forgot") {
+      return (
+        <>
+          <div style={{ textAlign: "center", marginBottom: "32px" }}>
+            <div style={{
+              width: "80px",
+              height: "80px",
+              background: "linear-gradient(135deg, #F59E0B 0%, #F97316 100%)",
+              borderRadius: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "40px",
+              margin: "0 auto 20px",
+              boxShadow: "0 8px 32px rgba(245, 158, 11, 0.4)",
+            }}>
+              🔑
+            </div>
+            <h2 style={{
+              fontSize: "32px",
+              fontWeight: "900",
+              marginBottom: "12px",
+              color: "#f8fafc",
+              letterSpacing: "-0.02em",
+            }}>
+              Reset password
+            </h2>
+            <p style={{ fontSize: "16px", color: "#94a3b8" }}>
+              Enter your email to receive a reset code
+            </p>
+          </div>
+
+          <form onSubmit={handleForgotPassword}>
+            <div style={{ marginBottom: "28px" }}>
+              <label style={{
+                display: "block",
+                fontSize: "14px",
+                fontWeight: "700",
+                color: "#f8fafc",
+                marginBottom: "8px",
+              }}>
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@example.com"
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  border: "2px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "12px",
+                  fontSize: "14px",
+                  outline: "none",
+                  transition: "all 0.2s",
+                  background: "rgba(30, 41, 59, 0.6)",
+                  color: "#f8fafc",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#667EEA";
+                  e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: "100%",
+                padding: "14px",
+                background: loading
+                  ? "#94A3B8"
+                  : "linear-gradient(135deg, #667EEA 0%, #764BA2 100%)",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: "12px",
+                fontSize: "16px",
+                fontWeight: "700",
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "all 0.3s",
+                boxShadow: loading
+                  ? "none"
+                  : "0 4px 16px rgba(99, 102, 241, 0.4)",
+              }}
+            >
+              {loading ? "Sending code..." : "Send Reset Code"}
+            </button>
+          </form>
+
+          <div style={{ marginTop: "28px", textAlign: "center" }}>
+            <p style={{ fontSize: "14px", color: "#94a3b8" }}>
+              Remember your password?{" "}
+              <button
+                onClick={() => {
+                  setMode("login");
+                  setError(null);
+                }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#818cf8",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  textDecoration: "underline",
+                }}
+              >
+                Sign in
+              </button>
+            </p>
+          </div>
+        </>
+      );
+    }
+
+    // PASSWORD RESET MODE (after receiving code)
+    if (mode === "reset") {
+      return (
+        <>
+          <div style={{ textAlign: "center", marginBottom: "32px" }}>
+            <div style={{
+              width: "80px",
+              height: "80px",
+              background: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
+              borderRadius: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "40px",
+              margin: "0 auto 20px",
+              boxShadow: "0 8px 32px rgba(16, 185, 129, 0.4)",
+            }}>
+              🔐
+            </div>
+            <h2 style={{
+              fontSize: "32px",
+              fontWeight: "900",
+              marginBottom: "12px",
+              color: "#f8fafc",
+              letterSpacing: "-0.02em",
+            }}>
+              Set new password
+            </h2>
+            <p style={{ fontSize: "16px", color: "#94a3b8" }}>
+              Enter the code sent to <strong>{email}</strong>
+            </p>
+          </div>
+
+          {successMessage && (
+            <div style={{
+              padding: "14px 18px",
+              background: "rgba(16, 185, 129, 0.15)",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              borderRadius: "12px",
+              color: "#6ee7b7",
+              fontSize: "14px",
+              marginBottom: "24px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}>
+              <span style={{ fontSize: "20px" }}>✅</span>
+              <span>{successMessage}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleResetPassword}>
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{
+                display: "block",
+                fontSize: "14px",
+                fontWeight: "700",
+                color: "#f8fafc",
+                marginBottom: "8px",
+              }}>
+                Reset Code
+              </label>
+              <input
+                type="text"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                required
+                placeholder="Enter 6-digit code"
+                maxLength={6}
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  border: "2px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "12px",
+                  fontSize: "18px",
+                  letterSpacing: "4px",
+                  textAlign: "center",
+                  outline: "none",
+                  transition: "all 0.2s",
+                  background: "rgba(30, 41, 59, 0.6)",
+                  color: "#f8fafc",
+                  boxSizing: "border-box",
+                  fontWeight: "700",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#667EEA";
+                  e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{
+                display: "block",
+                fontSize: "14px",
+                fontWeight: "700",
+                color: "#f8fafc",
+                marginBottom: "8px",
+              }}>
+                New Password
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                minLength={6}
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  border: "2px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "12px",
+                  fontSize: "14px",
+                  outline: "none",
+                  transition: "all 0.2s",
+                  background: "rgba(30, 41, 59, 0.6)",
+                  color: "#f8fafc",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#667EEA";
+                  e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "28px" }}>
+              <label style={{
+                display: "block",
+                fontSize: "14px",
+                fontWeight: "700",
+                color: "#f8fafc",
+                marginBottom: "8px",
+              }}>
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                minLength={6}
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  border: "2px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "12px",
+                  fontSize: "14px",
+                  outline: "none",
+                  transition: "all 0.2s",
+                  background: "rgba(30, 41, 59, 0.6)",
+                  color: "#f8fafc",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#667EEA";
+                  e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: "100%",
+                padding: "14px",
+                background: loading
+                  ? "#94A3B8"
+                  : "linear-gradient(135deg, #667EEA 0%, #764BA2 100%)",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: "12px",
+                fontSize: "16px",
+                fontWeight: "700",
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "all 0.3s",
+                boxShadow: loading
+                  ? "none"
+                  : "0 4px 16px rgba(99, 102, 241, 0.4)",
+              }}
+            >
+              {loading ? "Resetting password..." : "Reset Password"}
+            </button>
+          </form>
+        </>
+      );
+    }
+
+    // DEFAULT: LOGIN / SIGNUP MODE
+    return (
+      <>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <div style={{
             width: "80px",
@@ -227,25 +890,6 @@ export default function AuthPage({ onSuccess }) {
           </p>
         </div>
 
-        {/* Error Message */}
-        {displayError && (
-          <div style={{
-            padding: "14px 18px",
-            background: "rgba(239, 68, 68, 0.15)",
-            border: "1px solid rgba(239, 68, 68, 0.3)",
-            borderRadius: "12px",
-            color: "#fca5a5",
-            fontSize: "14px",
-            marginBottom: "24px",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}>
-            <span style={{ fontSize: "20px" }}>⚠️</span>
-            <span>{displayError}</span>
-          </div>
-        )}
-
         {/* Google Sign-In Button */}
         <button
           type="button"
@@ -267,18 +911,6 @@ export default function AuthPage({ onSuccess }) {
             gap: "12px",
             transition: "all 0.2s",
             opacity: loading || !import.meta.env.VITE_GOOGLE_CLIENT_ID ? 0.6 : 1,
-          }}
-          onMouseEnter={(e) => {
-            if (!loading && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-              e.target.style.background = "#F9FAFB";
-              e.target.style.borderColor = "#D1D5DB";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!loading && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-              e.target.style.background = "#FFFFFF";
-              e.target.style.borderColor = "#E5E7EB";
-            }
           }}
         >
           <svg width="18" height="18" viewBox="0 0 18 18">
@@ -305,7 +937,7 @@ export default function AuthPage({ onSuccess }) {
         </div>
 
         {/* Email/Password Form */}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={mode === "login" ? handleLogin : handleSignup}>
           {mode === "signup" && (
             <>
               <div style={{ marginBottom: "20px" }}>
@@ -426,7 +1058,7 @@ export default function AuthPage({ onSuccess }) {
             />
           </div>
 
-          <div style={{ marginBottom: "28px" }}>
+          <div style={{ marginBottom: mode === "login" ? "12px" : "28px" }}>
             <label style={{
               display: "block",
               fontSize: "14px",
@@ -474,6 +1106,30 @@ export default function AuthPage({ onSuccess }) {
               </p>
             )}
           </div>
+
+          {/* Forgot Password Link (Login mode only) */}
+          {mode === "login" && (
+            <div style={{ marginBottom: "28px", textAlign: "right" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("forgot");
+                  setError(null);
+                }}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#818cf8",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  textDecoration: "underline",
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
 
           <button
             type="submit"
@@ -538,6 +1194,7 @@ export default function AuthPage({ onSuccess }) {
               onClick={() => {
                 setMode(mode === "login" ? "signup" : "login");
                 setError(null);
+                setSuccessMessage("");
               }}
               style={{
                 background: "transparent",
@@ -574,6 +1231,68 @@ export default function AuthPage({ onSuccess }) {
             </p>
           </div>
         )}
+      </>
+    );
+  };
+
+  return (
+    <div style={{
+      minHeight: "calc(100vh - 80px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px",
+      background: "#0f172a",
+    }}>
+      <div style={{
+        width: "100%",
+        maxWidth: "560px",
+        background: "rgba(30, 41, 59, 0.8)",
+        backdropFilter: "blur(20px)",
+        padding: "48px",
+        borderRadius: "28px",
+        boxShadow: "0 30px 80px rgba(0, 0, 0, 0.5)",
+        border: "1px solid rgba(99, 102, 241, 0.3)",
+      }}>
+        {/* Error Message */}
+        {displayError && (
+          <div style={{
+            padding: "14px 18px",
+            background: "rgba(239, 68, 68, 0.15)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "12px",
+            color: "#fca5a5",
+            fontSize: "14px",
+            marginBottom: "24px",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}>
+            <span style={{ fontSize: "20px" }}>⚠️</span>
+            <span>{displayError}</span>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {successMessage && (
+          <div style={{
+            padding: "14px 18px",
+            background: "rgba(16, 185, 129, 0.15)",
+            border: "1px solid rgba(16, 185, 129, 0.3)",
+            borderRadius: "12px",
+            color: "#6ee7b7",
+            fontSize: "14px",
+            marginBottom: "24px",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}>
+            <span style={{ fontSize: "20px" }}>✅</span>
+            <span>{successMessage}</span>
+          </div>
+        )}
+
+        {renderContent()}
       </div>
 
       {/* CSS Animation */}

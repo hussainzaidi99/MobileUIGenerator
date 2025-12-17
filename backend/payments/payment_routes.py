@@ -188,7 +188,7 @@ async def create_checkout_session(request: CheckoutRequest):
         
         # Validate user exists
         try:
-            get_user_credits(request.user_id)
+            await get_user_credits(request.user_id)
         except HTTPException as e:
             if e.status_code == 404:
                 raise HTTPException(
@@ -492,7 +492,7 @@ async def stripe_webhook(request: Request):
             try:
                 db = Database.get_db()
                 users_collection = db["users"]
-                user = users_collection.find_one({"_id": ObjectId(user_id)})
+                user = await users_collection.find_one({"_id": ObjectId(user_id)})
                 
                 if user and package_type in CREDIT_PACKAGES:
                     package = CREDIT_PACKAGES[package_type]

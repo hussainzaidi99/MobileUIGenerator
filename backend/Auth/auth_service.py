@@ -223,7 +223,7 @@ class AuthService:
         # Get user
         user = await users_collection.find_one({"email": email.lower()})
         if not user:
-            AuthService._record_login_attempt(email, success=False, ip_address=ip_address)
+            await AuthService._record_login_attempt(email, success=False, ip_address=ip_address)
             logger.warning(f"❌ Login failed: User not found - {email}")
             return None
         

@@ -153,7 +153,7 @@ class TierManager:
                 {"$set": tier_data}
             )
             
-            logger.info(f"✅ Free tier assigned to user: {user_id} ({TierManager.get_free_tier_count()}/{FREE_TIER_LIMIT})")
+            logger.info(f"✅ Free tier assigned to user: {user_id} ({await TierManager.get_free_tier_count()}/{FREE_TIER_LIMIT})")
             
             return {
                 "success": True,
@@ -273,10 +273,10 @@ class TierManager:
         now = datetime.now(timezone.utc)
         
         # Find users with expired paid tiers
-        expired_users = await list(users_collection.find({
+        expired_users = await users_collection.find({
             "tier": {"$in": ["basic", "pro", "premium"]},
             "tier_end_date": {"$lt": now}
-        }))
+        })
         
         downgraded = []
         
@@ -291,7 +291,7 @@ class TierManager:
                 new_credits = FREE_TIER_CREDITS
                 logger.info(f"⬇️ Restoring free tier for expired user: {user_id}")
             else:
-                can_get_free = TierManager.can_add_free_tier_user()
+                can_get_free = await TierManager.can_add_free_tier_user()
                 
                 if can_get_free:
                     new_tier = "free"
@@ -348,11 +348,11 @@ class TierManager:
         now = datetime.now(timezone.utc)
         
         # Find free-tier users due for credit reset
-        users_to_reset = await list(users_collection.find({
+        users_to_reset = await users_collection.find({
             "tier": "free",
             "is_active": True,
             "next_credit_reset": {"$lte": now}
-        }))
+        })
         
         reset_results = []
         

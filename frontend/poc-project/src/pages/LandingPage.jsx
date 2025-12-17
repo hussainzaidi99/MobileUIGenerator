@@ -736,9 +736,7 @@ function AuthRoute() {
   const handleSuccess = () => {
     console.log('✅ Auth successful, redirecting to:', from);
     
-    // ✅ CRITICAL FIX: Force full page reload to refresh AuthContext
-    // This ensures user state is properly loaded from sessionStorage
-    window.location.href = from;
+    navigate(from, { replace: true });
   };
 
   return <AuthPage onSuccess={handleSuccess} />;

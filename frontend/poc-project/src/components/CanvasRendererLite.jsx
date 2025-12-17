@@ -91,112 +91,88 @@ export default function CanvasRendererLite({ layout }) {
   return (
     <ThemeCtx.Provider value={ctx}>
       <div className="ui-root" style={rootStyle}>
-        {/* Responsive grid: 1 column (mobile) → 2 columns (tablet) → 3 columns (desktop) */}
-        <div className="screens-grid">
-          {screens.map((s, idx) => {
-            // Safe screen data extraction
-            const screenName = s?.name || `Screen ${idx + 1}`;
-            const components = Array.isArray(s?.components) ? s.components : [];
-            const backgroundConfig = s?.background || { enabled: false };
+        {/* Single screen rendering - no additional wrapper */}
+        {screens.map((s, idx) => {
+          // Safe screen data extraction
+          const screenName = s?.name || `Screen ${idx + 1}`;
+          const components = Array.isArray(s?.components) ? s.components : [];
+          const backgroundConfig = s?.background || { enabled: false };
 
-            console.log(`[SCREEN] ${screenName}:`, {
-              componentCount: components.length,
-              backgroundEnabled: backgroundConfig.enabled,
-              backgroundStyle: backgroundConfig.primary_style,
-              components: components.map(c => ({ 
-                type: c?.type, 
-                id: c?.id 
-              }))
-            });
+          console.log(`[SCREEN] ${screenName}:`, {
+            componentCount: components.length,
+            backgroundEnabled: backgroundConfig.enabled,
+            backgroundStyle: backgroundConfig.primary_style,
+            components: components.map(c => ({ 
+              type: c?.type, 
+              id: c?.id 
+            }))
+          });
 
-            return (
-              <article key={s?.name || idx} className="phone-frame">
-                {/* Phone header with background indicator */}
-                <header className="phone-header">
-                  <span className="screen-title">
-                    📱 {screenName}
-                  </span>
-                  
-                  {/* Background style badge */}
-                  {backgroundConfig.enabled && (
-                    <span 
-                      className="background-badge"
-                      style={{ 
-                        marginLeft: '8px', 
-                        fontSize: '10px',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        background: 'rgba(59, 130, 246, 0.1)',
-                        color: '#3B82F6',
-                        fontWeight: '500',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}
-                      title={`Background: ${backgroundConfig.primary_style}`}
-                    >
-                      🎨 {backgroundConfig.primary_style}
-                    </span>
-                  )}
-                </header>
+          return (
+            <div key={s?.name || idx} style={{ width: '100%' }}>
+              {/* Dynamic background wrapper for phone content */}
+              <DynamicBackgroundPreview config={backgroundConfig}>
+                <div style={{ 
+                  padding: '16px',
+                  minHeight: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: `${safeTokens.gap}px`
+                }}>
+                  {components.length > 0 ? (
+                    components.map((node, nidx) => {
+                      // Validate node structure
+                      if (!node || typeof node !== 'object') {
+                        console.warn(`[CANVAS] Invalid node at index ${nidx} in screen "${screenName}"`);
+                        return null;
+                      }
 
-                {/* Phone body with dynamic background wrapper */}
-                <DynamicBackgroundPreview config={backgroundConfig}>
-                  <div className="phone-body">
-                    {components.length > 0 ? (
-                      components.map((node, nidx) => {
-                        // Validate node structure
-                        if (!node || typeof node !== 'object') {
-                          console.warn(`[CANVAS] Invalid node at index ${nidx} in screen "${screenName}"`);
-                          return null;
-                        }
+                      console.log(`  ↳ Rendering component ${nidx}:`, node.type, node.id);
 
-                        console.log(`  ↳ Rendering component ${nidx}:`, node.type, node.id);
-
-                        return (
-                          <ComponentRendererLite
-                            key={String(node?.id ?? `${screenName}-${idx}-${nidx}`)}
-                            node={node}
-                          />
-                        );
-                      })
-                    ) : (
-                      // Empty screen state
+                      return (
+                        <ComponentRendererLite
+                          key={String(node?.id ?? `${screenName}-${idx}-${nidx}`)}
+                          node={node}
+                        />
+                      );
+                    })
+                  ) : (
+                    // Empty screen state
+                    <div style={{ 
+                      textAlign: "center", 
+                      padding: "32px 16px", 
+                      color: "#9CA3AF",
+                      background: "rgba(248, 250, 252, 0.5)",
+                      borderRadius: "8px",
+                      margin: "16px"
+                    }}>
                       <div style={{ 
-                        textAlign: "center", 
-                        padding: "32px 16px", 
-                        color: "#9CA3AF",
-                        background: "rgba(248, 250, 252, 0.5)",
-                        borderRadius: "8px",
-                        margin: "16px"
+                        fontSize: "32px", 
+                        marginBottom: "8px" 
                       }}>
-                        <div style={{ 
-                          fontSize: "32px", 
-                          marginBottom: "8px" 
-                        }}>
-                          📦
-                        </div>
-                        <div style={{ 
-                          fontSize: "14px",
-                          fontWeight: "500",
-                          color: "#64748B"
-                        }}>
-                          No components in this screen
-                        </div>
-                        <div style={{
-                          fontSize: "12px",
-                          color: "#94A3B8",
-                          marginTop: "4px"
-                        }}>
-                          Add components to see them here
-                        </div>
+                        📦
                       </div>
-                    )}
-                  </div>
-                </DynamicBackgroundPreview>
-              </article>
-            );
-          })}
-        </div>
+                      <div style={{ 
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        color: "#64748B"
+                      }}>
+                        No components in this screen
+                      </div>
+                      <div style={{
+                        fontSize: "12px",
+                        color: "#94A3B8",
+                        marginTop: "4px"
+                      }}>
+                        Add components to see them here
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </DynamicBackgroundPreview>
+            </div>
+          );
+        })}
       </div>
     </ThemeCtx.Provider>
   );
