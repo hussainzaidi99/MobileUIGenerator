@@ -1,4 +1,4 @@
-// frontend/src/components/CanvasRendererLite.jsx - PRODUCTION READY v2.3
+// frontend/src/components/CanvasRendererLite.jsx - PRODUCTION READY v3.0
 import React, { createContext, useMemo } from "react";
 import ComponentRendererLite from "./ComponentRendererLite";
 import DynamicBackgroundPreview from "./DynamicBackgroundPreview";
@@ -18,12 +18,15 @@ function toCssVarNumber(v, fallback) {
 
 /**
  * CanvasRendererLite - Main layout renderer with dynamic background support
+ * 
  * Features:
  * - Responsive grid layout (1→2→3 columns)
  * - Dynamic background rendering per screen
  * - Theme context propagation
  * - Safe fallbacks for missing data
  * - Production-grade error handling
+ * - Optimized re-rendering with useMemo
+ * - Container query support for phone screens
  * 
  * @param {Object} props
  * @param {Object} props.layout - Layout configuration
@@ -47,13 +50,110 @@ export default function CanvasRendererLite({ layout }) {
   // Memoized theme context
   const ctx = useMemo(() => ({ theme, tokens: safeTokens }), [theme, safeTokens]);
 
-  console.log("[CANVAS] Rendering layout:", {
-    screens: screens.length,
-    theme,
-    tokens: safeTokens
-  });
+  // Root CSS variables for consistent theming
+  const rootStyle = useMemo(() => ({
+    "--gap": `${safeTokens.gap}px`,
+    "--pad": `${safeTokens.padding}px`,
+    "--card-radius": `${safeTokens.cardRadius}px`,
+    background: theme.background || "#F8FAFC",
+    color: theme.text || "#0F172A",
+    minHeight: "100%",
+    width: "100%"
+  }), [safeTokens, theme]);
 
-  // Empty state
+  // Memoize screen rendering to prevent unnecessary re-renders
+  const renderedScreens = useMemo(() => {
+    console.log("[CANVAS] Rendering layout:", {
+      screens: screens.length,
+      theme,
+      tokens: safeTokens
+    });
+
+    return screens.map((s, idx) => {
+      // Safe screen data extraction
+      const screenName = s?.name || `Screen ${idx + 1}`;
+      const components = Array.isArray(s?.components) ? s.components : [];
+      const backgroundConfig = s?.background || { enabled: false };
+
+      console.log(`[SCREEN] ${screenName}:`, {
+        componentCount: components.length,
+        backgroundEnabled: backgroundConfig.enabled,
+        backgroundStyle: backgroundConfig.primary_style,
+        components: components.map(c => ({ 
+          type: c?.type, 
+          id: c?.id 
+        }))
+      });
+
+      return (
+        <div key={s?.name || idx} style={{ width: '100%' }}>
+          {/* Dynamic background wrapper for phone content */}
+          <DynamicBackgroundPreview config={backgroundConfig}>
+            <div style={{ 
+              minHeight: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0',
+              boxSizing: 'border-box',
+              width: '100%',
+            }}>
+              {components.length > 0 ? (
+                components.map((node, nidx) => {
+                  // Validate node structure
+                  if (!node || typeof node !== 'object') {
+                    console.warn(`[CANVAS] Invalid node at index ${nidx} in screen "${screenName}"`);
+                    return null;
+                  }
+
+                  console.log(`  ↳ Rendering component ${nidx}:`, node.type, node.id);
+
+                  return (
+                    <ComponentRendererLite
+                      key={String(node?.id ?? `${screenName}-${idx}-${nidx}`)}
+                      node={node}
+                    />
+                  );
+                })
+              ) : (
+                // Empty screen state
+                <div style={{ 
+                  textAlign: "center", 
+                  padding: "32px 16px", 
+                  color: "#9CA3AF",
+                  background: "rgba(248, 250, 252, 0.5)",
+                  borderRadius: "8px",
+                  margin: "16px"
+                }}>
+                  <div style={{ 
+                    fontSize: "32px", 
+                    marginBottom: "8px" 
+                  }}>
+                    📦
+                  </div>
+                  <div style={{ 
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    color: "#64748B"
+                  }}>
+                    No components in this screen
+                  </div>
+                  <div style={{
+                    fontSize: "12px",
+                    color: "#94A3B8",
+                    marginTop: "4px"
+                  }}>
+                    Add components to see them here
+                  </div>
+                </div>
+              )}
+            </div>
+          </DynamicBackgroundPreview>
+        </div>
+      );
+    });
+  }, [screens]); // Only re-render when screens change
+
+  // Empty state - no screens
   if (!screens.length) {
     return (
       <div style={{ 
@@ -77,102 +177,10 @@ export default function CanvasRendererLite({ layout }) {
     );
   }
 
-  // Root CSS variables for consistent theming
-  const rootStyle = {
-    "--gap": `${safeTokens.gap}px`,
-    "--pad": `${safeTokens.padding}px`,
-    "--card-radius": `${safeTokens.cardRadius}px`,
-    background: theme.background || "#F8FAFC",
-    color: theme.text || "#0F172A",
-    minHeight: "100%",
-    width: "100%"
-  };
-
   return (
     <ThemeCtx.Provider value={ctx}>
       <div className="ui-root" style={rootStyle}>
-        {/* Single screen rendering - no additional wrapper */}
-        {screens.map((s, idx) => {
-          // Safe screen data extraction
-          const screenName = s?.name || `Screen ${idx + 1}`;
-          const components = Array.isArray(s?.components) ? s.components : [];
-          const backgroundConfig = s?.background || { enabled: false };
-
-          console.log(`[SCREEN] ${screenName}:`, {
-            componentCount: components.length,
-            backgroundEnabled: backgroundConfig.enabled,
-            backgroundStyle: backgroundConfig.primary_style,
-            components: components.map(c => ({ 
-              type: c?.type, 
-              id: c?.id 
-            }))
-          });
-
-          return (
-            <div key={s?.name || idx} style={{ width: '100%' }}>
-              {/* Dynamic background wrapper for phone content */}
-              <DynamicBackgroundPreview config={backgroundConfig}>
-                <div style={{ 
-                  padding: '16px',
-                  minHeight: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: `${safeTokens.gap}px`
-                }}>
-                  {components.length > 0 ? (
-                    components.map((node, nidx) => {
-                      // Validate node structure
-                      if (!node || typeof node !== 'object') {
-                        console.warn(`[CANVAS] Invalid node at index ${nidx} in screen "${screenName}"`);
-                        return null;
-                      }
-
-                      console.log(`  ↳ Rendering component ${nidx}:`, node.type, node.id);
-
-                      return (
-                        <ComponentRendererLite
-                          key={String(node?.id ?? `${screenName}-${idx}-${nidx}`)}
-                          node={node}
-                        />
-                      );
-                    })
-                  ) : (
-                    // Empty screen state
-                    <div style={{ 
-                      textAlign: "center", 
-                      padding: "32px 16px", 
-                      color: "#9CA3AF",
-                      background: "rgba(248, 250, 252, 0.5)",
-                      borderRadius: "8px",
-                      margin: "16px"
-                    }}>
-                      <div style={{ 
-                        fontSize: "32px", 
-                        marginBottom: "8px" 
-                      }}>
-                        📦
-                      </div>
-                      <div style={{ 
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#64748B"
-                      }}>
-                        No components in this screen
-                      </div>
-                      <div style={{
-                        fontSize: "12px",
-                        color: "#94A3B8",
-                        marginTop: "4px"
-                      }}>
-                        Add components to see them here
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </DynamicBackgroundPreview>
-            </div>
-          );
-        })}
+        {renderedScreens}
       </div>
     </ThemeCtx.Provider>
   );

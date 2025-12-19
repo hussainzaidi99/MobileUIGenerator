@@ -1,14 +1,44 @@
+
 import React, { useContext, useState } from "react";
-import { Mail, User, Lock, Phone, Search } from "lucide-react";
-import { FaGoogle, FaApple, FaFacebook, FaGithub } from "react-icons/fa";
+import { 
+  Mail, 
+  User, 
+  Lock, 
+  Phone, 
+  Search, 
+  ChevronRight,
+  Settings,
+  Bell,
+  Palette,
+  HelpCircle,
+  Info,
+  LogOut,  
+} from "lucide-react";
+import { FaGoogle,FaCog, FaApple, FaFacebook, FaGithub } from "react-icons/fa";
 import { ThemeCtx } from "./CanvasRendererLite";
 
 const StarIcon = () => <span style={{ color: "#FCD34D" }}>★</span>;
 
 /* ============================================
+   PHONE SPACING CONSTANT - GLOBAL
+   ============================================ */
+// ✅ MOVED TO TOP - Must be accessible to all components
+const PHONE_SPACING = {
+  container: '12px',
+  component: '10px',
+  card: '12px',
+  text: '8px',
+  input: '12px',
+  image: '10px',
+  divider: '12px',
+  badge: '8px',
+};
+
+/* ============================================
    THEME HOOK & UTILITIES
    ============================================ */
 function useThemeColors() {
+  
   const { theme } = useContext(ThemeCtx) || {};
 
   const lightenColor = (hex, percent) => {
@@ -23,6 +53,7 @@ function useThemeColors() {
 
   const primary = theme?.primary || "#0D9488";
   const primaryLight = lightenColor(primary, 15);
+  
 
   const getDynamicGradient = (variant = "primary") => {
     const map = {
@@ -35,6 +66,13 @@ function useThemeColors() {
       green: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
     };
     return map[variant] || map.primary;
+  };
+  const PHONE_SPACING = {
+    container: '12px',
+    component: '10px',
+    card: '12px',
+    text: '8px',
+    input: '12px',
   };
 
   return {
@@ -63,7 +101,11 @@ export const Container = ({
   children,
   style,
 }) => {
-  const pad = String(padding).endsWith("px") ? padding : `${padding}px`;
+  const pad = padding === "0" || padding === 0
+    ? "0" 
+    : String(padding).endsWith("px") 
+      ? padding 
+      : `${padding}px`;
   const br = radius != null ? Number(radius) : 0;
 
   const elevationMap = {
@@ -85,6 +127,9 @@ export const Container = ({
         flexDirection: direction,
         gap: gap ? `${gap}px` : "0",
         alignItems: align || "stretch",
+        boxSizing: "border-box",
+        overflow: "hidden",
+        marginBottom: PHONE_SPACING.container,
         ...style,
       }}
     >
@@ -124,7 +169,7 @@ export const Card = ({
         borderRadius: radiusMap[borderRadius] || "12px",
         boxShadow: elevationMap[elevation] || elevationMap.md,
         background: background || colors.surface,
-        marginBottom: "16px",
+        marginBottom: PHONE_SPACING.card,
         ...style,
       }}
     >
@@ -152,7 +197,7 @@ export const Grid = ({ columns = 2, gap = "16", children, style }) => (
 );
 
 export const Stack = ({ children, style }) => (
-  <div style={{ position: "relative", ...style }}>{children}</div>
+  <div style={{ position: "relative",marginBottom: PHONE_SPACING.component, ...style }}>{children}</div>
 );
 
 /* ============================================
@@ -191,7 +236,7 @@ export const Header = ({
         fontWeight: weightMap[weight] || "700",
         color: color || colors.text,
         textAlign: align,
-        marginBottom: "12px",
+        marginBottom: PHONE_SPACING.text,
         lineHeight: "1.3",
         ...style,
       }}
@@ -230,7 +275,7 @@ export const Text = ({
         fontWeight: weight === "bold" ? "600" : "400",
         marginBottom: spacing
           ? `${spacing === "md" ? 12 : spacing === "lg" ? 16 : 8}px`
-          : "8px",
+          : PHONE_SPACING.text,
         lineHeight: "1.6",
         ...style,
       }}
@@ -246,7 +291,7 @@ export const RichText = ({ content = "", spacing, style }) => (
       fontSize: "16px",
       lineHeight: "1.8",
       color: "#374151",
-      marginBottom: spacing ? `${spacing === "md" ? 16 : 24}px` : "16px",
+      marginBottom: spacing ? `${spacing === "md" ? 16 : 24}px` : PHONE_SPACING.component,
       ...style,
     }}
     dangerouslySetInnerHTML={{ __html: content }}
@@ -254,7 +299,7 @@ export const RichText = ({ content = "", spacing, style }) => (
 );
 
 export const Divider = ({ text, spacing = "md", style }) => {
-  const spacingMap = { sm: "8px", md: "16px", lg: "24px" };
+  const spacingMap = { sm: "8px", md: PHONE_SPACING.divider, lg: "24px" };
   if (text) {
     return (
       <div
@@ -311,6 +356,7 @@ export const Badge = ({ text = "Badge", color = "blue", style }) => {
         fontWeight: "600",
         background: colors.bg,
         color: colors.text,
+        marginBottom: PHONE_SPACING.badge, 
         ...style,
       }}
     >
@@ -346,7 +392,7 @@ export const TextInput = ({
             display: "block",
             fontSize: "14px",
             fontWeight: "500",
-            marginBottom: "6px",
+            marginBottom: PHONE_SPACING.input,
             color: "#374151",
           }}
         >
@@ -397,7 +443,7 @@ export const PasswordInput = ({
             display: "block",
             fontSize: "14px",
             fontWeight: "500",
-            marginBottom: "6px",
+            marginBottom: PHONE_SPACING.input,
             color: "#374151",
           }}
         >
@@ -446,7 +492,7 @@ export const IconInput = ({
     <label
       style={{
         display: "block",
-        marginBottom: "16px",
+        marginBottom: PHONE_SPACING.input,
         width: "100%",
       }}
     >
@@ -464,29 +510,35 @@ export const IconInput = ({
         </span>
       )}
       <div style={{ position: "relative" }}>
+        {/* ✅ Icon with proper positioning */}
         <span
           style={{
             position: "absolute",
-            left: "12px",
+            left: "14px",
             top: "50%",
             transform: "translateY(-50%)",
             display: "flex",
             alignItems: "center",
             color: "#9CA3AF",
+            pointerEvents: "none", // ✅ Don't block clicks
+            zIndex: 1,
           }}
         >
           {iconMap[icon] || icon}
         </span>
+        
+        {/* ✅ Input with proper padding */}
         <input
           type={type}
           placeholder={placeholder}
           style={{
             width: "100%",
-            padding: "10px 12px 10px 40px",
+            padding: "12px 14px 12px 44px", // ✅ 44px left padding
             border: "1px solid #D1D5DB",
             borderRadius: radiusMap[borderRadius] || "8px",
             fontSize: "14px",
             outline: "none",
+            transition: "border-color 0.2s",
             ...style,
           }}
           onFocus={(e) => (e.target.style.borderColor = "#0D9488")}
@@ -497,38 +549,95 @@ export const IconInput = ({
   );
 };
 
+/* ============================================
+   FIX #2: SEARCH INPUT - Proper Icon Spacing
+   ============================================ */
 export const SearchInput = ({
   placeholder = "Search...",
   borderRadius = "md",
   style,
-}) => (
-  <IconInput
-    icon="search"
-    placeholder={placeholder}
-    borderRadius={borderRadius}
-    style={style}
-  />
-);
+}) => {
+  const radiusMap = { sm: "6px", md: "8px", lg: "12px" };
+  
+  return (
+    <label
+      style={{
+        display: "block",
+        marginBottom: PHONE_SPACING.input,
+        width: "100%",
+      }}
+    >
+      <div style={{ position: "relative" }}>
+        {/* ✅ Icon positioned absolutely */}
+        <span
+          style={{
+            position: "absolute",
+            left: "14px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            display: "flex",
+            alignItems: "center",
+            color: "#9CA3AF",
+            pointerEvents: "none", // ✅ Don't block input clicks
+            zIndex: 1,
+          }}
+        >
+          <Search size={18} />
+        </span>
+        
+        {/* ✅ Input with proper left padding */}
+        <input
+          type="text"
+          placeholder={placeholder}
+          style={{
+            width: "100%",
+            padding: "12px 14px 12px 44px", // ✅ 44px left padding for icon
+            border: "1px solid #D1D5DB",
+            borderRadius: radiusMap[borderRadius] || "8px",
+            fontSize: "14px",
+            outline: "none",
+            transition: "border-color 0.2s",
+            ...style,
+          }}
+          onFocus={(e) => (e.target.style.borderColor = "#0D9488")}
+          onBlur={(e) => (e.target.style.borderColor = "#D1D5DB")}
+        />
+      </div>
+    </label>
+  );
+};
+/* ============================================
+   CHECKBOX & SWITCH COMPONENTS - FIXED
+   Must be defined BEFORE being used in COMPONENT_MAP
+   ============================================ */
 
 export const Checkbox = ({ label, value, spacing, style }) => (
   <label
     style={{
       display: "flex",
       alignItems: "center",
-      marginBottom: spacing ? "12px" : "8px",
+      marginBottom: spacing ? "12px" : PHONE_SPACING.component,
       cursor: "pointer",
+      ...style,
     }}
   >
     <input
       type="checkbox"
       defaultChecked={value}
-      style={{ marginRight: "8px", width: "16px", height: "16px" }}
+      style={{ 
+        marginRight: "8px", 
+        width: "16px", 
+        height: "16px",
+        cursor: "pointer",
+      }}
     />
-    <span style={{ fontSize: "14px", color: "#374151", ...style }}>
+    <span style={{ fontSize: "14px", color: "#374151" }}>
       {label}
     </span>
   </label>
 );
+
+// ✅ Switch is just an alias for Checkbox
 export const Switch = Checkbox;
 
 /* ============================================
@@ -707,7 +816,7 @@ export const SocialButton = ({ provider = "Google", text, style }) => {
         alignItems: "center",
         justifyContent: "center",
         gap: "10px",
-        marginBottom: "8px",
+        marginBottom: PHONE_SPACING.component,
         transition: "opacity 0.2s",
         ...style,
       }}
@@ -755,11 +864,12 @@ export const FloatingActionButton = ({
     "bottom-right": { bottom: "24px", right: "24px" },
     "bottom-left": { bottom: "24px", left: "24px" },
     "top-right": { top: "24px", right: "24px" },
+    "top-left": { top: "24px", left: "24px" },
   };
   return (
     <button
       style={{
-        position: "fixed",
+        position: "absolute",
         ...positionMap[position],
         width: "56px",
         height: "56px",
@@ -803,7 +913,7 @@ export const LinkButton = ({
         color: "#0D9488",
         textDecoration: "none",
         fontWeight: "500",
-        marginBottom: "8px",
+        marginBottom: PHONE_SPACING.component,
         transition: "color 0.2s",
         ...style,
       }}
@@ -827,13 +937,18 @@ export const Link = LinkButton;
 function isPlaceholderUrl(url) {
   if (!url) return true;
   const str = String(url).toLowerCase();
+  
+  // ❌ REMOVE these - they're real image services:
+  // - picsum.photos (real images)
+  // - loremflickr (real images)
+  
   return (
-    str.includes("placeholder") ||
-    str.includes("loremflickr") ||
-    str.includes("picsum") ||
-    str.includes("dummyimage") ||
+    str.includes("placeholder.com") ||
     str.includes("via.placeholder") ||
-    str.endsWith(".jpg") // Old backend placeholder pattern
+    str.includes("dummyimage.com") ||
+    str === "placeholder" ||
+    str === "image" ||
+    str.endsWith(".jpg") && str.length < 20 // Only very short .jpg strings
   );
 }
 
@@ -841,34 +956,40 @@ function isPlaceholderUrl(url) {
  * Get image URL from props (backend-first approach)
  */
 function getImageUrlFromProps(props) {
-  // Priority 1: Check 'image' prop (used by ProductCard, CartItem)
-  if (props?.image && !isPlaceholderUrl(props.image)) {
-    console.log(`✅ Using backend image URL: ${props.image.substring(0, 60)}...`);
-    return props.image;
+  const candidates = [
+    props?.image,
+    props?.src,
+    props?.illustration,
+    props?.coverImage,
+  ];
+  
+  for (const url of candidates) {
+    if (!url) continue;
+    
+    const urlStr = String(url);
+    
+    // ✅ Valid URL patterns
+    if (
+      urlStr.startsWith('http://') ||
+      urlStr.startsWith('https://') ||
+      urlStr.startsWith('data:image/')
+    ) {
+      // ✅ Check if it's NOT a placeholder
+      if (!isPlaceholderUrl(urlStr)) {
+        console.log(`✅ Using image URL: ${urlStr.substring(0, 60)}...`);
+        return urlStr;
+      }
+    }
   }
   
-  // Priority 2: Check 'src' prop (used by Image component)
-  if (props?.src && !isPlaceholderUrl(props.src)) {
-    console.log(`✅ Using backend src URL: ${props.src.substring(0, 60)}...`);
-    return props.src;
-  }
-  
-  // Priority 3: Check 'illustration' prop (used by IllustrationHeader)
-  if (props?.illustration && !isPlaceholderUrl(props.illustration)) {
-    console.log(`✅ Using backend illustration URL: ${props.illustration.substring(0, 60)}...`);
-    return props.illustration;
-  }
-  
-  // Priority 4: Check 'coverImage' prop (used by HeroSection)
-  if (props?.coverImage && !isPlaceholderUrl(props.coverImage)) {
-    console.log(`✅ Using backend coverImage URL: ${props.coverImage.substring(0, 60)}...`);
-    return props.coverImage;
-  }
-  
-  console.warn(`⚠️ No valid image URL found in props:`, props);
+  console.warn(`⚠️ No valid image URL found, using fallback`);
   return null;
 }
-
+function getImageFallback(alt, width = 400, height = 400) {
+  // Try Unsplash as primary fallback (real images)
+  const category = alt?.toLowerCase() || 'abstract';
+  return `https://source.unsplash.com/random/${width}x${height}/?${category}`;
+}
 /**
  * Simple colored placeholder generator
  */
@@ -901,33 +1022,64 @@ function getColoredPlaceholder(text, width = 400, height = 400) {
 /**
  * Main Image Component - BACKEND-FIRST APPROACH
  */
-export const Image = ({ src, image, illustration, alt, fit = "cover", borderRadius = "md", style }) => {
+/**
+ * Main Image Component - BACKEND-FIRST APPROACH (FIXED)
+ */
+export const Image = ({ 
+  src, 
+  image, 
+  illustration, 
+  alt, 
+  fit = "cover", 
+  borderRadius = "md", 
+  style 
+}) => {
   const radiusMap = { sm: "8px", md: "12px", lg: "16px" };
+  const [imgSrc, setImgSrc] = React.useState(null);
+  const [errorCount, setErrorCount] = React.useState(0);
   
-  // Get image URL from ANY of the possible props
-  const backendUrl = getImageUrlFromProps({ src, image, illustration });
+  // ✅ FIXED: Properly set state in useEffect
+  React.useEffect(() => {
+    const backendUrl = getImageUrlFromProps({ src, image, illustration });
+    const fallbackUrl = getColoredPlaceholder(alt || 'Image', 400, 400);
+    
+    setImgSrc(backendUrl || fallbackUrl);
+    setErrorCount(0);
+    
+    // ✅ No cleanup needed, so don't return anything
+  }, [src, image, illustration, alt]);
   
-  // Use backend URL if available, otherwise use colored placeholder
-  const finalSrc = backendUrl || getColoredPlaceholder(alt || 'Image', 400, 400);
+  const handleError = (e) => {
+    console.error(`❌ Image load error (attempt ${errorCount + 1}):`, e.target.src.substring(0, 60));
+    
+    if (errorCount === 0) {
+      // First error: Try Picsum as fallback
+      setImgSrc(`https://picsum.photos/seed/${Date.now()}/400/400`);
+      setErrorCount(1);
+    } else if (errorCount === 1) {
+      // Second error: Use colored placeholder
+      setImgSrc(getColoredPlaceholder(alt || 'Image', 400, 400));
+      setErrorCount(2);
+    }
+    // After 2 errors, keep the colored placeholder
+  };
   
   return (
     <img
-      src={finalSrc}
+      src={imgSrc}
       alt={alt || "Image"}
       style={{
         width: "100%",
         height: "auto",
+        maxHeight: "300px",
         objectFit: fit,
         borderRadius: radiusMap[borderRadius] || "12px",
-        marginBottom: "12px",
+        marginBottom: PHONE_SPACING.image,
         background: "#F3F4F6",
+        display: "block",
         ...style,
       }}
-      onError={(e) => {
-        console.error(`❌ Image failed to load: ${e.target.src.substring(0, 60)}...`);
-        // Use colored placeholder as final fallback
-        e.target.src = getColoredPlaceholder(alt || 'Image', 400, 400);
-      }}
+      onError={handleError}
       loading="lazy"
     />
   );
@@ -965,6 +1117,7 @@ export const Avatar = ({ size = "md", name = "User", border, position, style }) 
         border: border ? "3px solid #FFFFFF" : "none",
         boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
         margin: position === "center" ? "0 auto" : "0",
+        marginBottom: PHONE_SPACING.component, // ✅ ADDED
         ...style,
       }}
     >
@@ -1059,7 +1212,7 @@ export const HeroSection = ({
         backgroundSize: "cover",
         backgroundPosition: "center",
         borderRadius: "16px",
-        marginBottom: spacing ? "24px" : "16px",
+        marginBottom: spacing ? "24px" : PHONE_SPACING.component,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -1146,6 +1299,7 @@ export const StatCard = ({
         borderRadius: "12px",
         boxShadow: elevationMap[elevation] || elevationMap.sm,
         textAlign: "center",
+        marginBottom: PHONE_SPACING.card,
         ...style,
       }}
     >
@@ -1210,7 +1364,7 @@ export const ProductCard = ({
         boxShadow: elevationMap[elevation] || elevationMap.sm,
         transition: "transform 0.2s, box-shadow 0.2s",
         cursor: "pointer",
-        marginBottom: "16px",
+        marginBottom: PHONE_SPACING.card, 
         ...style,
       }}
       onMouseOver={(e) => {
@@ -1325,10 +1479,10 @@ export const QuantityControl = ({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "12px",
+        gap: "8px",
         background: "#F3F4F6",
-        padding: "4px 8px",
-        borderRadius: "8px",
+        padding: "3px 6px",
+        borderRadius: "6px",
         width: "fit-content",
         ...style,
       }}
@@ -1337,13 +1491,13 @@ export const QuantityControl = ({
         onClick={handleDecrease}
         disabled={quantity <= min}
         style={{
-          width: "32px",
-          height: "32px",
+          width: "28px",
+          height: "28px",
           borderRadius: "6px",
           border: "none",
           background: quantity > min ? "#FFFFFF" : "#E5E7EB",
           color: quantity > min ? "#0F172A" : "#9CA3AF",
-          fontSize: "18px",
+          fontSize: "16px",
           fontWeight: "600",
           cursor: quantity > min ? "pointer" : "not-allowed",
           display: "flex",
@@ -1362,7 +1516,7 @@ export const QuantityControl = ({
       </button>
       <span
         style={{
-          fontSize: "16px",
+          fontSize: "14px",
           fontWeight: "600",
           color: "#0F172A",
           minWidth: "24px",
@@ -1375,13 +1529,13 @@ export const QuantityControl = ({
         onClick={handleIncrease}
         disabled={quantity >= max}
         style={{
-          width: "32px",
-          height: "32px",
+          width: "28px",
+          height: "28px",
           borderRadius: "6px",
           border: "none",
           background: quantity < max ? "#FFFFFF" : "#E5E7EB",
           color: quantity < max ? "#0F172A" : "#9CA3AF",
-          fontSize: "18px",
+          fontSize: "16px",
           fontWeight: "600",
           cursor: quantity < max ? "pointer" : "not-allowed",
           display: "flex",
@@ -1415,23 +1569,27 @@ export const CartItem = ({
     <div
       style={{
         display: "flex",
-        gap: "16px",
-        padding: "16px",
+        gap: "12px",
+        padding: "12px",
         background: "#FFFFFF",
         borderRadius: "12px",
         boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-        marginBottom: "12px",
+        marginBottom: PHONE_SPACING.component,
+        alignItems: "flex-start",
         ...style,
       }}
     >
       <div
         style={{
-          width: "80px",
-          height: "80px",
+          width: "70px",
+          height: "70px",
+          minWidth:"80",
+          minHeight:"80",
           borderRadius: "8px",
           background: "#F3F4F6",
           flexShrink: 0,
           overflow: "hidden",
+          position: "relative",
         }}
       >
         <Image
@@ -1443,6 +1601,9 @@ export const CartItem = ({
             height: "100%",
             objectFit: "cover",
             marginBottom: 0,
+            positon: "absolute",
+            top: 0,
+            left: 0,
           }}
         />
       </div>
@@ -1451,12 +1612,14 @@ export const CartItem = ({
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          gap: "8px",
+          gap: "6px",
+          minWidth: 0,
+          overflow: "hidden", 
         }}
       >
         <div
           style={{
-            fontSize: "14px",
+            fontSize: "13px",
             fontWeight: "600",
             color: "#0F172A",
             lineHeight: "1.4",
@@ -1512,6 +1675,8 @@ export const CartItem = ({
   );
 };
 
+// PASTE THIS INTO ComponentRendererLite.jsx - REPLACE PriceBreakdown COMPONENT (around line 920)
+
 export const PriceBreakdown = ({
   subtotal,
   shipping = 0,
@@ -1526,10 +1691,13 @@ export const PriceBreakdown = ({
         background: "#FFFFFF",
         borderRadius: "12px",
         boxShadow: "0 4px 6px rgba(0,0,0,0.07)",
-        marginBottom: "16px",
+        marginBottom: PHONE_SPACING.card,
+        width: "100%",
+        boxSizing: "border-box",
         ...style,
       }}
     >
+      {/* Header */}
       <div
         style={{
           fontSize: "16px",
@@ -1542,6 +1710,8 @@ export const PriceBreakdown = ({
       >
         Order Summary
       </div>
+
+      {/* Price Rows */}
       <div
         style={{
           display: "flex",
@@ -1550,10 +1720,12 @@ export const PriceBreakdown = ({
           marginBottom: "16px",
         }}
       >
+        {/* Subtotal */}
         <div
           style={{
             display: "flex",
-            justifyContent: "spaceBetween",
+            justifyContent: "space-between",
+            alignItems: "center",
             fontSize: "14px",
           }}
         >
@@ -1567,11 +1739,14 @@ export const PriceBreakdown = ({
             {subtotal}
           </span>
         </div>
-        {shipping > 0 && (
+
+        {/* Shipping */}
+        {shipping !== 0 && (
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
+              alignItems: "center",
               fontSize: "14px",
             }}
           >
@@ -1582,15 +1757,18 @@ export const PriceBreakdown = ({
                 color: "#0F172A",
               }}
             >
-              {shipping}
+              {typeof shipping === 'number' ? `$${shipping.toFixed(2)}` : shipping}
             </span>
           </div>
         )}
-        {tax > 0 && (
+
+        {/* Tax */}
+        {tax !== 0 && (
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
+              alignItems: "center",
               fontSize: "14px",
             }}
           >
@@ -1601,15 +1779,18 @@ export const PriceBreakdown = ({
                 color: "#0F172A",
               }}
             >
-              {tax}
+              {typeof tax === 'number' ? `$${tax.toFixed(2)}` : tax}
             </span>
           </div>
         )}
       </div>
+
+      {/* Total */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
+          alignItems: "center",
           paddingTop: "16px",
           borderTop: "2px solid #E5E7EB",
         }}
@@ -1637,6 +1818,9 @@ export const PriceBreakdown = ({
   );
 };
 
+/* ============================================
+   PROGRESS BAR - UPDATED
+   ============================================ */
 export const ProgressBar = ({
   value = 0,
   label,
@@ -1652,20 +1836,25 @@ export const ProgressBar = ({
     teal: colors.primary,
     orange: "#F59E0B",
   };
+  
   return (
-    <div style={{ marginBottom: "16px", ...style }}>
+    <div style={{ marginBottom: PHONE_SPACING.component, ...style }}>
       {label && (
-        <Text
-          text={label}
-          size="sm"
-          color="secondary"
-          style={{ marginBottom: "8px" }}
-        />
+        <div
+          style={{
+            fontSize: "13px",
+            color: "#64748B",
+            marginBottom: "6px",
+            fontWeight: "500",
+          }}
+        >
+          {label}
+        </div>
       )}
       <div
         style={{
           width: "100%",
-          height: "8px",
+          height: "6px",
           background: "#E5E7EB",
           borderRadius: "999px",
           overflow: "hidden",
@@ -1684,7 +1873,7 @@ export const ProgressBar = ({
       {steps && currentStep && (
         <div
           style={{
-            marginTop: "8px",
+            marginTop: "6px",
             fontSize: "12px",
             color: "#64748B",
           }}
@@ -1696,82 +1885,118 @@ export const ProgressBar = ({
   );
 };
 
-export const AppBar = ({ title, subtitle, avatar, actions, style }) => (
-  <div
-    style={{
-      padding: "16px",
-      background: "#FFFFFF",
-      borderBottom: "1px solid #E5E7EB",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: "16px",
-      ...style,
-    }}
-  >
+/* ============================================
+   FIX #1: APP BAR - Render Actual Icons
+   ============================================ */
+export const AppBar = ({ title, subtitle, avatar, actions, style }) => {
+  // ✅ Icon mapping function
+  const renderActionIcon = (action) => {
+    switch (action) {
+      case "search":
+        return <Search size={20} />;
+      case "notifications":
+      case "bell":
+        return <Bell size={20} />;
+      case "settings":
+        return <Settings size={20} />;
+      default:
+        return <Settings size={20} />;
+    }
+  };
+
+  return (
     <div
       style={{
+        padding: "12px 14px",
+        background: "#FFFFFF",
+        borderBottom: "1px solid #E5E7EB",
         display: "flex",
         alignItems: "center",
-        gap: "12px",
+        justifyContent: "space-between",
+        marginBottom: PHONE_SPACING.component,
+        ...style,
       }}
     >
-      {avatar && <Avatar size="sm" />}
-      <div>
-        <div
-          style={{
-            fontSize: "18px",
-            fontWeight: "600",
-            color: "#0F172A",
-          }}
-        >
-          {title}
-        </div>
-        {subtitle && (
-          <div
-            style={{
-              fontSize: "14px",
-              color: "#64748B",
-            }}
-          >
-            {subtitle}
-          </div>
-        )}
-      </div>
-    </div>
-    {actions && (
       <div
         style={{
           display: "flex",
-          gap: "12px",
+          alignItems: "center",
+          gap: "10px",
+          flex: 1,
+          minWidth: 0,
         }}
       >
-        {actions.map((a, i) => (
-          <span
-            key={i}
+        {avatar && <Avatar size="sm" name={avatar} style={{ marginBottom: 0 }} />}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
             style={{
-              fontSize: "20px",
-              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: "600",
+              color: "#0F172A",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
-            {a === "search"
-              ? "Search"
-              : a === "notifications"
-              ? "Bell"
-              : "Settings"}
-          </span>
-        ))}
+            {title}
+          </div>
+          {subtitle && (
+            <div
+              style={{
+                fontSize: "12px",
+                color: "#64748B",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {subtitle}
+            </div>
+          )}
+        </div>
       </div>
-    )}
-  </div>
-);
-
+      {actions && (
+        <div
+          style={{
+            display: "flex",
+            gap: "16px", // ✅ Increased gap between icons
+            flexShrink: 0,
+          }}
+        >
+          {actions.map((action, i) => (
+            <button
+              key={i}
+              style={{
+                background: "transparent",
+                border: "none",
+                padding: "6px",
+                cursor: "pointer",
+                color: "#64748B",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "color 0.2s",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "#0D9488")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "#64748B")}
+            >
+              {renderActionIcon(action)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+/* ============================================
+   TAB BAR - UPDATED
+   ============================================ */
 export const TabBar = ({ tabs = [], style }) => (
   <div
     style={{
       display: "flex",
       justifyContent: "space-around",
-      padding: "12px 0",
+      padding: "10px 0",
       background: "#FFFFFF",
       borderTop: "1px solid #E5E7EB",
       position: "sticky",
@@ -1786,10 +2011,11 @@ export const TabBar = ({ tabs = [], style }) => (
         style={{
           flex: 1,
           textAlign: "center",
-          fontSize: "12px",
+          fontSize: "11px",
           color: idx === 0 ? "#0D9488" : "#64748B",
           fontWeight: idx === 0 ? "600" : "400",
           cursor: "pointer",
+          padding: "4px",
         }}
       >
         {tab}
@@ -1797,6 +2023,7 @@ export const TabBar = ({ tabs = [], style }) => (
     ))}
   </div>
 );
+
 
 export const FormSection = ({ title, spacing, children, style }) => {
   const spacingMap = {
@@ -1807,7 +2034,7 @@ export const FormSection = ({ title, spacing, children, style }) => {
   return (
     <div
       style={{
-        marginBottom: spacingMap[spacing] || "24px",
+        marginBottom: spacingMap[spacing] || PHONE_SPACING.card,
         ...style,
       }}
     >
@@ -1836,6 +2063,7 @@ export const List = ({ spacing, children, style }) => {
         display: "flex",
         flexDirection: "column",
         gap: spacingMap[spacing] || "8px",
+        marginBottom: PHONE_SPACING.component,
         ...style,
       }}
     >
@@ -1844,6 +2072,9 @@ export const List = ({ spacing, children, style }) => {
   );
 };
 
+/* ============================================
+   LIST ITEM - UPDATED
+   ============================================ */
 export const ListItem = ({
   icon,
   title,
@@ -1852,14 +2083,99 @@ export const ListItem = ({
   value,
   style,
 }) => {
-  const iconMap = {
-    user: "User",
-    lock: "Lock",
-    bell: "Bell",
-    mail: "Mail",
-    palette: "Palette",
-    "chevron-right": "Right",
+  // Icon component mapping (Lucide React)
+  const iconComponentMap = {
+    user: User,
+    lock: Lock,
+    bell: Bell,
+    mail: Mail,
+    palette: Palette,
+    settings: Settings,
+    gear: FaCog,
+    cog: FaCog,
+    "chevron-right": ChevronRight,
+    profile: User,
+    notification: Bell,
+    notifications: Bell,
+    email: Mail,
+    theme: Palette,
+    appearance: Palette,
+    security: Lock,
+    privacy: Lock,
+    help: HelpCircle,
+    info: Info,
+    about: Info,
+    logout: LogOut,
+    signout: LogOut,
+    phone: Phone,
+    search: Search,
+
   };
+
+  // Render icon helper
+  const renderIcon = () => {
+    if (!icon) return null;
+
+    const IconComponent = iconComponentMap[icon];
+    
+    if (IconComponent) {
+      return (
+        <IconComponent 
+          size={18} 
+          style={{ 
+            color: "#64748B",
+            flexShrink: 0
+          }} 
+        />
+      );
+    }
+    
+    return (
+      <span style={{ fontSize: "18px", flexShrink: 0 }}>
+        {icon}
+      </span>
+    );
+  };
+
+
+  // Render trailing element helper
+  const renderTrailing = () => {
+    if (!trailing) return null;
+
+    switch (trailing) {
+      case "switch":
+        return (
+          <input
+            type="checkbox"
+            defaultChecked={value}
+            style={{ 
+              width: "40px", 
+              height: "20px",
+              cursor: "pointer"
+            }}
+          />
+        );
+      
+      case "chevron-right":
+        return (
+          <ChevronRight 
+            size={20} 
+            style={{ 
+              color: "#9CA3AF",
+              flexShrink: 0
+            }} 
+          />
+        );
+      
+      default:
+        return (
+          <span style={{ fontSize: "18px", color: "#9CA3AF" }}>
+            {trailing}
+          </span>
+        );
+    }
+  };
+
   return (
     <div
       style={{
@@ -1871,6 +2187,9 @@ export const ListItem = ({
         borderRadius: "8px",
         cursor: "pointer",
         transition: "background 0.2s",
+        gap: "10px",
+        minHeight: "54px",
+        marginBottom: "6px",
         ...style,
       }}
       onMouseOver={(e) => (e.currentTarget.style.background = "#F9FAFB")}
@@ -1882,17 +2201,27 @@ export const ListItem = ({
           alignItems: "center",
           gap: "12px",
           flex: 1,
+          minWidth: 0,
+          overflow: "hidden",
         }}
       >
-        {icon && (
-          <span style={{ fontSize: "20px" }}>{iconMap[icon] || icon}</span>
-        )}
-        <div>
+        {renderIcon()}
+        
+        <div 
+          style={{
+            flex: 1, 
+            minWidth: 0,
+            overflow: "hidden",
+          }}
+        >
           <div
             style={{
               fontSize: "14px",
               fontWeight: "500",
               color: "#0F172A",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {title}
@@ -1902,6 +2231,10 @@ export const ListItem = ({
               style={{
                 fontSize: "12px",
                 color: "#64748B",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                marginTop: "2px",
               }}
             >
               {subtitle}
@@ -1909,22 +2242,16 @@ export const ListItem = ({
           )}
         </div>
       </div>
-      {trailing === "switch" ? (
-        <input
-          type="checkbox"
-          defaultChecked={value}
-          style={{ width: "40px", height: "20px" }}
-        />
-      ) : trailing === "chevron-right" ? (
-        <span
-          style={{
-            fontSize: "20px",
-            color: "#9CA3AF",
-          }}
-        >
-          Right
-        </span>
-      ) : null}
+
+      <div
+        style={{
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        {renderTrailing()}
+      </div>
     </div>
   );
 };
@@ -1941,6 +2268,7 @@ export const CardList = ({ spacing, children, style }) => {
         display: "flex",
         flexDirection: "column",
         gap: spacingMap[spacing] || "16px",
+        marginBottom: PHONE_SPACING.component,
         ...style,
       }}
     >
@@ -1955,7 +2283,7 @@ export const Rating = ({ value = 0, reviews, spacing, style }) => (
       display: "flex",
       alignItems: "center",
       gap: "8px",
-      marginBottom: spacing ? "12px" : "8px",
+      marginBottom: spacing ? "10px" : PHONE_SPACING.badge,
       ...style,
     }}
   >
@@ -2004,7 +2332,7 @@ export const Alert = ({ type = "info", title, message, style }) => {
         background: config.bg,
         border: `1px solid ${config.border}`,
         borderRadius: "8px",
-        marginBottom: "16px",
+        marginBottom: PHONE_SPACING.component,
         display: "flex",
         gap: "12px",
         ...style,
@@ -2036,6 +2364,7 @@ export const EmptyState = ({ icon = "Search", title = "No items", message, style
       textAlign: "center",
       padding: "48px 24px",
       color: "#64748B",
+      marginBottom: PHONE_SPACING.component,
       ...style,
     }}
   >
@@ -2083,7 +2412,8 @@ export const Footer = ({ text = "© 2025", style }) => (
       textAlign: "center",
       fontSize: "12px",
       color: "#9CA3AF",
-      marginTop: "32px",
+      marginTop: "24px",
+      marginBottom: PHONE_SPACING.component,
       ...style,
     }}
   >

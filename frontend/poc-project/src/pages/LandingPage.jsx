@@ -746,9 +746,11 @@ function AuthRoute() {
  * Layout wrapper for all routes (header + routed content)
  */
 function Shell() {
+  const location = useLocation();
+  const isAuthPage = location.pathname === '/auth' || location.pathname.startsWith('/auth/');
   return (
     <>
-      <MainHeader />
+      {!isAuthPage && <MainHeader />}
       <Routes>
         {/* 🆕 Default route - PUBLIC generation page */}
         <Route path="/" element={<App />} />

@@ -1,9 +1,10 @@
-// frontend/poc-project/src/App.jsx - UPDATED WITH STITCH-STYLE TOOLBAR
+// frontend/poc-project/src/App.jsx - PRODUCTION READY with Edit Panel
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import CanvasRendererLite from "./components/CanvasRendererLite";
 import CodePreview from "./components/CodePreview";
 import ExportButton from "./components/ExportButton";
+import ConversationalEditPanel from "./components/ConversationalEditPanel";
 import { getPresetById, PRESET_PROMPTS } from "./constants/presetPrompts";
 import "./index.css";
 import { useAuth } from "./contexts/AuthContext";
@@ -19,10 +20,12 @@ export default function App() {
   const [enhancing, setEnhancing] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [showInsufficientCreditsModal, setShowInsufficientCreditsModal] = useState(false);
-
   const [estimatedCost, setEstimatedCost] = useState(null);
   const [userCredits, setUserCredits] = useState(null);
-  const [showCostWarning, setShowCostWarning] = useState(false);
+
+  // ✅ Edit Session State
+  const [sessionId, setSessionId] = useState(null);
+  const [showEditPanel, setShowEditPanel] = useState(false);
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -53,6 +56,7 @@ export default function App() {
     }
   };
 
+  // Token estimation
   useEffect(() => {
     if (prompt.trim().length > 20) {
       const wordCount = prompt.trim().split(/\s+/).length;
@@ -60,16 +64,16 @@ export default function App() {
       const hasMultipleScreens = /screen|page|tab/i.test(prompt);
       const hasComplexFeatures = /animation|interaction|chart|graph|map/i.test(prompt);
       
-      let estimatedTokens = 20000;
+      let estimatedTokens = 15000;
       
       if (wordCount > 100 || sentenceCount > 5 || hasComplexFeatures) {
-        estimatedTokens = 45000;
+        estimatedTokens = 25000;
       } else if (wordCount > 50 || sentenceCount > 3 || hasMultipleScreens) {
-        estimatedTokens = 32000;
+        estimatedTokens = 20000;
       }
       
-      estimatedTokens += Math.floor(wordCount / 40) * 3000;
-      estimatedTokens = Math.min(estimatedTokens, 65000);
+      estimatedTokens += Math.floor(wordCount / 50) * 1000;
+      estimatedTokens = Math.min(estimatedTokens, 35000);
       
       const estimatedCredits = estimatedTokens / 70000;
       
@@ -77,19 +81,19 @@ export default function App() {
         tokens: estimatedTokens,
         credits: estimatedCredits
       });
-
-      if (userCredits && estimatedCredits > userCredits.credits) {
-        setShowCostWarning(true);
-      } else {
-        setShowCostWarning(false);
-      }
     } else {
       setEstimatedCost(null);
-      setShowCostWarning(false);
     }
-  }, [prompt, userCredits]);
+  }, [prompt]);
 
   const enhancePrompt = async () => {
+    if (!userId) {
+      navigate('/auth', { 
+        state: { from: location },
+        replace: false
+      });
+      return;
+    }
     if (!prompt.trim()) return;
 
     setEnhancing(true);
@@ -138,11 +142,6 @@ export default function App() {
       return;
     }
 
-    if (userCredits && estimatedCost && estimatedCost.credits > userCredits.credits) {
-      setShowInsufficientCreditsModal(true);
-      return;
-    }
-
     setLoading(true);
     setError(null);
     setProcessingStage("Analyzing your request...");
@@ -185,6 +184,32 @@ export default function App() {
       setLayout(data?.web_preview || data?.component_model);
       setRnCode(data?.react_native_code || {});
 
+      // ✅ CREATE EDIT SESSION
+      try {
+        const sessionRes = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/create-edit-session`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              component_model: data?.component_model,
+              user_id: userId
+            })
+          }
+        );
+
+        if (sessionRes.ok) {
+          const sessionData = await sessionRes.json();
+          setSessionId(sessionData.session_id);
+          setShowEditPanel(true);
+          console.log("✅ Edit session created:", sessionData.session_id);
+        } else {
+          console.error("Failed to create edit session:", await sessionRes.text());
+        }
+      } catch (err) {
+        console.error("Failed to create edit session:", err);
+      }
+
       if (data?.react_native_code && Object.keys(data.react_native_code).length > 0) {
         setShowCode(false);
       }
@@ -192,7 +217,6 @@ export default function App() {
       setProcessingStage("Complete!");
       setTimeout(() => setProcessingStage(""), 2000);
       
-      // Refresh credits after generation
       fetchUserCredits();
     } catch (e) {
       console.error("Generation error:", e);
@@ -201,6 +225,12 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ Layout update handler for edit panel
+  const handleLayoutUpdate = (newLayout) => {
+    console.log("📝 Layout updated from edit panel");
+    setLayout(newLayout);
   };
 
   const toggleCodeView = () => setShowCode((prev) => !prev);
@@ -222,11 +252,11 @@ export default function App() {
     setError(null);
     setProcessingStage("");
     setEstimatedCost(null);
-    setShowCostWarning(false);
+    setSessionId(null);
+    setShowEditPanel(false);
   };
 
   const screenCount = layout?.screens?.length || 0;
-  const fileCount = rnCode ? Object.keys(rnCode).length : 0;
 
   return (
     <div className="app-container stitch-layout">
@@ -237,14 +267,7 @@ export default function App() {
             <div className="modal-icon">💳</div>
             <h2 className="modal-title">Insufficient Credits</h2>
             <p className="modal-message">
-              {estimatedCost ? (
-                <>
-                  This generation will cost approximately <strong>{estimatedCost.credits.toFixed(4)} credits</strong> (~{new Intl.NumberFormat().format(estimatedCost.tokens)} tokens),
-                  but you only have <strong>{userCredits?.credits?.toFixed(4) || 0} credits</strong> available.
-                </>
-              ) : (
-                "You don't have enough credits. Please purchase more to continue."
-              )}
+              {error || "You don't have enough credits. Please purchase more to continue."}
             </p>
             <div className="modal-actions">
               <button 
@@ -301,20 +324,14 @@ export default function App() {
                   placeholder="Describe your mobile UI (e.g., 'A minimalist portfolio for a photographer')"
                   disabled={loading || enhancing}
                   style={{
-                    paddingRight: '160px'
-                  }}
-                  onInput={(e) => {
-                    e.target.style.height = 'auto';
-                    const newHeight = Math.min(e.target.scrollHeight, 200);
-                    e.target.style.height = newHeight + 'px';
+                    paddingRight: (layout || loading) ? '14px' : '160px'
                   }}
                 />
                 
-                {/* Generate Button */}
                 <button
                   onClick={generate}
                   className="stitch-btn-inline"
-                  disabled={loading || enhancing || !prompt.trim() || showCostWarning}
+                  disabled={loading || enhancing || !prompt.trim()}
                 >
                   {loading ? (
                     <>
@@ -330,18 +347,14 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Credits Estimate Display */}
+              {/* Credits Estimate */}
               {estimatedCost && !loading && !layout && (
                 <div 
                   className="credits-estimate-card"
                   style={{
                     padding: '14px 18px',
-                    background: showCostWarning 
-                      ? 'rgba(239, 68, 68, 0.1)' 
-                      : 'rgba(16, 185, 129, 0.1)',
-                    border: showCostWarning 
-                      ? '2px solid rgba(239, 68, 68, 0.3)' 
-                      : '2px solid rgba(16, 185, 129, 0.3)',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    border: '2px solid rgba(59, 130, 246, 0.3)',
                     borderRadius: '12px',
                     display: 'flex',
                     alignItems: 'center',
@@ -349,21 +362,19 @@ export default function App() {
                     animation: 'fadeIn 0.3s ease-out',
                   }}
                 >
-                  <span style={{ fontSize: '20px' }}>
-                    {showCostWarning ? '⚠️' : '💰'}
-                  </span>
+                  <span style={{ fontSize: '20px' }}>ℹ️</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ 
                       fontSize: '13px', 
                       fontWeight: '700',
-                      color: showCostWarning ? '#DC2626' : '#059669',
+                      color: '#3B82F6',
                       marginBottom: '2px'
                     }}>
-                      {showCostWarning ? 'Insufficient Credits' : 'Estimated Cost'}
+                      Estimated Cost
                     </div>
                     <div style={{ 
                       fontSize: '12px', 
-                      color: showCostWarning ? '#EF4444' : '#10B981',
+                      color: '#60A5FA',
                       fontWeight: '600'
                     }}>
                       ~{estimatedCost.credits.toFixed(4)} credits 
@@ -374,26 +385,15 @@ export default function App() {
                         </span>
                       )}
                     </div>
+                    <div style={{
+                      fontSize: '11px',
+                      color: '#93C5FD',
+                      marginTop: '4px',
+                      fontStyle: 'italic'
+                    }}>
+                      This is an estimate. Actual cost may vary.
+                    </div>
                   </div>
-                  {showCostWarning && (
-                    <button
-                      onClick={() => navigate('/pricing')}
-                      style={{
-                        padding: '6px 14px',
-                        background: 'linear-gradient(135deg, #EF4444, #DC2626)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: '700',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      Buy Credits
-                    </button>
-                  )}
                 </div>
               )}
 
@@ -454,9 +454,34 @@ export default function App() {
               </div>
             )}
 
-            {/* 🆕 STITCH-STYLE TOOLBAR (when results are ready) */}
+            {/* ✅ CONVERSATIONAL EDIT PANEL */}
+            {layout && !loading && sessionId && showEditPanel && (
+              <ConversationalEditPanel
+                sessionId={sessionId}
+                userId={userId}
+                onLayoutUpdate={handleLayoutUpdate}
+                apiBaseUrl={import.meta.env.VITE_API_BASE_URL}
+              />
+            )}
+
+            {/* Toolbar (when results are ready) */}
             {layout && !loading && (
               <div className="stitch-results-actions">
+                
+                {/* ✅ EDIT TOGGLE BUTTON */}
+                {sessionId && (
+                  <button 
+                    onClick={() => setShowEditPanel(!showEditPanel)}
+                    className={`stitch-btn ${showEditPanel ? 'stitch-btn-primary' : 'stitch-btn-secondary'}`}
+                    title={showEditPanel ? "Hide Edit Panel" : "Show Edit Panel"}
+                  >
+                    <span style={{ fontSize: '16px' }}>
+                      {showEditPanel ? '💬' : '✏️'}
+                    </span>
+                    {showEditPanel ? 'Editing' : 'Edit'}
+                  </button>
+                )}
+
                 <button 
                   onClick={toggleCodeView} 
                   className="stitch-btn stitch-btn-secondary"
@@ -547,22 +572,14 @@ export default function App() {
                   </div>
                 </>
               ) : (
-                <>
-                  <div className="canvas-header">
-                    <h3 className="canvas-title">React Native Code</h3>
-                    <span className="canvas-badge">
-                      {fileCount} file{fileCount > 1 ? "s" : ""}
-                    </span>
+                rnCode && Object.keys(rnCode).length > 0 ? (
+                  <CodePreview rnCode={rnCode} />
+                ) : (
+                  <div className="empty-state">
+                    <div className="empty-icon">📄</div>
+                    <h3 className="empty-title">No Code Generated</h3>
                   </div>
-                  {rnCode && Object.keys(rnCode).length > 0 ? (
-                    <CodePreview rnCode={rnCode} />
-                  ) : (
-                    <div className="empty-state">
-                      <div className="empty-icon">📄</div>
-                      <h3 className="empty-title">No Code Generated</h3>
-                    </div>
-                  )}
-                </>
+                )
               )}
             </div>
           ) : null}

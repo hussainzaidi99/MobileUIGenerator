@@ -1010,8 +1010,10 @@ def generate_fallback_components(intent_obj: dict) -> dict:
             has_feed = True
 
         if has_feed:
+            
             feed_screen = find_screen("Feed", ["feed", "home", "timeline"])
             components.extend([
+                
                 {
                     "id": "feed-appbar",
                     "type": "AppBar",
@@ -1021,33 +1023,276 @@ def generate_fallback_components(intent_obj: dict) -> dict:
                         "actions": ["search", "notifications"]
                     }
                 },
+            # ✅ POST CARDS WITH ACTUAL CONTENT
                 {
                     "id": "feed-posts",
                     "type": "CardList",
                     "screen": feed_screen,
                     "props": {
                         "spacing": "md"
+                    },
+                    "children": [
+                        # Post 1
+                        {
+                            "id": "post-1",
+                            "type": "Card",
+                            "props": {
+                                "elevation": "sm",
+                                "padding": "16"
+                            },
+                            "children": [
+                                {
+                                    "id": "post-1-header",
+                                    "type": "Container",
+                                    "props": {
+                                        "direction": "row",
+                                        "gap": "12",
+                                        "padding": "0"
+                                    },
+                                    "children": [
+                                        {
+                                            "id": "post-1-avatar",
+                                            "type": "Avatar",
+                                            "props": {
+                                                "size": "md",
+                                                "name": "Alice Johnson"
+                                            }
+                                        },
+                                        {
+                                            "id": "post-1-info",
+                                            "type": "Container",
+                                            "props": {
+                                                "direction": "column",
+                                                "gap": "0",
+                                                "padding": "0"
+                                            },
+                                            "children": [
+                                                {
+                                                    "id": "post-1-name",
+                                                    "type": "Text",
+                                                    "props": {
+                                                        "text": "Alice Johnson",
+                                                        "size": "base",
+                                                        "weight": "bold"
+                                                    }
+                                                },
+                                                {
+                                                    "id": "post-1-time",
+                                                    "type": "Text",
+                                                    "props": {
+                                                        "text": "1 hour ago",
+                                                        "size": "sm",
+                                                        "color": "#64748B"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "id": "post-1-spacer",
+                                    "type": "Spacer",
+                                    "props": {
+                                        "height": "8"
+                                    }
+                                },
+                                {
+                                    "id": "post-1-text",
+                                    "type": "Text",
+                                    "props": {
+                                        "text": "Just finished an amazing hike! The views were breathtaking. 🏔️",
+                                        "size": "base"
+                                    }
+                                },
+                                {
+                                    "id": "post-1-image",
+                                    "type": "Image",
+                                    "props": {
+                                        "alt": "Hiking adventure",
+                                        "borderRadius": "md"
+                                    }
+                                },
+                                {
+                                    "id": "post-1-divider",
+                                    "type": "Divider",
+                                    "props": {
+                                        "spacing": "sm"
+                                    }
+                                },
+                                {
+                                    "id": "post-1-actions",
+                                    "type": "Container",
+                                    "props": {
+                                        "direction": "row",
+                                        "gap": "24",
+                                        "padding": "0"
+                                    },
+                                    "children": [
+                                        {
+                                            "id": "post-1-like",
+                                            "type": "IconButton",
+                                            "props": {
+                                                "icon": "❤️",
+                                                "label": "123"
+                                            }
+                                        },
+                                        {
+                                            "id": "post-1-comment",
+                                            "type": "IconButton",
+                                            "props": {
+                                                "icon": "💬",
+                                                "label": "45"
+                                            }
+                                        },
+                                        {
+                                            "id": "post-1-share",
+                                            "type": "IconButton",
+                                            "props": {
+                                                "icon": "🔗",
+                                                "label": "Share"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                    # Post 2
+                    {
+                        "id": "post-2",
+                        "type": "Card",
+                        "props": {
+                            "elevation": "sm",
+                            "padding": "16"
+                        },
+                        "children": [
+                            {
+                                "id": "post-2-header",
+                                "type": "Container",
+                                "props": {
+                                    "direction": "row",
+                                    "gap": "12",
+                                    "padding": "0"
+                                },
+                                "children": [
+                                    {
+                                        "id": "post-2-avatar",
+                                        "type": "Avatar",
+                                        "props": {
+                                            "size": "md",
+                                            "name": "Bob Smith"
+                                        }
+                                    },
+                                    {
+                                        "id": "post-2-info",
+                                        "type": "Container",
+                                        "props": {
+                                            "direction": "column",
+                                            "gap": "0",
+                                            "padding": "0"
+                                        },
+                                        "children": [
+                                            {
+                                                "id": "post-2-name",
+                                                "type": "Text",
+                                                "props": {
+                                                    "text": "Bob Smith",
+                                                    "size": "base",
+                                                    "weight": "bold"
+                                                }
+                                            },
+                                            {
+                                                "id": "post-2-time",
+                                                "type": "Text",
+                                                "props": {
+                                                    "text": "3 hours ago",
+                                                    "size": "sm",
+                                                    "color": "#64748B"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "post-2-spacer",
+                                "type": "Spacer",
+                                "props": {
+                                    "height": "8"
+                                }
+                            },
+                            {
+                                "id": "post-2-text",
+                                "type": "Text",
+                                "props": {
+                                    "text": "Working on an exciting new project. Stay tuned! 💻✨",
+                                    "size": "base"
+                                }
+                            },
+                            {
+                                "id": "post-2-divider",
+                                "type": "Divider",
+                                "props": {
+                                    "spacing": "sm"
+                                }
+                            },
+                            {
+                                "id": "post-2-actions",
+                                "type": "Container",
+                                "props": {
+                                    "direction": "row",
+                                    "gap": "24",
+                                    "padding": "0"
+                                },
+                                "children": [
+                                    {
+                                        "id": "post-2-like",
+                                        "type": "IconButton",
+                                        "props": {
+                                            "icon": "❤️",
+                                            "label": "89"
+                                        }
+                                    },
+                                    {
+                                        "id": "post-2-comment",
+                                        "type": "IconButton",
+                                        "props": {
+                                            "icon": "💬",
+                                            "label": "12"
+                                        }
+                                    },
+                                    {
+                                        "id": "post-2-share",
+                                        "type": "IconButton",
+                                        "props": {
+                                            "icon": "🔗",
+                                            "label": "Share"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
                     }
-                },
-                {
-                    "id": "feed-create-fab",
-                    "type": "FloatingActionButton",
-                    "screen": feed_screen,
-                    "props": {
-                        "icon": "plus",
-                        "gradient": "blue",
-                        "position": "bottom-right"
-                    }
-                },
-                {
-                    "id": "feed-tabbar",
-                    "type": "TabBar",
-                    "screen": feed_screen,
-                    "props": {
-                        "tabs": ["Home", "Search", "Notifications", "Profile"]
-                    }
+                ]
+            },
+            {
+                "id": "feed-create-fab",
+                "type": "FloatingActionButton",
+                "screen": feed_screen,
+                "props": {
+                    "icon": "+",
+                    "gradient": "blue",
+                    "position": "bottom-right"
                 }
-            ])
+            },
+            {
+                "id": "feed-tabbar",
+                "type": "TabBar",
+                "screen": feed_screen,
+                "props": {
+                    "tabs": ["Home", "Search", "Notifications", "Profile"]
+                }
+            }
+        ])
 
         if has_profile:
             profile_screen = find_screen("Profile", ["profile"])
@@ -1308,106 +1553,242 @@ def generate_fallback_components(intent_obj: dict) -> dict:
         if has_settings:
             settings_screen = find_screen("Settings", ["settings", "preference"])
             components.extend([
-                {
-                    "id": "settings-header",
-                    "type": "Header",
-                    "screen": settings_screen,
-                    "props": {
-                        "title": "Settings",
-                        "size": "2xl"
-                    }
-                },
-                {
-                    "id": "settings-account-section",
-                    "type": "FormSection",
-                    "screen": settings_screen,
-                    "props": {
-                        "title": "Account"
-                    }
-                },
-                {
-                    "id": "settings-list",
-                    "type": "List",
-                    "screen": settings_screen,
-                    "props": {
-                        "spacing": "sm"
-                    }
+                 {
+                "id": "settings-header",
+                "type": "Header",
+                "screen": settings_screen,
+                "props": {
+                    "title": "Settings",
+                    "size": "2xl"
                 }
-            ])
+            },
+            {
+                "id": "settings-account-section",
+                "type": "FormSection",
+                "screen": settings_screen,
+                "props": {
+                    "title": "Account"
+                }
+            },
+            # ✅ FIX: Properly structured List with ListItem children
+            {
+                "id": "settings-account-list",
+                "type": "List",
+                "screen": settings_screen,
+                "props": {
+                    "spacing": "sm"
+                },
+                "children": [
+                    {
+                        "id": "settings-profile",
+                        "type": "ListItem",
+                        "props": {
+                            "icon": "user",
+                            "title": "Profile",
+                            "subtitle": "Manage your personal information",
+                            "trailing": "chevron-right"
+                        }
+                    },
+                    {
+                        "id": "settings-security",
+                        "type": "ListItem",
+                        "props": {
+                            "icon": "lock",
+                            "title": "Security",
+                            "subtitle": "Password and authentication",
+                            "trailing": "chevron-right"
+                        }
+                    },
+                    {
+                        "id": "settings-notifications-item",
+                        "type": "ListItem",
+                        "props": {
+                            "icon": "bell",
+                            "title": "Notifications",
+                            "subtitle": "Manage notification preferences",
+                            "trailing": "chevron-right"
+                        }
+                    }
+                ]
+            },
+            {
+                "id": "settings-preferences-section",
+                "type": "FormSection",
+                "screen": settings_screen,
+                "props": {
+                    "title": "Preferences"
+                }
+            },
+            {
+                "id": "settings-preferences-list",
+                "type": "List",
+                "screen": settings_screen,
+                "props": {
+                    "spacing": "sm"
+                },
+                "children": [
+                    {
+                        "id": "settings-theme",
+                        "type": "ListItem",
+                        "props": {
+                            "icon": "palette",
+                            "title": "Theme",
+                            "subtitle": "Light, Dark, or Auto",
+                            "trailing": "chevron-right"
+                        }
+                    },
+                    {
+                        "id": "settings-language",
+                        "type": "ListItem",
+                        "props": {
+                            "icon": "mail",  # Using available icon
+                            "title": "Language",
+                            "subtitle": "English (US)",
+                            "trailing": "chevron-right"
+                        }
+                    }
+                ]
+            },
+            {
+                "id": "settings-logout",
+                "type": "GradientButton",
+                "screen": settings_screen,
+                "props": {
+                    "text": "Log Out",
+                    "gradient": "orange",
+                    "size": "lg"
+                }
+            }
+        ])
 
         if has_edit_profile:
             edit_screen = find_screen("Edit Profile", ["edit profile"])
             components.extend([
                 {
-                    "id": "edit-profile-header",
-                    "type": "Header",
-                    "screen": edit_screen,
-                    "props": {
-                        "title": "Edit Profile",
-                        "size": "2xl"
-                    }
-                },
-                {
-                    "id": "edit-profile-avatar",
-                    "type": "Avatar",
-                    "screen": edit_screen,
-                    "props": {
-                        "size": "xl",
-                        "name": "John Doe",
-                        "position": "center"
-                    }
-                },
-                {
-                    "id": "edit-profile-name",
-                    "type": "IconInput",
-                    "screen": edit_screen,
-                    "props": {
-                        "icon": "user",
-                        "label": "Full Name"
-                    }
-                },
-                {
-                    "id": "edit-profile-email",
-                    "type": "IconInput",
-                    "screen": edit_screen,
-                    "props": {
-                        "icon": "mail",
-                        "label": "Email"
-                    }
-                },
-                {
-                    "id": "edit-profile-save",
-                    "type": "GradientButton",
-                    "screen": edit_screen,
-                    "props": {
-                        "text": "Save Changes",
-                        "gradient": "teal",
-                        "size": "lg"
-                    }
+                "id": "edit-profile-header",
+                "type": "Header",
+                "screen": edit_screen,
+                "props": {
+                    "title": "Edit Profile",
+                    "size": "2xl"
                 }
-            ])
+            },
+            {
+                "id": "edit-profile-avatar",
+                "type": "Avatar",
+                "screen": edit_screen,
+                "props": {
+                    "size": "xl",
+                    "name": "John Doe",
+                    "position": "center"
+                }
+            },
+            {
+                "id": "edit-profile-name",
+                "type": "IconInput",
+                "screen": edit_screen,
+                "props": {
+                    "icon": "user",
+                    "label": "Full Name",
+                    "placeholder": "Enter your full name"
+                }
+            },
+            {
+                "id": "edit-profile-email",
+                "type": "IconInput",
+                "screen": edit_screen,
+                "props": {
+                    "icon": "mail",
+                    "label": "Email",
+                    "placeholder": "Enter your email"
+                }
+            },
+            {
+                "id": "edit-profile-phone",
+                "type": "IconInput",
+                "screen": edit_screen,
+                "props": {
+                    "icon": "phone",
+                    "label": "Phone Number",
+                    "placeholder": "Enter your phone"
+                }
+            },
+            {
+                "id": "edit-profile-save",
+                "type": "GradientButton",
+                "screen": edit_screen,
+                "props": {
+                    "text": "Save Changes",
+                    "gradient": "teal",
+                    "size": "lg"
+                }
+            }
+        ])
 
         if has_notifications:
             notif_screen = find_screen("Notifications", ["notification"])
             components.extend([
                 {
-                    "id": "notifications-header",
-                    "type": "Header",
-                    "screen": notif_screen,
-                    "props": {
-                        "title": "Notifications",
-                        "size": "2xl"
-                    }
-                },
-                {
-                    "id": "notifications-list",
-                    "type": "List",
-                    "screen": notif_screen,
-                    "props": {
-                        "spacing": "md"
-                    }
+                "id": "notifications-header",
+                "type": "Header",
+                "screen": notif_screen,
+                "props": {
+                    "title": "Notifications",
+                    "size": "2xl"
                 }
-            ])
+            },
+            {
+                "id": "notifications-preferences-section",
+                "type": "FormSection",
+                "screen": notif_screen,
+                "props": {
+                    "title": "Notification Preferences"
+                }
+            },
+            {
+                "id": "notifications-list",
+                "type": "List",
+                "screen": notif_screen,
+                "props": {
+                    "spacing": "md"
+                },
+                "children": [
+                    {
+                        "id": "notif-push",
+                        "type": "ListItem",
+                        "props": {
+                            "icon": "bell",
+                            "title": "Push Notifications",
+                            "subtitle": "Receive push notifications",
+                            "trailing": "switch",
+                            "value": True
+                        }
+                    },
+                    {
+                        "id": "notif-email",
+                        "type": "ListItem",
+                        "props": {
+                            "icon": "mail",
+                            "title": "Email Notifications",
+                            "subtitle": "Receive email updates",
+                            "trailing": "switch",
+                            "value": True
+                        }
+                    },
+                    {
+                        "id": "notif-sms",
+                        "type": "ListItem",
+                        "props": {
+                            "icon": "phone",
+                            "title": "SMS Notifications",
+                            "subtitle": "Receive text messages",
+                            "trailing": "switch",
+                            "value": False
+                        }
+                    }
+                ]
+            }
+        ])
 
     # -----------------------------------------------------------------------
     # GENERIC FALLBACK (Unknown category, just give basic headers)

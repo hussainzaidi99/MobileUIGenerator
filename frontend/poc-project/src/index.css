@@ -918,8 +918,13 @@ body::before {
 
 .code-preview {
   display: flex;
-  height: 100%;
+  height: 100vh;
   overflow: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 .file-tree {
@@ -4319,20 +4324,6 @@ kbd {
   padding: 0;
 }
 
-.phone-mockup {
-  width: 100%;
-  max-width: 340px;
-  animation: fadeInUp 0.6s ease-out both;
-}
-
-.phone-frame-wrapper {
-  position: relative;
-  background: linear-gradient(145deg, #1F2937 0%, #111827 100%);
-  border-radius: 42px;
-  padding: 14px;
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
 .phone-notch {
   position: absolute;
@@ -4346,14 +4337,6 @@ kbd {
   z-index: 10;
 }
 
-.phone-screen-area {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 9 / 19.5;
-  background: #FFFFFF;
-  border-radius: 32px;
-  overflow: hidden;
-}
 
 .phone-screen-header {
   position: absolute;
@@ -4379,8 +4362,21 @@ kbd {
   top: 76px;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  container-type: inline-size;
+  container-name: phone;
+  min-width: 0;
+  max-width: 380px; /* Match phone frame width */
+
+}
+.phone-screen-content > .ui-root {
+  width: 100%;
+  max-width: 100%;
+  /* Ensure container queries apply immediately */
+  container-type: normal; /* Child shouldn't be a container */
 }
 
 .phone-home-indicator {
@@ -4393,4 +4389,955 @@ kbd {
   background: rgba(0, 0, 0, 0.3);
   border-radius: 2px;
   z-index: 10;
+}
+/* ============================================================================
+   PRODUCTION-READY CSS - Stitch-Style UI Generator
+   Fixed phone sizing & component spacing issues
+   ============================================================================ */
+
+/* ============================================
+   GLOBAL RESETS & BASE
+   ============================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: #FFFFFF;
+  color: #0F172A;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ============================================
+   STITCH LAYOUT CORE
+   ============================================ */
+.stitch-layout {
+  background: #FFFFFF;
+}
+
+.stitch-main-container {
+  display: flex;
+  min-height: 100vh;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stitch-main-container.center-mode {
+  justify-content: center;
+  align-items: center;
+  padding: 40px 0;
+}
+
+.stitch-main-container.split-mode {
+  justify-content: flex-start;
+  min-height: calc(100vh - 140px);
+}
+
+/* ============================================
+   LEFT PANEL - Input Section
+   ============================================ */
+.stitch-left-panel {
+  width: 100%;
+  max-width: 1200px;
+  padding: 80px 120px 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stitch-main-container.split-mode .stitch-left-panel {
+  width: 380px;
+  max-width: 380px;
+  min-width: 380px;
+  padding: 20px;
+  justify-content: flex-start;
+  border-right: 1px solid #E5E7EB;
+  overflow-y: auto;
+  flex-shrink: 0;
+  background: #FAFBFC;
+}
+
+.stitch-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  align-items: center;
+  text-align: center;
+}
+
+.stitch-main-container.split-mode .stitch-input-section {
+  gap: 16px;
+  align-items: stretch;
+  text-align: left;
+  padding: 0;
+}
+
+/* Hero Text */
+.stitch-title {
+  font-size: 64px;
+  font-weight: 900;
+  color: #0F172A;
+  line-height: 1.1;
+  margin: 0 0 24px 0;
+  letter-spacing: -0.03em;
+}
+
+.gradient-text-stitch {
+  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: block;
+}
+
+.stitch-subtitle {
+  font-size: 22px;
+  color: #64748B;
+  line-height: 1.7;
+  margin: 0;
+  max-width: 900px;
+}
+
+.stitch-main-container.split-mode .stitch-title {
+  font-size: 18px;
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.stitch-main-container.split-mode .stitch-subtitle {
+  font-size: 12px;
+  margin-bottom: 16px;
+  color: #6B7280;
+  text-align: left;
+}
+
+/* Input */
+.stitch-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.stitch-input-container {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+
+.stitch-main-container.split-mode .stitch-input-container {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sparkle-icon-stitch {
+  position: absolute;
+  left: 22px;
+  top: 22px;
+  font-size: 26px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.stitch-main-container.split-mode .sparkle-icon-stitch {
+  display: none;
+}
+
+.stitch-input {
+  width: 100%;
+  min-height: 120px;
+  max-height: 300px;
+  padding: 20px 170px 20px 65px;
+  font-size: 17px;
+  color: #0F172A;
+  background: #F8FAFC;
+  border: 2px solid #E2E8F0;
+  border-radius: 16px;
+  outline: none;
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.5;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stitch-input::-webkit-scrollbar {
+  display: none;
+}
+
+.stitch-input::placeholder {
+  color: #94A3B8;
+}
+
+.stitch-input:focus {
+  background: #FFFFFF;
+  border-color: #667EEA;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.stitch-main-container.split-mode .stitch-input {
+  min-height: 160px;
+  max-height: 320px;
+  padding: 14px;
+  font-size: 13px;
+  background: #FFFFFF;
+  border: 1px solid #D1D5DB;
+}
+
+/* Generate Button */
+.stitch-btn-inline {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.stitch-btn-inline:hover:not(:disabled) {
+  transform: translateY(-50%) scale(1.02);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.stitch-main-container.split-mode .stitch-btn-inline {
+  position: static;
+  transform: none;
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 14px;
+  justify-content: center;
+  margin-top: 0;
+}
+
+/* Presets & Other (hidden in split) */
+.stitch-presets,
+.stitch-enhance-btn,
+.credits-estimate-card {
+  display: flex;
+}
+
+.stitch-main-container.split-mode .stitch-presets,
+.stitch-main-container.split-mode .stitch-enhance-btn,
+.stitch-main-container.split-mode .credits-estimate-card {
+  display: none;
+}
+
+/* Processing & Error */
+.stitch-processing,
+.stitch-error {
+  width: 100%;
+  max-width: 900px;
+}
+
+.stitch-main-container.split-mode .stitch-processing,
+.stitch-main-container.split-mode .stitch-error {
+  max-width: 100%;
+}
+
+/* Toolbar (Results Actions) */
+.stitch-results-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 900px;
+}
+
+.stitch-main-container.split-mode .stitch-results-actions {
+  flex-direction: row;
+  gap: 8px;
+  padding: 16px;
+  margin: 16px -20px 0;
+  border-top: 1px solid #E5E7EB;
+  border-bottom: 1px solid #E5E7EB;
+  background: rgba(248, 250, 252, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.stitch-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.stitch-main-container.split-mode .stitch-btn {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 13px;
+  border-radius: 8px;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.stitch-main-container.split-mode .stitch-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   RIGHT PANEL - Gradient Canvas
+   ============================================ */
+.stitch-right-panel {
+  flex: 1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: none;
+  opacity: 0;
+  transition: opacity 0.4s ease-out;
+  overflow-y: auto;
+  position: relative;
+  min-height: 100vh;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stitch-right-panel::-webkit-scrollbar {
+  display: none;
+}
+
+.stitch-right-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(0, 0, 0, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+  animation: gradientShift 15s ease-in-out infinite alternate;
+}
+
+@keyframes gradientShift {
+  0% { opacity: 0.6; transform: scale(1) rotate(0deg); }
+  100% { opacity: 0.9; transform: scale(1.1) rotate(5deg); }
+}
+
+.stitch-right-panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,0.03) 35px, rgba(255,255,255,0.03) 70px);
+  pointer-events: none;
+}
+
+.stitch-main-container.split-mode .stitch-right-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.stitch-right-panel.visible {
+  opacity: 1;
+}
+
+.stitch-canvas-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  height: 100%;
+}
+
+/* Placeholder */
+.stitch-canvas-placeholder,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 60px 40px;
+  text-align: center;
+  color: white;
+}
+
+.placeholder-icon,
+.empty-icon {
+  font-size: 120px;
+  margin-bottom: 32px;
+  opacity: 0.9;
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.05); }
+}
+
+.placeholder-text,
+.empty-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
+}
+
+.empty-text {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  max-width: 450px;
+  line-height: 1.7;
+}
+
+/* ============================================
+   PHONE MOCKUPS - FIXED SIZING
+   ============================================ */
+.phone-mockups-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 32px;
+  padding: 60px 20px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  height: 100%;
+  max-height: 100vh;
+  overflow: visible;
+}
+
+.phone-mockup {
+  width: 340px; /* Fixed width */
+  min-width: 340px;
+  max-width: 340px;
+  height: 700px; /* Fixed height */
+  min-height: 700px;
+  max-height: 700px;
+  flex-shrink: 0;
+  animation: fadeInScale 0.6s ease-out both;
+  transition: transform 0.3s ease;
+}
+
+.phone-mockups-grid:has(.phone-mockup:only-child) .phone-mockup {
+  height: calc(100vh - 200px);
+  max-height: 750px;
+}
+
+.phone-mockup:hover {
+  transform: scale(1.02);
+  z-index: 10;
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.9) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+
+.phone-notch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 150px;
+  height: 28px;
+  background: #1F2937;
+  border-radius: 0 0 20px 20px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ✅ IMPROVED: Fixed phone sizing */
+.phone-mockup {
+  width: 340px; /* Fixed width */
+  min-width: 340px;
+  max-width: 340px;
+  height: 700px; /* Fixed height */
+  min-height: 700px;
+  max-height: 700px;
+  flex-shrink: 0;
+  animation: fadeInScale 0.6s ease-out both;
+  transition: transform 0.3s ease;
+}
+
+.phone-frame-wrapper {
+  position: relative;
+  background: linear-gradient(145deg, #1F2937 0%, #111827 100%);
+  border-radius: 42px;
+  padding: 14px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-screen-area {
+  position: relative;
+  width: 100%;
+  height: 100%; /* Fill parent instead of aspect-ratio */
+  background: #FFFFFF;
+  border-radius: 32px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) inset;
+  /* Remove aspect-ratio - it conflicts with fixed height */
+}
+
+.phone-screen-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 44px 16px 12px;
+  background: rgba(248, 250, 252, 0.95);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid #E5E7EB;
+  z-index: 5;
+}
+
+.screen-name-display {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0F172A;
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+
+/* ✅ CONTAINER QUERY SYSTEM - Makes components container-aware */
+
+.phone-screen-content::-webkit-scrollbar {
+  display: none;
+}
+
+.phone-home-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+  z-index: 10;
+}
+
+/* ============================================
+   ✅ CONTAINER QUERY SYSTEM - Responsive Components
+   Components now respond to phone width, not viewport
+   ============================================ */
+
+/* Base styles (apply to all container sizes) */
+.ui-root {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  padding: 16px;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ui-root *,
+.ui-root *::before,
+.ui-root *::after {
+  box-sizing: border-box;
+}
+
+/* 🎯 CONTAINER QUERY: Phone width ≤ 380px (most phones) */
+@container phone (max-width: 380px) {
+  
+  /* Typography - Scale down for phone */
+  .ui-root h1 { 
+    font-size: 22px !important; 
+    line-height: 1.2 !important; 
+    margin: 0 0 8px 0 !important; 
+  }
+
+  .ui-root h2 { 
+    font-size: 18px !important; 
+    line-height: 1.3 !important; 
+    margin: 0 0 6px 0 !important; 
+  }
+
+  .ui-root h3 { 
+    font-size: 16px !important; 
+    line-height: 1.4 !important; 
+    margin: 0 0 4px 0 !important; 
+  }
+
+  .ui-root p,
+  .ui-root div:not([style*="fontSize"]),
+  .ui-root span:not([style*="fontSize"]) { 
+    font-size: 14px !important; 
+    line-height: 1.6 !important;
+  }
+  
+  /* Override inline font sizes for common components */
+  .ui-root div[style*="fontSize: 14px"] { font-size: 13px !important; }
+  .ui-root div[style*="fontSize: 16px"] { font-size: 14px !important; }
+  .ui-root div[style*="fontSize: 18px"] { font-size: 16px !important; }
+  .ui-root div[style*="fontSize: 20px"] { font-size: 18px !important; }
+  .ui-root div[style*="fontSize: 24px"] { font-size: 20px !important; }
+  .ui-root div[style*="fontSize: 32px"] { font-size: 26px !important; }
+
+  /* Layout - Reduce spacing */
+  .ui-root {
+    padding: 14px !important;
+    gap: 10px !important;
+  }
+
+  .ui-root > div[style*="display: flex"],
+  .ui-root > div[style*="display: grid"] {
+    padding: 14px !important;
+    gap: 10px !important;
+  }
+
+  /* Grid - Ensure proper columns */
+  .ui-root div[style*="display: grid"] {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .ui-root div[style*="gridTemplateColumns: repeat(2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  /* Cards - Compact padding */
+  .ui-root div[style*="borderRadius"][style*="boxShadow"],
+  .ui-root div[style*="position: relative"][style*="cursor: pointer"] {
+    padding: 10px !important;
+  }
+
+  /* Images - Constrain width */
+  .ui-root img {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: 8px !important;
+  }
+
+  /* Buttons - Make them fit and wrap text */
+  .ui-root button {
+    max-width: 100% !important;
+    padding: 9px 14px !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    white-space: normal !important; /* ✅ Allow text wrapping */
+    word-wrap: break-word !important;
+    line-height: 1.4 !important;
+    min-height: 36px !important;
+  }
+
+  /* Button text overflow fix */
+  .ui-root button span {
+    display: inline !important;
+    word-wrap: break-word !important;
+  }
+
+  /* Inputs - Proper sizing */
+  .ui-root input:not([type="checkbox"]):not([type="radio"]),
+  .ui-root textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 9px !important;
+    font-size: 14px !important;
+    border-radius: 8px !important;
+  }
+
+  /* Cart Items - Compact layout */
+  .ui-root div[style*="display: flex"][style*="gap: 16px"][style*="boxShadow"] {
+    gap: 10px !important;
+    padding: 10px !important;
+    margin-bottom: 8px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  /* Cart Item Image - Smaller on phone */
+  .ui-root div[style*="width: 80px"][style*="height: 80px"] {
+    width: 65px !important;
+    min-width: 65px !important;
+    height: 65px !important;
+    border-radius: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Cart Item Content - Take remaining space */
+  .ui-root div[style*="display: flex"] > div[style*="flex: 1"] {
+    flex: 1 !important;
+    min-width: 0 !important; /* Allow shrinking */
+    overflow: hidden !important;
+  }
+
+  /* Cart Item Title - Prevent overflow */
+  .ui-root div[style*="display: flex"] > div[style*="flex: 1"] > div[style*="fontSize: 14px"] {
+    font-size: 13px !important;
+    line-height: 1.3 !important;
+    word-wrap: break-word !important;
+    overflow: hidden !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+  }
+
+  /* Price text */
+  .ui-root div[style*="fontSize: 18px"][style*="fontWeight: 700"],
+  .ui-root div[style*="fontSize: 20px"][style*="fontWeight: 700"] {
+    font-size: 16px !important;
+    margin-bottom: 6px !important;
+  }
+
+  /* Quantity Control - Compact */
+  .ui-root div[style*="background: #F3F4F6"][style*="display: flex"] {
+    padding: 3px 6px !important;
+    gap: 8px !important;
+    border-radius: 6px !important;
+  }
+
+  .ui-root div[style*="background: #F3F4F6"] button {
+    width: 28px !important;
+    min-width: 28px !important;
+    height: 28px !important;
+    font-size: 16px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Remove button - Make it fit */
+  .ui-root button[style*="color: red"],
+  .ui-root button[style*="color: #ef4444"],
+  .ui-root button[style*="color: rgb(239, 68, 68)"] {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    min-width: auto !important;
+  }
+
+  /* Price Breakdown / Order Summary */
+  .ui-root div[style*="Order Summary"] {
+    padding: 14px !important;
+  }
+
+  .ui-root div[style*="Order Summary"] div[style*="fontSize: 16px"] {
+    font-size: 14px !important;
+  }
+
+  .ui-root div[style*="Order Summary"] div[style*="fontSize: 14px"] {
+    font-size: 13px !important;
+  }
+
+  /* Badge/Chip - Smaller */
+  .ui-root span[style*="display: inline-block"][style*="padding: 4px"] {
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+    border-radius: 8px !important;
+  }
+
+  /* Avatar - Smaller */
+  .ui-root div[style*="borderRadius: 50%"] {
+    width: 42px !important;
+    height: 42px !important;
+    font-size: 16px !important;
+  }
+
+  /* App Bar - Compact */
+  .ui-root div[style*="borderBottom: 1px solid"] {
+    padding: 12px 14px !important;
+    gap: 10px !important;
+  }
+
+  .ui-root div[style*="borderBottom: 1px solid"] div[style*="fontSize: 18px"] {
+    font-size: 16px !important;
+  }
+
+  /* Tab Bar - Smaller text */
+  .ui-root div[style*="position: sticky"][style*="bottom: 0"] {
+    padding: 10px 0 !important;
+    font-size: 11px !important;
+  }
+
+  /* List Items - Compact */
+  .ui-root div[style*="padding: 12px 16px"][style*="cursor: pointer"] {
+    padding: 10px 14px !important;
+    gap: 10px !important;
+  }
+
+  /* Progress Bar - Thinner */
+  .ui-root div[style*="height: 8px"][style*="background: #E5E7EB"] {
+    height: 6px !important;
+    border-radius: 4px !important;
+  }
+
+  /* Divider - Less margin */
+  .ui-root hr {
+    margin: 10px 0 !important;
+  }
+
+  /* Alert - Compact */
+  .ui-root div[style*="border: 1px solid"][style*="display: flex"][style*="gap: 12px"] {
+    padding: 10px 12px !important;
+    gap: 10px !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+  }
+
+  /* Empty State - Smaller */
+  .ui-root div[style*="textAlign: center"][style*="padding: 48px"] {
+    padding: 32px 20px !important;
+  }
+
+  .ui-root div[style*="textAlign: center"] > div[style*="fontSize: 64px"] {
+    font-size: 48px !important;
+  }
+
+  .ui-root div[style*="textAlign: center"] > div[style*="fontSize: 18px"] {
+    font-size: 16px !important;
+  }
+
+  /* Product Card - Ensure image doesn't overflow */
+  .ui-root div[style*="position: relative"][style*="cursor: pointer"] img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+    object-fit: cover !important;
+  }
+
+  /* Product Card Button - Full width and wrap */
+  .ui-root div[style*="position: relative"][style*="cursor: pointer"] button {
+    width: 100% !important;
+    margin-top: 8px !important;
+  }
+}
+
+/* 🎯 CONTAINER QUERY: Smaller phones (≤ 320px) */
+@container phone (max-width: 320px) {
+  .ui-root {
+    padding: 12px !important;
+    gap: 8px !important;
+  }
+
+  .ui-root h1 { font-size: 20px !important; }
+  .ui-root h2 { font-size: 16px !important; }
+  .ui-root h3 { font-size: 14px !important; }
+  .ui-root p { font-size: 13px !important; }
+
+  .ui-root button {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* Force single column grid for very small screens */
+  .ui-root div[style*="gridTemplateColumns: repeat(2"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* 🎯 CONTAINER QUERY: Larger phones/tablets (> 380px) */
+@container phone (min-width: 381px) {
+  .ui-root h1 { font-size: 26px !important; }
+  .ui-root h2 { font-size: 22px !important; }
+  .ui-root h3 { font-size: 18px !important; }
+  .ui-root p { font-size: 15px !important; }
+
+  .ui-root button {
+    padding: 11px 18px !important;
+    font-size: 14px !important;
+  }
+}
+
+/* ✅ FIXED: FAB & Sticky Elements - Stay in phone */
+.ui-root button[style*="position: fixed"],
+.ui-root div[style*="position: fixed"] {
+  position: absolute !important;
+}
+
+.ui-root div[style*="position: sticky"][style*="bottom: 0"] {
+  position: sticky !important;
+  bottom: 0 !important;
+  margin-left: -16px !important;
+  margin-right: -16px !important;
+  margin-bottom: -16px !important;
+  z-index: 50 !important;
+}
+
+/* Prevent overflow */
+.ui-root [style*="display: flex"] > *,
+.ui-root [style*="display: grid"] > * {
+  min-width: 0 !important;
+}
+
+/* ============================================
+   RESPONSIVE MEDIA QUERIES
+   ============================================ */
+@media (max-width: 1024px) {
+  .stitch-main-container.split-mode {
+    flex-direction: column;
+  }
+  .stitch-main-container.split-mode .stitch-left-panel {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #E5E7EB;
+    padding: 24px;
+  }
+  .phone-mockups-grid {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .stitch-left-panel { padding: 60px 32px; }
+  .stitch-title { font-size: 40px; }
+  .stitch-subtitle { font-size: 18px; }
+  .phone-mockup { max-width: 300px; max-height: 550px; }
+  .stitch-main-container.split-mode .stitch-results-actions {
+    flex-direction: column;
+  }
+  .stitch-main-container.split-mode .stitch-btn { width: 100%; }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+*:focus-visible {
+  outline: 2px solid #667EEA;
+  outline-offset: 2px;
 }

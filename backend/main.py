@@ -6,6 +6,7 @@
 from asyncio.log import logger
 import os
 import asyncio
+import json 
 from typing import Dict, List
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,7 +23,10 @@ from LLM_Schema.llm_client import (
     generate_preview_from_json,
     generate_asset_prompts,
     generate_backgrounds,
+    send_chat,
 )
+from LLM_Schema.llm_client import _safe_json_loads  # ✅ ADD THIS TOO
+
 from Services.component_model import create_component_model
 from Services.style_enricher import enrich_styles
 from Services.image_url_generator import enrich_layout_with_images
@@ -35,6 +39,11 @@ from middleware.credits_middleware import (
     check_user_credits,
     deduct_credits_after_generation,
     estimate_tokens,
+)
+from Services.session_manager import (
+    session_manager,
+    create_editing_session,
+    get_editing_session
 )
 
 load_dotenv()
@@ -1040,11 +1049,404 @@ async def test_backgrounds(request: Request):
             {"error": f"Background generation failed: {str(e)}"},
             status_code=500,
         )
+# ============================================================================ #
+# ✅ CONVERSATIONAL EDIT ENDPOINT
+# ============================================================================ #
 
+@app.post("/edit-component-model")
+async def edit_component_model(request: Request):
+    """
+    Apply conversational edits to component model.
+    
+    Flow:
+    1. Get current session (component model + history)
+    2. Send edit prompt + context to Gemini
+    3. Parse updated component model
+    4. Update session history
+    5. Return updated model + preview
+    """
+    
+    body = await request.json()
+    
+    session_id = body.get("session_id")
+    edit_prompt = body.get("prompt", "").strip()
+    user_id = body.get("user_id")
+    
+    # Validation
+    if not session_id:
+        return JSONResponse(
+            {"error": "Missing session_id"},
+            status_code=400
+        )
+    
+    if not edit_prompt:
+        return JSONResponse(
+            {"error": "Missing edit prompt"},
+            status_code=400
+        )
+    
+    if not user_id:
+        return JSONResponse(
+            {"error": "Missing user_id - authentication required"},
+            status_code=401
+        )
+    
+    # Get session using helper function
+    session = get_editing_session(session_id)
+    
+    if not session:
+        return JSONResponse(
+            {"error": "Session not found or expired"},
+            status_code=404
+        )
+    
+    # Verify ownership
+    if session["user_id"] != user_id:
+        return JSONResponse(
+            {"error": "Unauthorized - session belongs to different user"},
+            status_code=403
+        )
+    
+    print(f"\n🔄 [EDIT] Session: {session_id}")
+    print(f"   User: {user_id}")
+    print(f"   Edit #{session['edit_count'] + 1}: {edit_prompt[:80]}...")
+    
+    # -------------------------------------------------------------------- #
+    # STEP 1: CHECK CREDITS (edits cost ~10% of full generation)
+    # -------------------------------------------------------------------- #
+    
+    estimated_edit_tokens = 3000
+    has_credits = await check_user_credits(user_id, estimated_edit_tokens)
+    
+    if not has_credits:
+        return JSONResponse(
+            {
+                "error": "Insufficient credits for edit",
+                "details": {
+                    "required_credits": estimated_edit_tokens / 70_000,
+                    "message": "Edits require minimal credits. Please top up."
+                }
+            },
+            status_code=402
+        )
+    
+    # Reset token tracker
+    token_tracker.reset()
+    
+    # -------------------------------------------------------------------- #
+    # STEP 2: BUILD CONTEXT-AWARE PROMPT FOR GEMINI
+    # -------------------------------------------------------------------- #
+    
+    current_model = session["component_model"]
+    
+    # Get recent conversation history (last 3 exchanges)
+    conversation_history = session_manager.get_conversation_history(
+        session_id,
+        last_n_exchanges=3
+    )
+    
+    system_prompt = """You are a professional UI component editor for mobile apps.
+
+TASK: Modify the provided component model based on user's edit request.
+
+RULES:
+1. PRESERVE structure - only change what's requested
+2. Maintain component IDs and screen assignments
+3. Keep all existing props unless explicitly changing them
+4. Return COMPLETE component model, not just changes
+5. Output ONLY valid JSON, no markdown, no explanations
+
+INPUT FORMAT:
+{
+  "screens": [...],
+  "theme": {...},
+  "tokens": {...}
+}
+
+OUTPUT FORMAT:
+Same structure as input, with requested modifications applied.
+
+EXAMPLES OF EDITS:
+- "Change login button to green" → Update button's gradient/color prop
+- "Add forgot password link" → Insert LinkButton component
+- "Make header larger" → Increase title size in props
+- "Change screen background to blue" → Update theme.background
+- "Remove the subtitle" → Remove subtitle prop or component
+
+CRITICAL: Return the FULL component model JSON, not a diff."""
+
+    # Build full context
+    context_messages = []
+    
+    # Add conversation history for context
+    for msg in conversation_history:
+        context_messages.append({
+            "role": msg["role"],
+            "content": msg["content"]
+        })
+    
+    # Add current edit request with full model
+    edit_context = f"""Current Component Model:
+{json.dumps(current_model, indent=2)}
+
+User Edit Request:
+{edit_prompt}
+
+Return the complete updated component model as JSON."""
+    
+    # -------------------------------------------------------------------- #
+    # STEP 3: CALL GEMINI API WITH CONTEXT
+    # -------------------------------------------------------------------- #
+    
+    try:
+        print("🤖 [EDIT] Calling Gemini for component modification...")
+        
+        response_text = await asyncio.wait_for(
+            send_chat(
+                edit_context,
+                route="component",
+                timeout=25
+            ),
+            timeout=30
+        )
+        
+        print(f"✅ [EDIT] Gemini response received ({len(response_text)} chars)")
+        
+        # Parse response
+        updated_model = _safe_json_loads(response_text, current_model)
+        
+        if not isinstance(updated_model, dict):
+            print("⚠️ [EDIT] Invalid response format, using fallback")
+            updated_model = current_model
+        
+        # Validate structure
+        if "screens" not in updated_model:
+            print("⚠️ [EDIT] Missing screens in response")
+            updated_model = current_model
+        
+    except asyncio.TimeoutError:
+        print("⏰ [EDIT] Gemini timeout - using original model")
+        return JSONResponse(
+            {"error": "Edit request timed out. Please try again."},
+            status_code=504
+        )
+    
+    except Exception as e:
+        print(f"❌ [EDIT] Error: {e}")
+        return JSONResponse(
+            {"error": f"Edit failed: {str(e)}"},
+            status_code=500
+        )
+    
+    # -------------------------------------------------------------------- #
+    # STEP 4: REGENERATE PREVIEW (DETERMINISTIC, FAST)
+    # -------------------------------------------------------------------- #
+    
+    print("🎨 [EDIT] Regenerating preview...")
+    
+    try:
+        from Services.preview_adapter import PreviewAdapter
+        web_preview = PreviewAdapter.to_web_preview(updated_model)
+        print("✅ [EDIT] Preview updated")
+        
+    except Exception as e:
+        print(f"⚠️ [EDIT] Preview generation failed: {e}")
+        web_preview = updated_model
+    
+    # -------------------------------------------------------------------- #
+    # STEP 5: UPDATE SESSION & DEDUCT CREDITS
+    # -------------------------------------------------------------------- #
+    
+    # Get token usage
+    usage_summary = token_tracker.get_summary()
+    tokens_used = usage_summary.get("total_tokens", 0)
+    
+    # Update session with new state
+    session_manager.update_session(
+        session_id,
+        updated_model,
+        edit_prompt,
+        "Applied changes successfully",
+        tokens_used=tokens_used
+    )
+    
+    # Deduct credits
+    deduction_result = await deduct_credits_after_generation(user_id)
+    
+    print(f"✅ [EDIT] Complete!")
+    print(f"   Tokens used: {usage_summary['total_tokens']:,}")
+    print(f"   Credits: {usage_summary['credits_used']:.4f}")
+    print(f"   Edit count: {session['edit_count'] + 1}")
+    
+    # -------------------------------------------------------------------- #
+    # STEP 6: RETURN UPDATED MODEL
+    # -------------------------------------------------------------------- #
+    
+    return {
+        "success": True,
+        "session_id": session_id,
+        "component_model": updated_model,
+        "web_preview": web_preview,
+        "edit_count": session["edit_count"] + 1,
+        "usage": {
+            "tokens": usage_summary,
+            "credits": deduction_result
+        },
+        "message": "Changes applied successfully"
+    }
+
+
+# ============================================================================ #
+# ✅ SESSION CREATION ENDPOINT
+# ============================================================================ #
+
+@app.post("/create-edit-session")
+async def create_edit_session_endpoint(request: Request):
+    """
+    Create a new editing session from generated component model.
+    Called automatically after successful generation.
+    """
+    
+    body = await request.json()
+    
+    component_model = body.get("component_model")
+    user_id = body.get("user_id")
+    
+    if not component_model:
+        return JSONResponse(
+            {"error": "Missing component_model"},
+            status_code=400
+        )
+    
+    if not user_id:
+        return JSONResponse(
+            {"error": "Missing user_id"},
+            status_code=401
+        )
+    
+    # Use helper function
+    session_id = create_editing_session(component_model, user_id)
+    
+    return {
+        "session_id": session_id,
+        "message": "Edit session created. You can now make conversational edits.",
+        "expires_in": "2 hours"
+    }
+
+
+# ============================================================================ #
+# ✅ SESSION STATUS ENDPOINT
+# ============================================================================ #
+
+@app.get("/edit-session/{session_id}")
+async def get_edit_session_status(session_id: str):
+    """Get current session status and statistics"""
+    
+    session = get_editing_session(session_id)
+    
+    if not session:
+        return JSONResponse(
+            {"error": "Session not found or expired"},
+            status_code=404
+        )
+    
+    return {
+        "session_id": session_id,
+        "user_id": session["user_id"],
+        "edit_count": session["edit_count"],
+        "total_tokens_used": session["total_tokens_used"],
+        "created_at": session["created_at"].isoformat(),
+        "last_activity": session["last_activity"].isoformat(),
+        "conversation_length": len(session["conversation_history"]),
+        "screens": session["metadata"]["screens"],
+        "screen_type": session["metadata"]["screen_type"]
+    }
+
+
+# ============================================================================ #
+# ✅ GET USER'S SESSIONS
+# ============================================================================ #
+
+@app.get("/edit-sessions/user/{user_id}")
+async def get_user_edit_sessions(user_id: str):
+    """Get all active editing sessions for a user"""
+    
+    sessions = session_manager.get_user_sessions(user_id)
+    
+    return {
+        "user_id": user_id,
+        "active_sessions": len(sessions),
+        "sessions": sessions
+    }
+
+
+# ============================================================================ #
+# ✅ DELETE SESSION ENDPOINT
+# ============================================================================ #
+
+@app.delete("/edit-session/{session_id}")
+async def delete_edit_session(session_id: str, request: Request):
+    """Manually delete an editing session"""
+    
+    body = await request.json()
+    user_id = body.get("user_id")
+    
+    if not user_id:
+        return JSONResponse(
+            {"error": "Missing user_id"},
+            status_code=401
+        )
+    
+    # Verify ownership before deletion
+    session = get_editing_session(session_id)
+    
+    if not session:
+        return JSONResponse(
+            {"error": "Session not found"},
+            status_code=404
+        )
+    
+    if session["user_id"] != user_id:
+        return JSONResponse(
+            {"error": "Unauthorized"},
+            status_code=403
+        )
+    
+    success = session_manager.delete_session(session_id)
+    
+    if success:
+        return {
+            "success": True,
+            "message": "Session deleted successfully"
+        }
+    else:
+        return JSONResponse(
+            {"error": "Failed to delete session"},
+            status_code=500
+        )
+
+
+# ============================================================================ #
+# ✅ SESSION MANAGER STATS ENDPOINT
+# ============================================================================ #
+
+@app.get("/edit-sessions/stats")
+async def get_session_manager_stats():
+    """Get overall session manager statistics"""
+    
+    stats = session_manager.get_stats()
+    
+    return {
+        "status": "operational",
+        "statistics": stats,
+        "active_sessions": len(session_manager)
+    }
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint with tier system status"""
+    """Health check with session manager status"""
+    
+    # Health check for the database
     from db.database import Database
     
     db_healthy = await Database.health_check()
@@ -1055,12 +1457,16 @@ async def health_check():
     except:
         free_tier_count = "unknown"
         tier_system_healthy = False
+
+    # Add session manager stats
+    active_sessions = len(session_manager)
+    session_stats = session_manager.get_stats()
     
     return {
         "status": "healthy" if db_healthy else "degraded",
         "platform": "react-native",
         "architecture": "5-API + Deterministic Converters + Tier System",
-        "version": "2.6.0",
+        "version": "2.7.0",
         "database": "connected" if db_healthy else "disconnected",
         "tier_system": "operational" if tier_system_healthy else "degraded",
         "free_tier_status": f"{free_tier_count}/20 slots",
@@ -1087,8 +1493,13 @@ async def health_check():
             "tiers": ["free", "limited", "basic", "pro", "premium"],
             "deterministic_generation": True,
         },
+        "edit_sessions": {
+            "active": active_sessions,
+            "total_edits": session_stats.get("total_edits", 0),
+            "timeout": f"{session_stats.get('timeout_hours', 2)}h",
+            "avg_edits_per_session": session_stats.get("avg_edits_per_session", 0)
+        },
     }
-
 
 
 @app.get("/")
@@ -1219,17 +1630,18 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ============================================================================ #
 # STARTUP/SHUTDOWN EVENTS
 # ============================================================================ #
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from db.database import Database
 
 @app.on_event("startup")
-async def startup_event():
-    """Startup event - connect to MongoDB, setup background jobs, and show banner"""
+async def startup_with_session_cleanup():
+    """Startup event - includes session cleanup scheduler"""
+
     # Connect to MongoDB
     print("\n🔵 Connecting to MongoDB...")
     connection_success = await connect_to_mongo()
 
     # Verify connection
-    from db.database import Database
-
     if connection_success and await Database.health_check():  # ✅ ADD await
         print("✅ MongoDB Connected Successfully!")
         print(f"   Database: {os.getenv('MONGODB_DB_NAME')}")
@@ -1251,9 +1663,33 @@ async def startup_event():
             print(f"📊 Free tier: {free_tier_count}/20 slots used")
         except Exception as e:
             print(f"⚠️  Warning: Background jobs setup failed: {e}")
-    
+
     print()
 
+    # ✅ START SESSION CLEANUP SCHEDULER
+    try:
+        scheduler = AsyncIOScheduler()
+        
+        # Cleanup expired sessions every hour
+        scheduler.add_job(
+            session_manager.cleanup_expired_sessions,
+            'interval',
+            hours=1,
+            id='session_cleanup'
+        )
+        
+        scheduler.start()
+        
+        print("✅ Session cleanup scheduler started (runs every hour)")
+        print(f"   Timeout: {session_manager.session_timeout.total_seconds() / 3600}h")
+        
+    except Exception as e:
+        print(f"⚠️  Warning: Session cleanup scheduler failed: {e}")
+    
+    # Print session manager info
+    print(f"📊 SessionManager ready - Active sessions: {len(session_manager)}")
+
+    # Print general application info
     print("\n" + "=" * 70)
     print("🚀 UI PIPELINE v2.6 - REACT NATIVE EDITION (WITH TIER SYSTEM)")
     print("=" * 70)
