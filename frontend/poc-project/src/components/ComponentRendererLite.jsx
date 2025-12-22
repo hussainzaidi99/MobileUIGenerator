@@ -1,20 +1,20 @@
 
 import React, { useContext, useState } from "react";
-import { 
-  Mail, 
-  User, 
-  Lock, 
-  Phone, 
-  Search, 
+import {
+  Mail,
+  User,
+  Lock,
+  Phone,
+  Search,
   ChevronRight,
   Settings,
   Bell,
   Palette,
   HelpCircle,
   Info,
-  LogOut,  
+  LogOut,
 } from "lucide-react";
-import { FaGoogle,FaCog, FaApple, FaFacebook, FaGithub } from "react-icons/fa";
+import { FaGoogle, FaCog, FaApple, FaFacebook, FaGithub } from "react-icons/fa";
 import { ThemeCtx } from "./CanvasRendererLite";
 
 const StarIcon = () => <span style={{ color: "#FCD34D" }}>★</span>;
@@ -38,7 +38,7 @@ const PHONE_SPACING = {
    THEME HOOK & UTILITIES
    ============================================ */
 function useThemeColors() {
-  
+
   const { theme } = useContext(ThemeCtx) || {};
 
   const lightenColor = (hex, percent) => {
@@ -53,7 +53,7 @@ function useThemeColors() {
 
   const primary = theme?.primary || "#0D9488";
   const primaryLight = lightenColor(primary, 15);
-  
+
 
   const getDynamicGradient = (variant = "primary") => {
     const map = {
@@ -102,9 +102,9 @@ export const Container = ({
   style,
 }) => {
   const pad = padding === "0" || padding === 0
-    ? "0" 
-    : String(padding).endsWith("px") 
-      ? padding 
+    ? "0"
+    : String(padding).endsWith("px")
+      ? padding
       : `${padding}px`;
   const br = radius != null ? Number(radius) : 0;
 
@@ -197,7 +197,7 @@ export const Grid = ({ columns = 2, gap = "16", children, style }) => (
 );
 
 export const Stack = ({ children, style }) => (
-  <div style={{ position: "relative",marginBottom: PHONE_SPACING.component, ...style }}>{children}</div>
+  <div style={{ position: "relative", marginBottom: PHONE_SPACING.component, ...style }}>{children}</div>
 );
 
 /* ============================================
@@ -356,7 +356,7 @@ export const Badge = ({ text = "Badge", color = "blue", style }) => {
         fontWeight: "600",
         background: colors.bg,
         color: colors.text,
-        marginBottom: PHONE_SPACING.badge, 
+        marginBottom: PHONE_SPACING.badge,
         ...style,
       }}
     >
@@ -526,7 +526,7 @@ export const IconInput = ({
         >
           {iconMap[icon] || icon}
         </span>
-        
+
         {/* ✅ Input with proper padding */}
         <input
           type={type}
@@ -558,7 +558,7 @@ export const SearchInput = ({
   style,
 }) => {
   const radiusMap = { sm: "6px", md: "8px", lg: "12px" };
-  
+
   return (
     <label
       style={{
@@ -584,7 +584,7 @@ export const SearchInput = ({
         >
           <Search size={18} />
         </span>
-        
+
         {/* ✅ Input with proper left padding */}
         <input
           type="text"
@@ -624,9 +624,9 @@ export const Checkbox = ({ label, value, spacing, style }) => (
     <input
       type="checkbox"
       defaultChecked={value}
-      style={{ 
-        marginRight: "8px", 
-        width: "16px", 
+      style={{
+        marginRight: "8px",
+        width: "16px",
         height: "16px",
         cursor: "pointer",
       }}
@@ -926,10 +926,12 @@ export const LinkButton = ({
 };
 export const Link = LinkButton;
 
+
 /* ============================================
-   MEDIA COMPONENTS — DYNAMIC IMAGE SYSTEM
+   MEDIA COMPONENTS — PEXELS-FIRST DYNAMIC IMAGE SYSTEM
    ============================================ */
 
+import { searchPexelsPhoto, generatePexelsQuery } from '../utils/pexelsClient';
 
 /**
  * Helper to check if a URL is a placeholder
@@ -937,11 +939,7 @@ export const Link = LinkButton;
 function isPlaceholderUrl(url) {
   if (!url) return true;
   const str = String(url).toLowerCase();
-  
-  // ❌ REMOVE these - they're real image services:
-  // - picsum.photos (real images)
-  // - loremflickr (real images)
-  
+
   return (
     str.includes("placeholder.com") ||
     str.includes("via.placeholder") ||
@@ -953,7 +951,7 @@ function isPlaceholderUrl(url) {
 }
 
 /**
- * Get image URL from props (backend-first approach)
+ * Get image URL from props (backend approach - now secondary)
  */
 function getImageUrlFromProps(props) {
   const candidates = [
@@ -962,12 +960,12 @@ function getImageUrlFromProps(props) {
     props?.illustration,
     props?.coverImage,
   ];
-  
+
   for (const url of candidates) {
     if (!url) continue;
-    
+
     const urlStr = String(url);
-    
+
     // ✅ Valid URL patterns
     if (
       urlStr.startsWith('http://') ||
@@ -976,22 +974,25 @@ function getImageUrlFromProps(props) {
     ) {
       // ✅ Check if it's NOT a placeholder
       if (!isPlaceholderUrl(urlStr)) {
-        console.log(`✅ Using image URL: ${urlStr.substring(0, 60)}...`);
+        console.log(`✅ Using backend image URL: ${urlStr.substring(0, 60)}...`);
         return urlStr;
       }
     }
   }
-  
-  console.warn(`⚠️ No valid image URL found, using fallback`);
+
   return null;
 }
-function getImageFallback(alt, width = 400, height = 400) {
-  // Try Unsplash as primary fallback (real images)
+
+/**
+ * Unsplash fallback (when Pexels fails)
+ */
+function getUnsplashFallback(alt, width = 400, height = 400) {
   const category = alt?.toLowerCase() || 'abstract';
   return `https://source.unsplash.com/random/${width}x${height}/?${category}`;
 }
+
 /**
- * Simple colored placeholder generator
+ * Simple colored placeholder generator (last resort)
  */
 function getColoredPlaceholder(text, width = 400, height = 400) {
   const colors = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
@@ -999,7 +1000,7 @@ function getColoredPlaceholder(text, width = 400, height = 400) {
     return ((acc << 5) - acc) + char.charCodeAt(0);
   }, 0);
   const bgColor = colors[Math.abs(hash) % colors.length];
-  
+
   // Use a simple SVG data URL
   const svg = `
     <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
@@ -1015,46 +1016,79 @@ function getColoredPlaceholder(text, width = 400, height = 400) {
       </text>
     </svg>
   `;
-  
+
   return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
 /**
- * Main Image Component - BACKEND-FIRST APPROACH
+ * Main Image Component - PEXELS-FIRST APPROACH
+ * Priority: Pexels → Backend URL → Unsplash → Colored Placeholder
  */
-/**
- * Main Image Component - BACKEND-FIRST APPROACH (FIXED)
- */
-export const Image = ({ 
-  src, 
-  image, 
-  illustration, 
-  alt, 
-  fit = "cover", 
-  borderRadius = "md", 
-  style 
+export const Image = ({
+  src,
+  image,
+  illustration,
+  alt,
+  fit = "cover",
+  borderRadius = "md",
+  style
 }) => {
   const radiusMap = { sm: "8px", md: "12px", lg: "16px" };
-  const [imgSrc, setImgSrc] = React.useState(null);
+  const [imgSrc, setImgSrc] = React.useState(getColoredPlaceholder(alt || 'Image', 400, 400));
+  const [isLoading, setIsLoading] = React.useState(true);
   const [errorCount, setErrorCount] = React.useState(0);
-  
-  // ✅ FIXED: Properly set state in useEffect
+
+  // ✅ PEXELS-FIRST: Fetch from Pexels on mount
   React.useEffect(() => {
-    const backendUrl = getImageUrlFromProps({ src, image, illustration });
-    const fallbackUrl = getColoredPlaceholder(alt || 'Image', 400, 400);
-    
-    setImgSrc(backendUrl || fallbackUrl);
-    setErrorCount(0);
-    
-    // ✅ No cleanup needed, so don't return anything
+    let isMounted = true;
+
+    async function loadImage() {
+      setIsLoading(true);
+      setErrorCount(0);
+
+      // Priority 1: Try Pexels
+      const query = generatePexelsQuery('Image', alt);
+      console.log(`🔍 Attempting Pexels fetch for query: "${query}"`);
+
+      const pexelsUrl = await searchPexelsPhoto(query, { orientation: 'landscape' });
+
+      if (pexelsUrl && isMounted) {
+        console.log(`✅ Using Pexels image: ${pexelsUrl.substring(0, 60)}...`);
+        setImgSrc(pexelsUrl);
+        setIsLoading(false);
+        return;
+      }
+
+      // Priority 2: Check backend URL (if provided)
+      const backendUrl = getImageUrlFromProps({ src, image, illustration });
+      if (backendUrl && isMounted) {
+        console.log(`✅ Using backend URL: ${backendUrl.substring(0, 60)}...`);
+        setImgSrc(backendUrl);
+        setIsLoading(false);
+        return;
+      }
+
+      // Priority 3: Unsplash fallback
+      console.log(`⚠️ Pexels failed, using Unsplash fallback`);
+      if (isMounted) {
+        setImgSrc(getUnsplashFallback(alt || 'image', 400, 400));
+        setIsLoading(false);
+      }
+    }
+
+    loadImage();
+
+    return () => {
+      isMounted = false;
+    };
   }, [src, image, illustration, alt]);
-  
+
   const handleError = (e) => {
     console.error(`❌ Image load error (attempt ${errorCount + 1}):`, e.target.src.substring(0, 60));
-    
+
     if (errorCount === 0) {
-      // First error: Try Picsum as fallback
-      setImgSrc(`https://picsum.photos/seed/${Date.now()}/400/400`);
+      // First error: Try Unsplash
+      setImgSrc(getUnsplashFallback(alt || 'image', 400, 400));
       setErrorCount(1);
     } else if (errorCount === 1) {
       // Second error: Use colored placeholder
@@ -1063,7 +1097,7 @@ export const Image = ({
     }
     // After 2 errors, keep the colored placeholder
   };
-  
+
   return (
     <img
       src={imgSrc}
@@ -1077,13 +1111,17 @@ export const Image = ({
         marginBottom: PHONE_SPACING.image,
         background: "#F3F4F6",
         display: "block",
+        opacity: isLoading ? 0.7 : 1,
+        transition: "opacity 0.3s ease",
         ...style,
       }}
       onError={handleError}
+      onLoad={() => setIsLoading(false)}
       loading="lazy"
     />
   );
 };
+
 
 /**
  * Avatar Component
@@ -1097,7 +1135,7 @@ export const Avatar = ({ size = "md", name = "User", border, position, style }) 
     xl: "96px",
   };
   const avatarSize = sizeMap[size] || "48px";
-  
+
   return (
     <div
       style={{
@@ -1190,7 +1228,7 @@ export const IllustrationHeader = ({
 };
 
 /**
- * Hero Section Component
+ * Hero Section Component - PEXELS-FIRST
  */
 export const HeroSection = ({
   coverImage,
@@ -1199,16 +1237,53 @@ export const HeroSection = ({
   children,
   style,
 }) => {
-  const backendUrl = getImageUrlFromProps({ coverImage });
-  const fallbackUrl = getColoredPlaceholder('Hero', 800, 400);
-  const finalUrl = backendUrl || fallbackUrl;
+  const [bgUrl, setBgUrl] = React.useState(getColoredPlaceholder('Hero', 800, 400));
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    async function loadHeroImage() {
+      setIsLoading(true);
+
+      // Priority 1: Try Pexels
+      const query = generatePexelsQuery('HeroSection', 'hero banner', {});
+      const pexelsUrl = await searchPexelsPhoto(query, { orientation: 'landscape' });
+
+      if (pexelsUrl && isMounted) {
+        setBgUrl(pexelsUrl);
+        setIsLoading(false);
+        return;
+      }
+
+      // Priority 2: Backend URL
+      const backendUrl = getImageUrlFromProps({ coverImage });
+      if (backendUrl && isMounted) {
+        setBgUrl(backendUrl);
+        setIsLoading(false);
+        return;
+      }
+
+      // Priority 3: Unsplash fallback
+      if (isMounted) {
+        setBgUrl(getUnsplashFallback('hero', 800, 400));
+        setIsLoading(false);
+      }
+    }
+
+    loadHeroImage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [coverImage]);
 
   return (
     <div
       style={{
         width: "100%",
         height: `${height}px`,
-        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${finalUrl})`,
+        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${bgUrl})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         borderRadius: "16px",
@@ -1219,6 +1294,8 @@ export const HeroSection = ({
         color: "#FFFFFF",
         fontSize: "24px",
         fontWeight: "600",
+        opacity: isLoading ? 0.8 : 1,
+        transition: "opacity 0.5s ease",
         ...style,
       }}
     >
@@ -1364,7 +1441,7 @@ export const ProductCard = ({
         boxShadow: elevationMap[elevation] || elevationMap.sm,
         transition: "transform 0.2s, box-shadow 0.2s",
         cursor: "pointer",
-        marginBottom: PHONE_SPACING.card, 
+        marginBottom: PHONE_SPACING.card,
         ...style,
       }}
       onMouseOver={(e) => {
@@ -1381,7 +1458,7 @@ export const ProductCard = ({
           <Badge text={badge} color="red" />
         </div>
       )}
-      
+
       {/* Use Image component with proper props */}
       <Image
         image={image}
@@ -1394,7 +1471,7 @@ export const ProductCard = ({
           marginBottom: "12px",
         }}
       />
-      
+
       <div style={{
         fontSize: "14px",
         fontWeight: "600",
@@ -1405,7 +1482,7 @@ export const ProductCard = ({
       }}>
         {title}
       </div>
-      
+
       {rating && (
         <div style={{
           display: "flex",
@@ -1419,7 +1496,7 @@ export const ProductCard = ({
           <span style={{ fontWeight: "500" }}>{rating}</span>
         </div>
       )}
-      
+
       <div style={{
         fontSize: "20px",
         fontWeight: "700",
@@ -1428,7 +1505,7 @@ export const ProductCard = ({
       }}>
         {price}
       </div>
-      
+
       <button
         style={{
           width: "100%",
@@ -1583,8 +1660,8 @@ export const CartItem = ({
         style={{
           width: "70px",
           height: "70px",
-          minWidth:"80",
-          minHeight:"80",
+          minWidth: "80",
+          minHeight: "80",
           borderRadius: "8px",
           background: "#F3F4F6",
           flexShrink: 0,
@@ -1614,7 +1691,7 @@ export const CartItem = ({
           flexDirection: "column",
           gap: "6px",
           minWidth: 0,
-          overflow: "hidden", 
+          overflow: "hidden",
         }}
       >
         <div
@@ -1836,7 +1913,7 @@ export const ProgressBar = ({
     teal: colors.primary,
     orange: "#F59E0B",
   };
-  
+
   return (
     <div style={{ marginBottom: PHONE_SPACING.component, ...style }}>
       {label && (
@@ -2117,19 +2194,19 @@ export const ListItem = ({
     if (!icon) return null;
 
     const IconComponent = iconComponentMap[icon];
-    
+
     if (IconComponent) {
       return (
-        <IconComponent 
-          size={18} 
-          style={{ 
+        <IconComponent
+          size={18}
+          style={{
             color: "#64748B",
             flexShrink: 0
-          }} 
+          }}
         />
       );
     }
-    
+
     return (
       <span style={{ fontSize: "18px", flexShrink: 0 }}>
         {icon}
@@ -2148,25 +2225,25 @@ export const ListItem = ({
           <input
             type="checkbox"
             defaultChecked={value}
-            style={{ 
-              width: "40px", 
+            style={{
+              width: "40px",
               height: "20px",
               cursor: "pointer"
             }}
           />
         );
-      
+
       case "chevron-right":
         return (
-          <ChevronRight 
-            size={20} 
-            style={{ 
+          <ChevronRight
+            size={20}
+            style={{
               color: "#9CA3AF",
               flexShrink: 0
-            }} 
+            }}
           />
         );
-      
+
       default:
         return (
           <span style={{ fontSize: "18px", color: "#9CA3AF" }}>
@@ -2206,10 +2283,10 @@ export const ListItem = ({
         }}
       >
         {renderIcon()}
-        
-        <div 
+
+        <div
           style={{
-            flex: 1, 
+            flex: 1,
             minWidth: 0,
             overflow: "hidden",
           }}
@@ -2570,8 +2647,8 @@ export default function ComponentRendererLite({ node }) {
     <Comp {...themedProps}>
       {Array.isArray(n.children) && n.children.length > 0
         ? n.children.map((c, idx) => (
-            <ComponentRendererLite key={c.id || `child-${idx}`} node={c} />
-          ))
+          <ComponentRendererLite key={c.id || `child-${idx}`} node={c} />
+        ))
         : null}
     </Comp>
   );

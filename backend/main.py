@@ -7,7 +7,7 @@ from asyncio.log import logger
 import os
 import asyncio
 import json 
-from typing import Dict, List
+from typing import Dict, List, Any
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -29,6 +29,7 @@ from LLM_Schema.llm_client import _safe_json_loads  # ✅ ADD THIS TOO
 
 from Services.component_model import create_component_model
 from Services.style_enricher import enrich_styles
+from Services.pexels_image_service import enrich_layout_with_pexels
 from Services.image_url_generator import enrich_layout_with_images
 from Services.background_jobs import setup_background_jobs, shutdown_background_jobs
 from Services.tier_manager import TierManager
@@ -693,38 +694,52 @@ async def generate_pipeline(request: Request):
     # --------------------------------------------------------------------- #
 
     print("\n🔵 [STEP 3] STYLE ENRICHMENT - Applying design system...")
+    
     try:
         component_model_dict = enrich_styles(component_model_dict, intent_obj)
         print("✅ [STEP 3] Styles enriched")
     except Exception as e:
         print(f"⚠️ [STEP 3] Style enrichment failed: {e} - proceeding without")
 
-    # --------------------------------------------------------------------- #
-    # STEP 4: 🖼️ IMAGE ENRICHMENT (CRITICAL FIX - BEFORE PREVIEW)
-    # --------------------------------------------------------------------- #
-
-    print("\n🖼️  [STEP 4] IMAGE ENRICHMENT - Adding dynamic Unsplash URLs...")
+    # STEP 4: 🖼️ IMAGE ENRICHMENT (with Pexels + Unsplash fallback)
+    print("\n🖼️  [STEP 4] IMAGE ENRICHMENT - Attempting Pexels, fallback to Unsplash...")
+    
     try:
-        component_model_dict = enrich_layout_with_images(component_model_dict)
-
-        # Count enriched images for logging
+        # Try Pexels first with user prompt context
+        component_model_dict = await enrich_layout_with_pexels(
+            component_model_dict,
+            user_prompt=prompt  # ✅ Pass user prompt for context-aware queries
+        )
+        
+        # ✅ COUNT ENRICHED IMAGES (check if Pexels actually worked)
         image_count = 0
+        def count_images(comp):
+            count = 0
+            props = comp.get("props", {})
+            # Check if image URL is from Pexels
+            image_url = props.get("image") or props.get("src") or props.get("illustration")
+            if image_url and "pexels.com" in str(image_url):
+                count += 1
+            for child in comp.get("children", []):
+                count += count_images(child)
+            return count
+        
         for screen in component_model_dict.get("screens", []):
             for comp in screen.get("components", []):
-                props = comp.get("props", {})
-                if props.get("image") or props.get("src"):
-                    image_count += 1
-
-        print(
-            f"✅ [STEP 4] Images enriched: {image_count} components with dynamic URLs"
-        )
-
+                image_count += count_images(comp)
+        
+        if image_count == 0:
+            # Pexels returned no images - use Unsplash fallback
+            print("⚠️  [IMAGE] Pexels returned 0 images - falling back to Unsplash")
+            component_model_dict = enrich_layout_with_images(component_model_dict)
+        else:
+            print(f"✅ [STEP 4] Pexels enriched {image_count} components")
+    
     except Exception as e:
-        print(f"⚠️ [STEP 4] Image enrichment failed: {e} - proceeding without")
+        print(f"⚠️  [IMAGE] Pexels error: {e} - falling back to Unsplash")
+        component_model_dict = enrich_layout_with_images(component_model_dict)
         import traceback
-
         traceback.print_exc()
-
     # --------------------------------------------------------------------- #
     # STEP 5: BACKGROUND GENERATION
     # --------------------------------------------------------------------- #
@@ -1049,6 +1064,38 @@ async def test_backgrounds(request: Request):
             {"error": f"Background generation failed: {str(e)}"},
             status_code=500,
         )
+# ============================================================================ #
+# 🖼️ DIRECT IMAGE UPDATE HELPERS (for fast image-only edits)
+# ============================================================================ #
+
+def is_image_only_edit(edit_prompt: str) -> bool:
+    """Detect if edit request is only about images."""
+    prompt_lower = edit_prompt.lower()
+    
+    # Image keywords
+    image_keywords = ['image', 'images', 'picture', 'pictures', 'photo', 'photos', 'illustration', 'illustrations']
+    has_image_keyword = any(kw in prompt_lower for kw in image_keywords)
+    
+    # Structural keywords (indicates NOT image-only)
+    structural_keywords = ['add screen', 'remove screen', 'new screen', 'delete screen', 'add component', 'add button', 'change color', 'change button']
+    has_structural = any(kw in prompt_lower for kw in structural_keywords)
+    
+    return has_image_keyword and not has_structural
+
+def extract_image_context(edit_prompt: str) -> str:
+    """Extract business/theme context from edit prompt."""
+    from Services.pexels_image_service import PexelsQueryBuilder
+    return PexelsQueryBuilder._extract_context_from_prompt(edit_prompt)
+
+async def update_images_directly(component_model: Dict[str, Any], user_context: str) -> Dict[str, Any]:
+    """Update all images in component model using Pexels."""
+    updated_model = await enrich_layout_with_pexels(component_model, user_prompt=user_context)
+    return updated_model
+
+# ============================================================================ #
+# EDIT ENDPOINT
+# ============================================================================ #
+
 # backend/main.py - Enhanced Edit Endpoint with Debugging
 # Add this updated version of the edit endpoint to your main.py
 
@@ -1127,7 +1174,57 @@ async def edit_component_model(request: Request):
     token_tracker.reset()
     
     # -------------------------------------------------------------------- #
-    # STEP 2: BUILD CONTEXT-AWARE PROMPT
+    # 🆕 STEP 1.5: CHECK IF IMAGE-ONLY EDIT (FAST PATH)
+    # -------------------------------------------------------------------- #
+    
+    if is_image_only_edit(edit_prompt):
+        print("🖼️  [EDIT] Detected image-only edit - using direct Pexels update")
+        
+        # Extract context from edit prompt
+        context = extract_image_context(edit_prompt)
+        print(f"   Context extracted: '{context}'")
+        
+        try:
+            current_model = session["component_model"]
+            
+            # Update images directly using Pexels (FAST!)
+            print("   🔄 Updating images with Pexels...")
+            updated_model = await update_images_directly(current_model, context)
+            
+            # Regenerate preview
+            print("   🎨 Regenerating preview...")
+            from Services.preview_adapter import PreviewAdapter
+            web_preview = PreviewAdapter.to_web_preview(updated_model)
+            
+            # Update session with correct parameters
+            session_manager.update_session(
+                session_id=session_id,
+                new_component_model=updated_model,
+                user_message=edit_prompt,
+                assistant_response=f"Updated all images to {context} theme using Pexels",
+                tokens_used=0  # No LLM tokens used for direct update
+            )
+            
+            print(f"✅ [EDIT] Images updated in ~2 seconds (bypassed Gemini)")
+            print(f"   Edit count: {session['edit_count']}")
+            
+            return {
+                "component_model": updated_model,
+                "web_preview": web_preview,
+                "message": f"Images updated to {context} theme",
+                "edit_type": "image_only",
+                "bypassed_llm": True
+            }
+            
+        except Exception as e:
+            print(f"❌ [EDIT] Direct image update failed: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fall through to normal Gemini flow
+            print("   ⚠️  Falling back to Gemini flow...")
+    
+    # -------------------------------------------------------------------- #
+    # STEP 2: BUILD CONTEXT-AWARE PROMPT (for non-image edits)
     # -------------------------------------------------------------------- #
     
     current_model = session["component_model"]
