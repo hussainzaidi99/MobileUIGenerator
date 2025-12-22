@@ -1,60 +1,119 @@
 // frontend/poc-project/src/components/ConversationalEditPanel.jsx
-// Drop-in component for live editing within existing App.jsx
+// ✅ FIXED: Input scrolls with conversation
 
 import React, { useState, useRef, useEffect } from 'react';
 
-/**
- * Conversational Edit Panel
- * 
- * Allows users to make live edits to generated UI using natural language.
- * Maintains conversation context with the LLM for iterative refinement.
- * 
- * Usage in App.jsx:
- * {layout && sessionId && (
- *   <ConversationalEditPanel
- *     sessionId={sessionId}
- *     userId={user?.id}
- *     onLayoutUpdate={(newLayout) => setLayout(newLayout)}
- *     apiBaseUrl={import.meta.env.VITE_API_BASE_URL}
- *   />
- * )}
- */
-export default function ConversationalEditPanel({ 
-  sessionId, 
+export default function ConversationalEditPanel({
+  sessionId,
   userId,
+  initialPrompt,
   onLayoutUpdate,
-  apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+  apiBaseUrl = import.meta.env.VITE_API_BASE_URL,
+  loading = false,
+  processingStage = ""
 }) {
-  const [editPrompt, setEditPrompt] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [editHistory, setEditHistory] = useState([]);
+  const [prompt, setPrompt] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [messages, setMessages] = useState([]);
   const [error, setError] = useState(null);
-  const [collapsed, setCollapsed] = useState(false);
-  const [stats, setStats] = useState({ editCount: 0, tokensUsed: 0 });
-  
+
   const textareaRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const containerRef = useRef(null); // NEW: Reference to scrollable container
 
-  // Auto-focus textarea when panel opens
+  // Initialize conversation with the initial prompt
   useEffect(() => {
-    if (!collapsed && textareaRef.current) {
-      textareaRef.current.focus();
+    if (initialPrompt && messages.length === 0 && !loading) {
+      setMessages([
+        {
+          id: 'init-user',
+          role: 'user',
+          content: initialPrompt,
+          timestamp: new Date().toISOString()
+        },
+        {
+          id: 'init-ai',
+          role: 'assistant',
+          content: "I've generated the initial UI based on your description. What would you like to refine?",
+          timestamp: new Date().toISOString()
+        }
+      ]);
     }
-  }, [collapsed]);
+  }, [initialPrompt, loading, messages.length]);
 
-  const handleEdit = async () => {
-    if (!editPrompt.trim()) return;
+  // Show loading state during initial generation
+  useEffect(() => {
+    if (loading && initialPrompt && messages.length === 0) {
+      setMessages([
+        {
+          id: 'init-user',
+          role: 'user',
+          content: initialPrompt,
+          timestamp: new Date().toISOString()
+        }
+      ]);
+    }
+  }, [loading, initialPrompt, messages.length]);
+
+  // ✅ IMPROVED: Smooth scroll to bottom with better timing
+  useEffect(() => {
+    const scrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'end'
+        });
+      }
+    };
+
+    // Scroll immediately
+    scrollToBottom();
     
-    setIsEditing(true);
+    // Scroll again after a short delay to ensure content is rendered
+    const timeoutId = setTimeout(scrollToBottom, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [messages, isProcessing]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [prompt]);
+
+  const handleSendMessage = async () => {
+    if (!prompt.trim() || !sessionId || isProcessing) return;
+
+    const currentPrompt = prompt.trim();
+    setPrompt('');
+    setIsProcessing(true);
     setError(null);
 
+    // Add user message
+    const userMsgId = Date.now().toString();
+    setMessages(prev => [...prev, {
+      id: userMsgId,
+      role: 'user',
+      content: currentPrompt,
+      timestamp: new Date().toISOString()
+    }]);
+
     try {
+      console.log("📤 Sending edit request:", {
+        session_id: sessionId,
+        user_id: userId,
+        prompt: currentPrompt
+      });
+
       const response = await fetch(`${apiBaseUrl}/edit-component-model`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id: sessionId,
           user_id: userId,
-          prompt: editPrompt.trim()
+          prompt: currentPrompt
         })
       });
 
@@ -63,497 +122,161 @@ export default function ConversationalEditPanel({
         
         // Handle insufficient credits
         if (response.status === 402) {
-          setError(`Insufficient credits: ${errorData.details?.message || 'Please top up'}`);
-          return;
+          throw new Error(`Insufficient credits: ${errorData.details?.message || 'Please top up your account'}`);
         }
         
         throw new Error(errorData.error || `Error: ${response.status}`);
       }
 
       const data = await response.json();
+      
+      console.log("✅ Edit response received:", data);
 
-      // Update layout in parent component
+      // ✅ CRITICAL FIX: Update layout with proper data structure
       if (data.web_preview) {
+        console.log("🔄 Updating layout with web_preview");
         onLayoutUpdate(data.web_preview);
+      } else if (data.component_model) {
+        console.log("🔄 Updating layout with component_model");
+        onLayoutUpdate(data.component_model);
+      } else {
+        console.warn("⚠️ No layout data in response");
       }
 
-      // Add to history
-      setEditHistory(prev => [
-        ...prev,
-        {
-          prompt: editPrompt,
-          timestamp: new Date().toISOString(),
-          success: true
-        }
-      ]);
+      // Add assistant success message
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: data.message || "Changes applied successfully! How does it look now?",
+        timestamp: new Date().toISOString()
+      }]);
 
-      // Update stats
-      setStats({
-        editCount: data.edit_count || stats.editCount + 1,
-        tokensUsed: stats.tokensUsed + (data.usage?.tokens?.total_tokens || 0)
-      });
-
-      // Clear input
-      setEditPrompt('');
-      
     } catch (err) {
-      console.error('Edit error:', err);
-      setError(err.message || 'Failed to apply edit');
+      console.error('❌ Edit error:', err);
+      setError(err.message);
       
-      // Add failed edit to history
-      setEditHistory(prev => [
-        ...prev,
-        {
-          prompt: editPrompt,
-          timestamp: new Date().toISOString(),
-          success: false,
-          error: err.message
-        }
-      ]);
+      // Add assistant error message
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `I ran into an issue: ${err.message}. Please try again or rephrase your request.`,
+        isError: true,
+        timestamp: new Date().toISOString()
+      }]);
     } finally {
-      setIsEditing(false);
+      setIsProcessing(false);
+      // Refocus textarea after processing
+      setTimeout(() => textareaRef.current?.focus(), 100);
     }
   };
 
   const handleKeyDown = (e) => {
-    // Submit on Ctrl/Cmd + Enter
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    // Submit on Enter (without Shift)
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleEdit();
+      handleSendMessage();
     }
   };
 
-  if (collapsed) {
-    return (
-      <div className="edit-panel-collapsed">
-        <button
-          onClick={() => setCollapsed(false)}
-          className="stitch-btn stitch-btn-secondary"
-          style={{ width: '100%' }}
-          title="Open edit panel"
-        >
-          <span style={{ fontSize: '16px' }}>✏️</span>
-          Edit Live
-          {stats.editCount > 0 && (
-            <span style={{ 
-              marginLeft: '8px', 
-              background: 'rgba(59, 130, 246, 0.2)',
-              padding: '2px 8px',
-              borderRadius: '12px',
-              fontSize: '11px'
-            }}>
-              {stats.editCount} edit{stats.editCount > 1 ? 's' : ''}
-            </span>
-          )}
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="edit-panel-container">
-      {/* Header */}
-      <div className="edit-panel-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '18px' }}>💬</span>
-          <div>
-            <div style={{ 
-              fontSize: '14px', 
-              fontWeight: '600',
-              color: '#0F172A'
-            }}>
-              Live Edit
-            </div>
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#64748B',
-              marginTop: '2px'
-            }}>
-              Make changes with natural language
-            </div>
-          </div>
-        </div>
+    <div className="stitch-sub-panel" ref={containerRef}>
+      {/* ✅ FIXED: Messages + Input in scrollable container */}
+      <div className="stitch-conversation-wrapper">
         
-        <button
-          onClick={() => setCollapsed(true)}
-          className="collapse-button"
-          title="Collapse panel"
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Stats */}
-      {stats.editCount > 0 && (
-        <div className="edit-stats">
-          <div className="stat-item">
-            <span className="stat-label">Edits:</span>
-            <span className="stat-value">{stats.editCount}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Tokens:</span>
-            <span className="stat-value">{stats.tokensUsed.toLocaleString()}</span>
-          </div>
-        </div>
-      )}
-
-      {/* History (recent 3) */}
-      {editHistory.length > 0 && (
-        <div className="edit-history">
-          <div className="history-label">Recent edits:</div>
-          {editHistory.slice(-3).reverse().map((edit, idx) => (
+        {/* Messages Container */}
+        <div className="stitch-messages-container">
+          {messages.map((msg) => (
             <div 
-              key={idx} 
-              className={`history-item ${edit.success ? 'success' : 'error'}`}
+              key={msg.id} 
+              className={`stitch-message ${msg.role === 'user' ? 'user' : 'assistant'} ${msg.isError ? 'error' : ''}`}
             >
-              <span className="history-icon">
-                {edit.success ? '✓' : '✗'}
-              </span>
-              <span className="history-text">
-                {edit.prompt.length > 40 
-                  ? edit.prompt.substring(0, 40) + '...' 
-                  : edit.prompt}
-              </span>
+              <div className="message-avatar">
+                {msg.role === 'user' ? '👤' : '✨'}
+              </div>
+              <div className="message-content">
+                {msg.content}
+              </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Input Area */}
-      <div className="edit-input-section">
-        <textarea
-          ref={textareaRef}
-          value={editPrompt}
-          onChange={(e) => setEditPrompt(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Describe what you want to change...&#10;&#10;Examples:&#10;• Change login button to green&#10;• Add a forgot password link&#10;• Make the header text larger&#10;• Remove the subtitle"
-          className="edit-textarea"
-          rows={4}
-          disabled={isEditing}
-        />
-        
-        <button
-          onClick={handleEdit}
-          disabled={isEditing || !editPrompt.trim()}
-          className="edit-submit-button"
-        >
-          {isEditing ? (
-            <>
-              <span className="spinner-small"></span>
-              Applying...
-            </>
-          ) : (
-            <>
-              Apply Changes
-              <span style={{ marginLeft: '8px' }}>→</span>
-            </>
+          
+          {/* Loading indicator during initial generation */}
+          {loading && (
+            <div className="stitch-message assistant processing">
+              <div className="message-avatar">✨</div>
+              <div className="message-content">
+                <div style={{ marginBottom: '4px' }}>
+                  {processingStage || "Working on your request..."}
+                </div>
+                <span className="typing-dot">.</span>
+                <span className="typing-dot">.</span>
+                <span className="typing-dot">.</span>
+              </div>
+            </div>
           )}
-        </button>
-
-        <div className="edit-hint">
-          Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit
+          
+          {/* Processing indicator for edits */}
+          {isProcessing && !loading && (
+            <div className="stitch-message assistant processing">
+              <div className="message-avatar">✨</div>
+              <div className="message-content">
+                <span className="typing-dot">.</span>
+                <span className="typing-dot">.</span>
+                <span className="typing-dot">.</span>
+              </div>
+            </div>
+          )}
+          
+          {/* ✅ IMPROVED: Input Dock - Now inside scrollable area */}
+          <div className="stitch-input-dock-inline">
+            <div className="stitch-dock-inner">
+              <textarea
+                ref={textareaRef}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  loading 
+                    ? "Generating... please wait" 
+                    : sessionId 
+                      ? "Type your changes here..." 
+                      : "Waiting for initial generation..."
+                }
+                className="stitch-dock-input"
+                rows={1}
+                disabled={isProcessing || loading || !sessionId}
+              />
+              <button 
+                onClick={handleSendMessage} 
+                disabled={!prompt.trim() || isProcessing || loading || !sessionId} 
+                className="stitch-dock-load-btn"
+                title="Send message (Enter)"
+              >
+                {isProcessing ? '...' : '↑'}
+              </button>
+            </div>
+            
+            {/* Error message */}
+            {error && !isProcessing && (
+              <div className="stitch-mini-error">⚠️ {error}</div>
+            )}
+            
+            {/* Helper text */}
+            {!loading && !isProcessing && sessionId && (
+              <div style={{
+                fontSize: '11px',
+                color: '#94A3B8',
+                marginTop: '8px',
+                paddingLeft: '12px'
+              }}>
+                Press <strong>Enter</strong> to send, <strong>Shift+Enter</strong> for new line
+              </div>
+            )}
+          </div>
+          
+          {/* Scroll anchor */}
+          <div ref={messagesEndRef} style={{ height: '1px' }} />
         </div>
       </div>
-
-      {/* Error Display */}
-      {error && (
-        <div className="edit-error">
-          <span className="error-icon">⚠️</span>
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Example Prompts */}
-      {editHistory.length === 0 && (
-        <div className="example-prompts">
-          <div className="example-label">Try these:</div>
-          {[
-            "Change the button color to blue",
-            "Add a loading spinner",
-            "Make the title bold and larger",
-            "Add spacing between components"
-          ].map((example, idx) => (
-            <button
-              key={idx}
-              onClick={() => setEditPrompt(example)}
-              className="example-chip"
-              disabled={isEditing}
-            >
-              {example}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <style jsx>{`
-        .edit-panel-container {
-          background: white;
-          border-radius: 16px;
-          padding: 20px;
-          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-          border: 1px solid #E2E8F0;
-          margin-top: 20px;
-          animation: slideIn 0.3s ease-out;
-        }
-
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .edit-panel-collapsed {
-          margin-top: 20px;
-        }
-
-        .edit-panel-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 16px;
-          padding-bottom: 16px;
-          border-bottom: 1px solid #E2E8F0;
-        }
-
-        .collapse-button {
-          background: transparent;
-          border: none;
-          color: #64748B;
-          cursor: pointer;
-          font-size: 20px;
-          padding: 4px 8px;
-          border-radius: 6px;
-          transition: all 0.2s;
-        }
-
-        .collapse-button:hover {
-          background: #F1F5F9;
-          color: #0F172A;
-        }
-
-        .edit-stats {
-          display: flex;
-          gap: 16px;
-          margin-bottom: 16px;
-          padding: 12px;
-          background: #F8FAFC;
-          border-radius: 8px;
-        }
-
-        .stat-item {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 13px;
-        }
-
-        .stat-label {
-          color: #64748B;
-          font-weight: 500;
-        }
-
-        .stat-value {
-          color: #0F172A;
-          font-weight: 700;
-        }
-
-        .edit-history {
-          margin-bottom: 16px;
-        }
-
-        .history-label {
-          font-size: 11px;
-          color: #64748B;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 8px;
-        }
-
-        .history-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          margin-bottom: 6px;
-          border-radius: 8px;
-          font-size: 13px;
-          transition: all 0.2s;
-        }
-
-        .history-item.success {
-          background: rgba(16, 185, 129, 0.08);
-          color: #059669;
-        }
-
-        .history-item.error {
-          background: rgba(239, 68, 68, 0.08);
-          color: #DC2626;
-        }
-
-        .history-icon {
-          font-weight: bold;
-          font-size: 14px;
-        }
-
-        .history-text {
-          flex: 1;
-          font-size: 12px;
-        }
-
-        .edit-input-section {
-          margin-bottom: 16px;
-        }
-
-        .edit-textarea {
-          width: 100%;
-          padding: 14px;
-          border: 2px solid #E2E8F0;
-          border-radius: 12px;
-          font-size: 14px;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          resize: vertical;
-          transition: all 0.2s;
-          margin-bottom: 12px;
-        }
-
-        .edit-textarea:focus {
-          outline: none;
-          border-color: #3B82F6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .edit-textarea:disabled {
-          background: #F8FAFC;
-          cursor: not-allowed;
-        }
-
-        .edit-textarea::placeholder {
-          color: #94A3B8;
-        }
-
-        .edit-submit-button {
-          width: 100%;
-          padding: 14px;
-          background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-          color: white;
-          border: none;
-          border-radius: 12px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-
-        .edit-submit-button:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
-        }
-
-        .edit-submit-button:active:not(:disabled) {
-          transform: translateY(0);
-        }
-
-        .edit-submit-button:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .edit-hint {
-          text-align: center;
-          font-size: 11px;
-          color: #94A3B8;
-          margin-top: 8px;
-        }
-
-        .edit-hint kbd {
-          background: #F1F5F9;
-          border: 1px solid #CBD5E1;
-          border-radius: 4px;
-          padding: 2px 6px;
-          font-family: monospace;
-          font-size: 10px;
-        }
-
-        .edit-error {
-          background: #FEF2F2;
-          border: 1px solid #FECACA;
-          color: #DC2626;
-          padding: 12px 14px;
-          border-radius: 8px;
-          font-size: 13px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-top: 12px;
-        }
-
-        .error-icon {
-          font-size: 16px;
-        }
-
-        .example-prompts {
-          margin-top: 16px;
-          padding-top: 16px;
-          border-top: 1px solid #E2E8F0;
-        }
-
-        .example-label {
-          font-size: 11px;
-          color: #64748B;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 10px;
-        }
-
-        .example-chip {
-          display: inline-block;
-          background: #F8FAFC;
-          border: 1px solid #E2E8F0;
-          color: #475569;
-          padding: 6px 12px;
-          border-radius: 8px;
-          font-size: 12px;
-          cursor: pointer;
-          transition: all 0.2s;
-          margin-right: 8px;
-          margin-bottom: 8px;
-        }
-
-        .example-chip:hover:not(:disabled) {
-          background: #EFF6FF;
-          border-color: #93C5FD;
-          color: #1E40AF;
-        }
-
-        .example-chip:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .spinner-small {
-          width: 14px;
-          height: 14px;
-          border: 2px solid rgba(255, 255, 255, 0.3);
-          border-top-color: white;
-          border-radius: 50%;
-          animation: spin 0.6s linear infinite;
-        }
-
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

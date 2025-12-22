@@ -1049,21 +1049,14 @@ async def test_backgrounds(request: Request):
             {"error": f"Background generation failed: {str(e)}"},
             status_code=500,
         )
-# ============================================================================ #
-# ✅ CONVERSATIONAL EDIT ENDPOINT
-# ============================================================================ #
+# backend/main.py - Enhanced Edit Endpoint with Debugging
+# Add this updated version of the edit endpoint to your main.py
 
 @app.post("/edit-component-model")
 async def edit_component_model(request: Request):
     """
     Apply conversational edits to component model.
-    
-    Flow:
-    1. Get current session (component model + history)
-    2. Send edit prompt + context to Gemini
-    3. Parse updated component model
-    4. Update session history
-    5. Return updated model + preview
+    ✅ ENHANCED: Better debugging and response validation
     """
     
     body = await request.json()
@@ -1112,7 +1105,7 @@ async def edit_component_model(request: Request):
     print(f"   Edit #{session['edit_count'] + 1}: {edit_prompt[:80]}...")
     
     # -------------------------------------------------------------------- #
-    # STEP 1: CHECK CREDITS (edits cost ~10% of full generation)
+    # STEP 1: CHECK CREDITS
     # -------------------------------------------------------------------- #
     
     estimated_edit_tokens = 3000
@@ -1134,12 +1127,16 @@ async def edit_component_model(request: Request):
     token_tracker.reset()
     
     # -------------------------------------------------------------------- #
-    # STEP 2: BUILD CONTEXT-AWARE PROMPT FOR GEMINI
+    # STEP 2: BUILD CONTEXT-AWARE PROMPT
     # -------------------------------------------------------------------- #
     
     current_model = session["component_model"]
     
-    # Get recent conversation history (last 3 exchanges)
+    print(f"📊 [EDIT] Current model stats:")
+    print(f"   Screens: {len(current_model.get('screens', []))}")
+    print(f"   Theme: {current_model.get('theme', {}).get('primary', 'N/A')}")
+    
+    # Get recent conversation history
     conversation_history = session_manager.get_conversation_history(
         session_id,
         last_n_exchanges=3
@@ -1175,10 +1172,10 @@ EXAMPLES OF EDITS:
 
 CRITICAL: Return the FULL component model JSON, not a diff."""
 
-    # Build full context
+    # Build context
     context_messages = []
     
-    # Add conversation history for context
+    # Add conversation history
     for msg in conversation_history:
         context_messages.append({
             "role": msg["role"],
@@ -1195,7 +1192,7 @@ User Edit Request:
 Return the complete updated component model as JSON."""
     
     # -------------------------------------------------------------------- #
-    # STEP 3: CALL GEMINI API WITH CONTEXT
+    # STEP 3: CALL GEMINI API
     # -------------------------------------------------------------------- #
     
     try:
@@ -1211,6 +1208,7 @@ Return the complete updated component model as JSON."""
         )
         
         print(f"✅ [EDIT] Gemini response received ({len(response_text)} chars)")
+        print(f"📝 [EDIT] First 200 chars: {response_text[:200]}...")
         
         # Parse response
         updated_model = _safe_json_loads(response_text, current_model)
@@ -1224,6 +1222,10 @@ Return the complete updated component model as JSON."""
             print("⚠️ [EDIT] Missing screens in response")
             updated_model = current_model
         
+        print(f"✅ [EDIT] Updated model validated:")
+        print(f"   Screens: {len(updated_model.get('screens', []))}")
+        print(f"   Theme: {updated_model.get('theme', {}).get('primary', 'N/A')}")
+        
     except asyncio.TimeoutError:
         print("⏰ [EDIT] Gemini timeout - using original model")
         return JSONResponse(
@@ -1233,13 +1235,15 @@ Return the complete updated component model as JSON."""
     
     except Exception as e:
         print(f"❌ [EDIT] Error: {e}")
+        import traceback
+        traceback.print_exc()
         return JSONResponse(
             {"error": f"Edit failed: {str(e)}"},
             status_code=500
         )
     
     # -------------------------------------------------------------------- #
-    # STEP 4: REGENERATE PREVIEW (DETERMINISTIC, FAST)
+    # STEP 4: REGENERATE PREVIEW
     # -------------------------------------------------------------------- #
     
     print("🎨 [EDIT] Regenerating preview...")
@@ -1247,10 +1251,14 @@ Return the complete updated component model as JSON."""
     try:
         from Services.preview_adapter import PreviewAdapter
         web_preview = PreviewAdapter.to_web_preview(updated_model)
-        print("✅ [EDIT] Preview updated")
+        
+        print(f"✅ [EDIT] Preview generated:")
+        print(f"   Screens: {len(web_preview.get('screens', []))}")
         
     except Exception as e:
         print(f"⚠️ [EDIT] Preview generation failed: {e}")
+        import traceback
+        traceback.print_exc()
         web_preview = updated_model
     
     # -------------------------------------------------------------------- #
@@ -1261,7 +1269,7 @@ Return the complete updated component model as JSON."""
     usage_summary = token_tracker.get_summary()
     tokens_used = usage_summary.get("total_tokens", 0)
     
-    # Update session with new state
+    # Update session
     session_manager.update_session(
         session_id,
         updated_model,
@@ -1279,10 +1287,10 @@ Return the complete updated component model as JSON."""
     print(f"   Edit count: {session['edit_count'] + 1}")
     
     # -------------------------------------------------------------------- #
-    # STEP 6: RETURN UPDATED MODEL
+    # STEP 6: RETURN RESPONSE WITH DEBUGGING INFO
     # -------------------------------------------------------------------- #
     
-    return {
+    response_data = {
         "success": True,
         "session_id": session_id,
         "component_model": updated_model,
@@ -1292,8 +1300,22 @@ Return the complete updated component model as JSON."""
             "tokens": usage_summary,
             "credits": deduction_result
         },
-        "message": "Changes applied successfully"
+        "message": "Changes applied successfully",
+        # ✅ DEBUG INFO
+        "debug": {
+            "screens_count": len(updated_model.get("screens", [])),
+            "theme_primary": updated_model.get("theme", {}).get("primary"),
+            "preview_screens_count": len(web_preview.get("screens", [])),
+            "model_has_screens": "screens" in updated_model,
+            "preview_has_screens": "screens" in web_preview
+        }
     }
+    
+    print(f"📤 [EDIT] Sending response:")
+    print(f"   Component model screens: {response_data['debug']['screens_count']}")
+    print(f"   Preview screens: {response_data['debug']['preview_screens_count']}")
+    
+    return response_data
 
 
 # ============================================================================ #

@@ -68,7 +68,7 @@ function PublicRoute({ children }) {
 }
 
 /**
- * 🆕 User Dropdown Menu Component
+ * 🎨 DARK VEIL: User Dropdown Menu Component
  */
 function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -98,29 +98,49 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
   }, []);
 
   return (
-    <div className="user-dropdown-container" ref={dropdownRef}>
+    <div style={{ position: 'relative' }} ref={dropdownRef}>
       {/* User Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="user-dropdown-button"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '8px 14px',
+          background: 'rgba(30, 30, 50, 0.6)',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          borderRadius: '10px',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          backdropFilter: 'blur(10px)'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
+          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.5)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(30, 30, 50, 0.6)';
+          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+        }}
       >
         <div 
           style={{
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+            background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
             color: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '14px',
-            fontWeight: '600'
+            fontWeight: '600',
+            boxShadow: '0 2px 8px rgba(139, 92, 246, 0.4)'
           }}
         >
           {initials}
         </div>
-        <span style={{ fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+        <span style={{ fontSize: '14px', fontWeight: '500', color: '#cbd5e1' }}>
           {user.username || user.email?.split('@')[0] || 'User'}
         </span>
         <span style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '-4px' }}>
@@ -130,31 +150,59 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="user-dropdown-menu">
+        <div 
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            right: 0,
+            minWidth: '320px',
+            background: 'rgba(20, 20, 35, 0.95)',
+            backdropFilter: 'blur(30px) saturate(180%)',
+            border: '1px solid rgba(139, 92, 246, 0.3)',
+            borderRadius: '16px',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
+            zIndex: 9999,
+            animation: 'dropdownSlideIn 0.2s ease-out'
+          }}
+        >
+          <style>{`
+            @keyframes dropdownSlideIn {
+              from {
+                opacity: 0;
+                transform: translateY(-10px);
+              }
+              to {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+          `}</style>
+
           {/* User Info Section */}
-          <div style={{ padding: '20px', borderBottom: '1px solid #E2E8F0' }}>
+          <div style={{ padding: '20px', borderBottom: '1px solid rgba(139, 92, 246, 0.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
               <div 
                 style={{
                   width: '48px',
                   height: '48px',
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
                   color: '#FFFFFF',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '20px',
-                  fontWeight: '600'
+                  fontWeight: '600',
+                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)'
                 }}
               >
                 {initials}
               </div>
               <div>
-                <div style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>
+                <div style={{ fontSize: '16px', fontWeight: '700', color: '#f8fafc' }}>
                   {user.full_name || user.username || 'User'}
                 </div>
-                <div style={{ fontSize: '13px', color: '#64748B' }}>
+                <div style={{ fontSize: '13px', color: '#94a3b8' }}>
                   {user.email}
                 </div>
               </div>
@@ -170,19 +218,19 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
                 borderRadius: '8px',
                 fontSize: '12px',
                 fontWeight: '700',
-                background: tierInfo.tier === 'pro' ? 'rgba(168, 85, 247, 0.1)' : 
-                           tierInfo.tier === 'starter' ? 'rgba(6, 182, 212, 0.1)' : 
-                           tierInfo.tier === 'enterprise' ? 'rgba(245, 158, 11, 0.1)' : 
-                           'rgba(100, 116, 139, 0.1)',
-                color: tierInfo.tier === 'pro' ? '#A855F7' : 
-                       tierInfo.tier === 'starter' ? '#06B6D4' : 
-                       tierInfo.tier === 'enterprise' ? '#F59E0B' : 
-                       '#64748B',
+                background: tierInfo.tier === 'pro' ? 'rgba(168, 85, 247, 0.2)' : 
+                           tierInfo.tier === 'starter' ? 'rgba(6, 182, 212, 0.2)' : 
+                           tierInfo.tier === 'enterprise' ? 'rgba(245, 158, 11, 0.2)' : 
+                           'rgba(100, 116, 139, 0.2)',
+                color: tierInfo.tier === 'pro' ? '#c084fc' : 
+                       tierInfo.tier === 'starter' ? '#67e8f9' : 
+                       tierInfo.tier === 'enterprise' ? '#fbbf24' : 
+                       '#94a3b8',
                 border: '1px solid',
-                borderColor: tierInfo.tier === 'pro' ? 'rgba(168, 85, 247, 0.2)' : 
-                            tierInfo.tier === 'starter' ? 'rgba(6, 182, 212, 0.2)' : 
-                            tierInfo.tier === 'enterprise' ? 'rgba(245, 158, 11, 0.2)' : 
-                            'rgba(100, 116, 139, 0.2)'
+                borderColor: tierInfo.tier === 'pro' ? 'rgba(168, 85, 247, 0.4)' : 
+                            tierInfo.tier === 'starter' ? 'rgba(6, 182, 212, 0.4)' : 
+                            tierInfo.tier === 'enterprise' ? 'rgba(245, 158, 11, 0.4)' : 
+                            'rgba(100, 116, 139, 0.4)'
               }}>
                 <span>{tierInfo.tier === 'pro' ? '⚡' : tierInfo.tier === 'starter' ? '🚀' : tierInfo.tier === 'enterprise' ? '👑' : '🆓'}</span>
                 <span>{tierInfo.tier.toUpperCase()}</span>
@@ -192,25 +240,25 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
 
           {/* Credits & Tokens Section */}
           {userCredits ? (
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #E2E8F0' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(139, 92, 246, 0.2)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', color: '#64748B', fontWeight: '600' }}>💳 Credits</span>
-                  <span style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>
+                  <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>💳 Credits</span>
+                  <span style={{ fontSize: '16px', fontWeight: '700', color: '#f8fafc' }}>
                     {userCredits.credits.toFixed(2)}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', color: '#64748B', fontWeight: '600' }}>🔢 Tokens</span>
-                  <span style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A' }}>
+                  <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>🔢 Tokens</span>
+                  <span style={{ fontSize: '16px', fontWeight: '700', color: '#f8fafc' }}>
                     {new Intl.NumberFormat().format(userCredits.tokens_remaining)}
                   </span>
                 </div>
               </div>
             </div>
           ) : (
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #E2E8F0', textAlign: 'center' }}>
-              <span style={{ fontSize: '13px', color: '#64748B' }}>Loading credits...</span>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(139, 92, 246, 0.2)', textAlign: 'center' }}>
+              <span style={{ fontSize: '13px', color: '#94a3b8' }}>Loading credits...</span>
             </div>
           )}
 
@@ -224,7 +272,7 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
               style={{
                 width: '100%',
                 padding: '12px',
-                background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '8px',
@@ -233,15 +281,15 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
                 cursor: 'pointer',
                 marginBottom: '8px',
                 transition: 'all 0.2s',
-                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                boxShadow: '0 4px 16px rgba(139, 92, 246, 0.4)'
               }}
               onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-1px)';
-                e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 8px 24px rgba(139, 92, 246, 0.6)';
               }}
               onMouseLeave={(e) => {
                 e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+                e.target.style.boxShadow = '0 4px 16px rgba(139, 92, 246, 0.4)';
               }}
             >
               ➕ {tierInfo?.can_upgrade ? 'Upgrade Plan' : 'Buy More Credits'}
@@ -255,22 +303,25 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
               style={{
                 width: '100%',
                 padding: '12px',
-                background: 'transparent',
-                color: '#DC2626',
-                border: '1px solid #FEE2E2',
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#fca5a5',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
                 borderRadius: '8px',
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                backdropFilter: 'blur(10px)'
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = '#FEF2F2';
-                e.target.style.borderColor = '#FECACA';
+                e.target.style.background = 'rgba(239, 68, 68, 0.25)';
+                e.target.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                e.target.style.color = '#fff';
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = 'transparent';
-                e.target.style.borderColor = '#FEE2E2';
+                e.target.style.background = 'rgba(239, 68, 68, 0.15)';
+                e.target.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                e.target.style.color = '#fca5a5';
               }}
             >
               🚪 Logout
@@ -283,7 +334,7 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
 }
 
 /**
- * 🆕 NEW: Modern Navigation Bar (AI Builder Style)
+ * 🎨 DARK VEIL: Modern Navigation Bar (React Bits Style)
  */
 function MainHeader() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -342,13 +393,14 @@ function MainHeader() {
   return (
     <header 
       style={{
-        background: '#FFFFFF',
-        borderBottom: '1px solid #E5E7EB',
+        background: 'rgba(10, 10, 20, 0.8)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        borderBottom: '1px solid rgba(139, 92, 246, 0.3)',
         padding: '16px 0',
         position: 'sticky',
         top: 0,
         zIndex: 1000,
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)'
       }}
     >
       <div 
@@ -369,19 +421,20 @@ function MainHeader() {
             alignItems: 'center',
             gap: '12px',
             textDecoration: 'none',
-            color: '#0F172A'
+            color: '#f8fafc'
           }}
         >
           <div 
             style={{
               width: '36px',
               height: '36px',
-              background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
               borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '20px'
+              fontSize: '20px',
+              boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)'
             }}
           >
             🤖
@@ -390,10 +443,13 @@ function MainHeader() {
             style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#0F172A'
+              background: 'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
             }}
           >
-            AI Builder
+            App Builder
           </span>
         </Link>
 
@@ -404,13 +460,26 @@ function MainHeader() {
             style={{
               fontSize: '15px',
               fontWeight: isActive('/features') ? '600' : '500',
-              color: isActive('/features') ? '#667EEA' : '#64748B',
+              color: isActive('/features') ? '#f8fafc' : '#cbd5e1',
               textDecoration: 'none',
-              transition: 'color 0.2s',
-              cursor: 'pointer'
+              transition: 'all 0.2s',
+              cursor: 'pointer',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              background: isActive('/features') ? 'rgba(139, 92, 246, 0.2)' : 'transparent'
             }}
-            onMouseEnter={(e) => e.target.style.color = '#667EEA'}
-            onMouseLeave={(e) => e.target.style.color = isActive('/features') ? '#667EEA' : '#64748B'}
+            onMouseEnter={(e) => {
+              e.target.style.color = '#f8fafc';
+              if (!isActive('/features')) {
+                e.target.style.background = 'rgba(139, 92, 246, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = isActive('/features') ? '#f8fafc' : '#cbd5e1';
+              if (!isActive('/features')) {
+                e.target.style.background = 'transparent';
+              }
+            }}
           >
             Features
           </Link>
@@ -419,13 +488,26 @@ function MainHeader() {
             style={{
               fontSize: '15px',
               fontWeight: isActive('/templates') ? '600' : '500',
-              color: isActive('/templates') ? '#667EEA' : '#64748B',
+              color: isActive('/templates') ? '#f8fafc' : '#cbd5e1',
               textDecoration: 'none',
-              transition: 'color 0.2s',
-              cursor: 'pointer'
+              transition: 'all 0.2s',
+              cursor: 'pointer',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              background: isActive('/templates') ? 'rgba(139, 92, 246, 0.2)' : 'transparent'
             }}
-            onMouseEnter={(e) => e.target.style.color = '#667EEA'}
-            onMouseLeave={(e) => e.target.style.color = isActive('/templates') ? '#667EEA' : '#64748B'}
+            onMouseEnter={(e) => {
+              e.target.style.color = '#f8fafc';
+              if (!isActive('/templates')) {
+                e.target.style.background = 'rgba(139, 92, 246, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = isActive('/templates') ? '#f8fafc' : '#cbd5e1';
+              if (!isActive('/templates')) {
+                e.target.style.background = 'transparent';
+              }
+            }}
           >
             Templates
           </Link>
@@ -434,13 +516,26 @@ function MainHeader() {
             style={{
               fontSize: '15px',
               fontWeight: isActive('/pricing') ? '600' : '500',
-              color: isActive('/pricing') ? '#667EEA' : '#64748B',
+              color: isActive('/pricing') ? '#f8fafc' : '#cbd5e1',
               textDecoration: 'none',
-              transition: 'color 0.2s',
-              cursor: 'pointer'
+              transition: 'all 0.2s',
+              cursor: 'pointer',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              background: isActive('/pricing') ? 'rgba(139, 92, 246, 0.2)' : 'transparent'
             }}
-            onMouseEnter={(e) => e.target.style.color = '#667EEA'}
-            onMouseLeave={(e) => e.target.style.color = isActive('/pricing') ? '#667EEA' : '#64748B'}
+            onMouseEnter={(e) => {
+              e.target.style.color = '#f8fafc';
+              if (!isActive('/pricing')) {
+                e.target.style.background = 'rgba(139, 92, 246, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = isActive('/pricing') ? '#f8fafc' : '#cbd5e1';
+              if (!isActive('/pricing')) {
+                e.target.style.background = 'transparent';
+              }
+            }}
           >
             Pricing
           </Link>
@@ -449,13 +544,26 @@ function MainHeader() {
             style={{
               fontSize: '15px',
               fontWeight: isActive('/showcase') ? '600' : '500',
-              color: isActive('/showcase') ? '#667EEA' : '#64748B',
+              color: isActive('/showcase') ? '#f8fafc' : '#cbd5e1',
               textDecoration: 'none',
-              transition: 'color 0.2s',
-              cursor: 'pointer'
+              transition: 'all 0.2s',
+              cursor: 'pointer',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              background: isActive('/showcase') ? 'rgba(139, 92, 246, 0.2)' : 'transparent'
             }}
-            onMouseEnter={(e) => e.target.style.color = '#667EEA'}
-            onMouseLeave={(e) => e.target.style.color = isActive('/showcase') ? '#667EEA' : '#64748B'}
+            onMouseEnter={(e) => {
+              e.target.style.color = '#f8fafc';
+              if (!isActive('/showcase')) {
+                e.target.style.background = 'rgba(139, 92, 246, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = isActive('/showcase') ? '#f8fafc' : '#cbd5e1';
+              if (!isActive('/showcase')) {
+                e.target.style.background = 'transparent';
+              }
+            }}
           >
             Showcase
           </Link>
@@ -478,7 +586,7 @@ function MainHeader() {
                   padding: '8px 20px',
                   fontSize: '14px',
                   fontWeight: '600',
-                  color: '#64748B',
+                  color: '#cbd5e1',
                   background: 'transparent',
                   border: 'none',
                   borderRadius: '8px',
@@ -486,12 +594,12 @@ function MainHeader() {
                   transition: 'all 0.2s'
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.background = '#F8FAFC';
-                  e.target.style.color = '#334155';
+                  e.target.style.background = 'rgba(139, 92, 246, 0.2)';
+                  e.target.style.color = '#f8fafc';
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.background = 'transparent';
-                  e.target.style.color = '#64748B';
+                  e.target.style.color = '#cbd5e1';
                 }}
               >
                 Sign In
@@ -503,20 +611,20 @@ function MainHeader() {
                   fontSize: '14px',
                   fontWeight: '600',
                   color: '#FFFFFF',
-                  background: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
                   border: 'none',
                   borderRadius: '8px',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
-                  boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                  boxShadow: '0 4px 16px rgba(139, 92, 246, 0.5)'
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.transform = 'translateY(-1px)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 8px 24px rgba(139, 92, 246, 0.6)';
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+                  e.target.style.boxShadow = '0 4px 16px rgba(139, 92, 246, 0.5)';
                 }}
               >
                 Get Started
@@ -530,32 +638,672 @@ function MainHeader() {
 }
 
 /**
- * 🆕 Placeholder pages for Features, Templates, and Showcase
+ * 🎨 FEATURES PAGE - Dark Veil Theme
+ * Premium animated features showcase with React Bits style
  */
+
 function FeaturesPage() {
+  const [activeFeature, setActiveFeature] = React.useState(0);
+  const [isVisible, setIsVisible] = React.useState({});
+  
+  // Intersection Observer for scroll animations
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsVisible((prev) => ({
+              ...prev,
+              [entry.target.id]: true
+            }));
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    document.querySelectorAll('.animate-on-scroll').forEach((el) => {
+      observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  const mainFeatures = [
+    {
+      icon: '🎯',
+      title: 'AI-Powered Generation',
+      description: 'Transform your ideas into production-ready mobile UIs in seconds',
+      details: 'Our advanced AI understands natural language descriptions and generates complete, multi-screen mobile applications with proper navigation, components, and styling.',
+      gradient: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)'
+    },
+    {
+      icon: '📱',
+      title: 'Live Preview',
+      description: 'See your designs come to life in real-time phone mockups',
+      details: 'Instantly visualize your generated UI in realistic iPhone-style frames. Multiple screens displayed side-by-side for easy comparison and iteration.',
+      gradient: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)'
+    },
+    {
+      icon: '💻',
+      title: 'React Native Export',
+      description: 'Get production-ready code you can use immediately',
+      details: 'Export clean, organized React Native components with proper file structure. Copy-paste ready code that follows best practices and industry standards.',
+      gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+    },
+    {
+      icon: '✨',
+      title: 'Smart Refinement',
+      description: 'Iterate and improve your designs with conversational editing',
+      details: 'Make changes using natural language. Ask for color adjustments, layout modifications, or content updates - the AI understands and implements your requests.',
+      gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+    }
+  ];
+
+  const detailedFeatures = [
+    {
+      icon: '🎨',
+      title: 'Beautiful Design System',
+      description: 'Professionally designed components with modern aesthetics',
+      color: '#a855f7'
+    },
+    {
+      icon: '🚀',
+      title: 'Lightning Fast',
+      description: 'Generate complete apps in under 30 seconds',
+      color: '#06b6d4'
+    },
+    {
+      icon: '📐',
+      title: 'Responsive Layouts',
+      description: 'Perfect scaling across all device sizes',
+      color: '#10b981'
+    },
+    {
+      icon: '🔄',
+      title: 'Version History',
+      description: 'Track changes and revert to previous versions',
+      color: '#f59e0b'
+    },
+    {
+      icon: '🎭',
+      title: 'Theme Support',
+      description: 'Light and dark mode out of the box',
+      color: '#ec4899'
+    },
+    {
+      icon: '🔌',
+      title: 'Component Library',
+      description: 'Pre-built components ready to use',
+      color: '#8b5cf6'
+    }
+  ];
+
+  const useCases = [
+    {
+      title: 'Rapid Prototyping',
+      description: 'Create mockups for client presentations in minutes',
+      icon: '⚡',
+      color: '#8b5cf6'
+    },
+    {
+      title: 'MVP Development',
+      description: 'Build and launch your minimum viable product faster',
+      icon: '🎯',
+      color: '#06b6d4'
+    },
+    {
+      title: 'Design Exploration',
+      description: 'Try multiple design directions effortlessly',
+      icon: '🎨',
+      color: '#10b981'
+    },
+    {
+      title: 'Learning & Education',
+      description: 'Teach mobile UI design with practical examples',
+      icon: '📚',
+      color: '#f59e0b'
+    }
+  ];
+
   return (
     <div style={{
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '80px 24px',
-      textAlign: 'center'
+      minHeight: '100vh',
+      background: 'transparent',
+      color: '#f8fafc',
+      overflow: 'hidden'
     }}>
-      <h1 style={{ fontSize: '48px', fontWeight: '700', marginBottom: '24px', color: '#0F172A' }}>
-        Features
-      </h1>
-      <p style={{ fontSize: '20px', color: '#64748B', marginBottom: '48px' }}>
-        Discover the powerful features of AI Builder
-      </p>
-      <div style={{
-        padding: '48px',
-        background: '#F8FAFC',
-        borderRadius: '16px',
-        border: '2px dashed #CBD5E1'
+      {/* Hero Section */}
+      <section style={{
+        padding: '120px 24px 80px',
+        textAlign: 'center',
+        position: 'relative'
       }}>
-        <p style={{ fontSize: '16px', color: '#94A3B8' }}>
-          Content coming soon...
+        <div style={{
+          maxWidth: '900px',
+          margin: '0 auto',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          <div style={{
+            display: 'inline-block',
+            padding: '8px 20px',
+            background: 'rgba(139, 92, 246, 0.2)',
+            border: '1px solid rgba(139, 92, 246, 0.4)',
+            borderRadius: '20px',
+            fontSize: '14px',
+            fontWeight: '700',
+            color: '#c084fc',
+            marginBottom: '24px',
+            animation: 'fadeInDown 0.6s ease-out'
+          }}>
+            ✨ POWERFUL FEATURES
+          </div>
+
+          <h1 style={{
+            fontSize: '64px',
+            fontWeight: '900',
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #c084fc 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            lineHeight: '1.1',
+            animation: 'fadeInUp 0.8s ease-out 0.2s both'
+          }}>
+            Everything You Need<br />
+            to Build Amazing Apps
+          </h1>
+
+          <p style={{
+            fontSize: '22px',
+            color: '#cbd5e1',
+            lineHeight: '1.6',
+            maxWidth: '700px',
+            margin: '0 auto',
+            animation: 'fadeInUp 0.8s ease-out 0.4s both'
+          }}>
+            From idea to production-ready code in seconds. App Builder gives you all the tools to create, iterate, and export beautiful mobile interfaces.
+          </p>
+        </div>
+
+        {/* Floating Elements */}
+        <div style={{
+          position: 'absolute',
+          top: '10%',
+          right: '10%',
+          width: '300px',
+          height: '300px',
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15), transparent 70%)',
+          borderRadius: '50%',
+          filter: 'blur(60px)',
+          animation: 'float 8s ease-in-out infinite',
+          pointerEvents: 'none'
+        }} />
+      </section>
+
+      {/* Main Features - Interactive Cards */}
+      <section 
+        id="main-features"
+        className="animate-on-scroll"
+        style={{
+          padding: '80px 24px',
+          maxWidth: '1200px',
+          margin: '0 auto',
+          opacity: isVisible['main-features'] ? 1 : 0,
+          transform: isVisible['main-features'] ? 'translateY(0)' : 'translateY(40px)',
+          transition: 'all 0.8s ease-out'
+        }}
+      >
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '24px'
+        }}>
+          {mainFeatures.map((feature, index) => (
+            <div
+              key={index}
+              onMouseEnter={() => setActiveFeature(index)}
+              style={{
+                background: activeFeature === index 
+                  ? 'rgba(30, 30, 50, 0.8)' 
+                  : 'rgba(30, 30, 50, 0.4)',
+                backdropFilter: 'blur(20px)',
+                border: `2px solid ${activeFeature === index ? 'rgba(139, 92, 246, 0.6)' : 'rgba(139, 92, 246, 0.2)'}`,
+                borderRadius: '20px',
+                padding: '32px',
+                cursor: 'pointer',
+                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                transform: activeFeature === index ? 'translateY(-8px)' : 'translateY(0)',
+                boxShadow: activeFeature === index 
+                  ? '0 20px 60px rgba(139, 92, 246, 0.3)' 
+                  : '0 8px 24px rgba(0, 0, 0, 0.2)',
+                animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
+              }}
+            >
+              <div style={{
+                width: '72px',
+                height: '72px',
+                background: feature.gradient,
+                borderRadius: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '36px',
+                marginBottom: '24px',
+                transform: activeFeature === index ? 'scale(1.1) rotate(5deg)' : 'scale(1)',
+                transition: 'transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+                boxShadow: '0 8px 24px rgba(139, 92, 246, 0.4)'
+              }}>
+                {feature.icon}
+              </div>
+
+              <h3 style={{
+                fontSize: '24px',
+                fontWeight: '800',
+                color: '#f8fafc',
+                marginBottom: '12px'
+              }}>
+                {feature.title}
+              </h3>
+
+              <p style={{
+                fontSize: '16px',
+                color: '#94a3b8',
+                lineHeight: '1.6',
+                marginBottom: '16px'
+              }}>
+                {feature.description}
+              </p>
+
+              <p style={{
+                fontSize: '14px',
+                color: '#64748b',
+                lineHeight: '1.6',
+                opacity: activeFeature === index ? 1 : 0,
+                maxHeight: activeFeature === index ? '200px' : '0',
+                overflow: 'hidden',
+                transition: 'all 0.4s ease-out'
+              }}>
+                {feature.details}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Detailed Features Grid */}
+      <section 
+        id="detailed-features"
+        className="animate-on-scroll"
+        style={{
+          padding: '80px 24px',
+          background: 'rgba(10, 10, 20, 0.4)',
+          backdropFilter: 'blur(10px)',
+          opacity: isVisible['detailed-features'] ? 1 : 0,
+          transform: isVisible['detailed-features'] ? 'translateY(0)' : 'translateY(40px)',
+          transition: 'all 0.8s ease-out'
+        }}
+      >
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{
+            fontSize: '48px',
+            fontWeight: '900',
+            textAlign: 'center',
+            marginBottom: '16px',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #a78bfa 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            Packed with Premium Features
+          </h2>
+          <p style={{
+            textAlign: 'center',
+            fontSize: '18px',
+            color: '#94a3b8',
+            marginBottom: '60px',
+            maxWidth: '600px',
+            margin: '0 auto 60px'
+          }}>
+            Everything you need for professional mobile app development
+          </p>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '24px'
+          }}>
+            {detailedFeatures.map((feature, index) => (
+              <div
+                key={index}
+                style={{
+                  background: 'rgba(30, 30, 50, 0.4)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(139, 92, 246, 0.2)',
+                  borderRadius: '16px',
+                  padding: '28px',
+                  transition: 'all 0.3s ease-out',
+                  animation: `fadeInUp 0.5s ease-out ${index * 0.05}s both`,
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.5)';
+                  e.currentTarget.style.background = 'rgba(30, 30, 50, 0.6)';
+                  e.currentTarget.style.boxShadow = '0 12px 40px rgba(139, 92, 246, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.2)';
+                  e.currentTarget.style.background = 'rgba(30, 30, 50, 0.4)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <div style={{
+                  fontSize: '40px',
+                  marginBottom: '16px',
+                  display: 'inline-block',
+                  transition: 'transform 0.3s ease-out'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.2) rotate(-10deg)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+                }}
+                >
+                  {feature.icon}
+                </div>
+                <h4 style={{
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  color: '#f8fafc',
+                  marginBottom: '8px'
+                }}>
+                  {feature.title}
+                </h4>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#94a3b8',
+                  lineHeight: '1.6'
+                }}>
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Use Cases Section */}
+      <section 
+        id="use-cases"
+        className="animate-on-scroll"
+        style={{
+          padding: '80px 24px',
+          maxWidth: '1200px',
+          margin: '0 auto',
+          opacity: isVisible['use-cases'] ? 1 : 0,
+          transform: isVisible['use-cases'] ? 'translateY(0)' : 'translateY(40px)',
+          transition: 'all 0.8s ease-out'
+        }}
+      >
+        <h2 style={{
+          fontSize: '48px',
+          fontWeight: '900',
+          textAlign: 'center',
+          marginBottom: '16px',
+          background: 'linear-gradient(135deg, #f8fafc 0%, #ec4899 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text'
+        }}>
+          Perfect For Any Use Case
+        </h2>
+        <p style={{
+          textAlign: 'center',
+          fontSize: '18px',
+          color: '#94a3b8',
+          marginBottom: '60px',
+          maxWidth: '600px',
+          margin: '0 auto 60px'
+        }}>
+          Whether you're a founder, designer, or developer
         </p>
-      </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '32px'
+        }}>
+          {useCases.map((useCase, index) => (
+            <div
+              key={index}
+              style={{
+                position: 'relative',
+                background: 'rgba(30, 30, 50, 0.6)',
+                backdropFilter: 'blur(20px)',
+                border: '2px solid rgba(139, 92, 246, 0.3)',
+                borderRadius: '20px',
+                padding: '40px 28px',
+                textAlign: 'center',
+                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                animation: `scaleIn 0.6s ease-out ${index * 0.1}s both`,
+                cursor: 'pointer',
+                overflow: 'hidden'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.6)';
+                e.currentTarget.style.boxShadow = '0 20px 60px rgba(139, 92, 246, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{
+                width: '80px',
+                height: '80px',
+                background: `linear-gradient(135deg, ${useCase.color}, ${useCase.color}dd)`,
+                borderRadius: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '40px',
+                margin: '0 auto 24px',
+                boxShadow: `0 8px 32px ${useCase.color}66`,
+                transition: 'transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'rotate(10deg) scale(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
+              }}
+              >
+                {useCase.icon}
+              </div>
+              <h3 style={{
+                fontSize: '22px',
+                fontWeight: '800',
+                color: '#f8fafc',
+                marginBottom: '12px'
+              }}>
+                {useCase.title}
+              </h3>
+              <p style={{
+                fontSize: '15px',
+                color: '#94a3b8',
+                lineHeight: '1.6'
+              }}>
+                {useCase.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section style={{
+        padding: '100px 24px',
+        textAlign: 'center',
+        position: 'relative'
+      }}>
+        <div style={{
+          maxWidth: '700px',
+          margin: '0 auto',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          <h2 style={{
+            fontSize: '56px',
+            fontWeight: '900',
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            lineHeight: '1.1'
+          }}>
+            Ready to Build Something Amazing?
+          </h2>
+          <p style={{
+            fontSize: '20px',
+            color: '#cbd5e1',
+            marginBottom: '40px',
+            lineHeight: '1.6'
+          }}>
+            Join thousands of developers already using App Builder
+          </p>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => window.location.href = '/'}
+              style={{
+                padding: '16px 40px',
+                fontSize: '18px',
+                fontWeight: '700',
+                color: '#FFFFFF',
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 8px 32px rgba(139, 92, 246, 0.5)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-4px)';
+                e.target.style.boxShadow = '0 12px 48px rgba(139, 92, 246, 0.6)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 8px 32px rgba(139, 92, 246, 0.5)';
+              }}
+            >
+              Start Building Now →
+            </button>
+            <button
+              onClick={() => window.location.href = '/pricing'}
+              style={{
+                padding: '16px 40px',
+                fontSize: '18px',
+                fontWeight: '700',
+                color: '#cbd5e1',
+                background: 'rgba(30, 30, 50, 0.6)',
+                border: '2px solid rgba(139, 92, 246, 0.3)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                backdropFilter: 'blur(10px)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-4px)';
+                e.target.style.background = 'rgba(139, 92, 246, 0.2)';
+                e.target.style.borderColor = 'rgba(139, 92, 246, 0.5)';
+                e.target.style.color = '#f8fafc';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.background = 'rgba(30, 30, 50, 0.6)';
+                e.target.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                e.target.style.color = '#cbd5e1';
+              }}
+            >
+              View Pricing
+            </button>
+          </div>
+        </div>
+
+        {/* Background Glow */}
+        <div style={{
+          position: 'absolute',
+          bottom: '0',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '600px',
+          height: '400px',
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.2), transparent 70%)',
+          borderRadius: '50%',
+          filter: 'blur(80px)',
+          pointerEvents: 'none'
+        }} />
+      </section>
+
+      {/* Animations */}
+      <style>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeInDown {
+          from {
+            opacity: 0;
+            transform: translateY(-30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-30px);
+          }
+        }
+
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.8);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        @media (max-width: 768px) {
+          h1 {
+            font-size: 40px !important;
+          }
+          h2 {
+            font-size: 32px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -600,7 +1348,7 @@ function ShowcasePage() {
         Showcase
       </h1>
       <p style={{ fontSize: '20px', color: '#64748B', marginBottom: '48px' }}>
-        See what others have built with AI Builder
+        See what others have built with App Builder
       </p>
       <div style={{
         padding: '48px',

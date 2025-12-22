@@ -1,0 +1,218 @@
+/* ============================================
+   DARK VEIL BACKGROUND
+   Animated dark background with particles
+   ============================================ */
+
+.dark-veil-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #0a0a0f;
+  isolation: isolate;
+}
+
+/* ============================================
+   BASE GRADIENT LAYER
+   ============================================ */
+
+.dark-veil-gradient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 80% 50% at 50% -20%,
+    rgba(120, 119, 198, 0.3),
+    transparent
+  );
+  will-change: opacity;
+  animation: gradient-shift 15s ease-in-out infinite alternate;
+}
+
+@keyframes gradient-shift {
+  0% {
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    transform: scale(1.1) translateY(-10px);
+  }
+}
+
+/* ============================================
+   PARTICLE SYSTEM
+   ============================================ */
+
+.dark-veil-particles {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+.particle {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  animation: float-particle linear infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0); /* Force GPU acceleration */
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+}
+
+@keyframes float-particle {
+  0% {
+    transform: translateY(0) translateX(0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-10vh) translateX(5px) scale(1);
+  }
+  90% {
+    opacity: 1;
+    transform: translateY(-90vh) translateX(45px) scale(1);
+  }
+  100% {
+    transform: translateY(-100vh) translateX(50px) scale(0);
+    opacity: 0;
+  }
+}
+
+/* ============================================
+   MESH OVERLAY
+   ============================================ */
+
+.dark-veil-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  opacity: 0.5;
+  animation: mesh-shift 20s linear infinite;
+}
+
+@keyframes mesh-shift {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 50px 50px;
+  }
+}
+
+/* ============================================
+   RADIAL GLOW SPOTS
+   ============================================ */
+
+.dark-veil-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.15;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.dark-veil-glow-1 {
+  top: -200px;
+  right: -200px;
+  background: radial-gradient(
+    circle,
+    rgba(99, 102, 241, 0.4),
+    transparent
+  );
+  animation: glow-float-1 20s ease-in-out infinite;
+}
+
+.dark-veil-glow-2 {
+  bottom: -200px;
+  left: -200px;
+  background: radial-gradient(
+    circle,
+    rgba(168, 85, 247, 0.3),
+    transparent
+  );
+  animation: glow-float-2 25s ease-in-out infinite;
+}
+
+@keyframes glow-float-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-50px, 50px) scale(1.2);
+  }
+}
+
+@keyframes glow-float-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(50px, -50px) scale(1.1);
+  }
+}
+
+/* ============================================
+   PERFORMANCE OPTIMIZATIONS
+   ============================================ */
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .particle,
+  .dark-veil-gradient,
+  .dark-veil-overlay,
+  .dark-veil-glow {
+    animation: none !important;
+  }
+}
+
+/* Mobile optimizations - hide most particles */
+@media (max-width: 768px) {
+  /* Show only every 3rd particle */
+  .particle:not(:nth-child(3n)) {
+    display: none;
+  }
+  
+  /* Simplify animations */
+  .dark-veil-gradient {
+    animation: none;
+  }
+  
+  /* Reduce glow intensity */
+  .dark-veil-glow {
+    opacity: 0.08;
+    filter: blur(80px);
+  }
+}
+
+/* Very small screens - minimal effects */
+@media (max-width: 480px) {
+  .particle {
+    display: none; /* No particles */
+  }
+  
+  .dark-veil-overlay {
+    animation: none; /* Static mesh */
+  }
+}
+
+/* High DPI screens - smaller particles for smoother look */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .particle {
+    box-shadow: 0 0 2px rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+  .dark-veil-container {
+    display: none;
+  }
+}
