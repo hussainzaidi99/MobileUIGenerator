@@ -479,7 +479,7 @@ async def generate_pipeline(request: Request):
     if not has_credits:
         # Try to fetch current balance for better error message
         try:
-            balance = get_user_credits(user_id)
+            balance = await get_user_credits(user_id)
             current_credits = balance.get("credits")
         except Exception:
             current_credits = None

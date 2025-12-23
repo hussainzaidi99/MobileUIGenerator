@@ -123,22 +123,22 @@ def estimate_tokens(prompt: str) -> int:
     
     if word_count < 15 and not has_multiple_screens:
         # Simple generation
-        estimated = 60000
+        estimated = 25000
     elif word_count < 30 and complexity_score < 1.5:
         # Medium generation
-        estimated = 90000
+        estimated = 45000
     else:
         # Complex generation
-        estimated = max(total_estimated, 120000)
+        estimated = max(total_estimated, 70000)
     
-    # Apply complexity multiplier
-    estimated = int(estimated * complexity_score)
+    # Apply complexity multiplier (reduced impact)
+    estimated = int(estimated * (1 + (complexity_score - 1) * 0.5))
     
     # Cap at reasonable maximum (prevent extreme estimates)
-    estimated = min(estimated, 250000)
+    estimated = min(estimated, 150000)
     
-    # Add 15% safety margin for variance
-    estimated = int(estimated * 1.15)
+    # Add 5% safety margin (lowered from 15%)
+    estimated = int(estimated * 1.05)
     
     print(f"📊 Token Estimation Breakdown:")
     print(f"   Prompt: {word_count} words, {char_count} chars")

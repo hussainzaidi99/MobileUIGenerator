@@ -28,7 +28,8 @@ export default function App() {
   const [showAllPresets, setShowAllPresets] = useState(false);
   // 1. Add state at the top of App component
   const [fullScreenMode, setFullScreenMode] = useState(false);
-  
+  const [modalType, setModalType] = useState('insufficient'); // 'insufficient' or 'low'
+
   // ✅ NEW: Mobile detection for optimized Dark Veil
   const [isMobile, setIsMobile] = useState(false);
 
@@ -42,10 +43,10 @@ export default function App() {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -57,12 +58,12 @@ export default function App() {
 
   const fetchUserCredits = async () => {
     if (!userId) return;
-    
+
     try {
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/payment/balance/${userId}`
       );
-      
+
       if (res.ok) {
         const data = await res.json();
         setUserCredits(data);
@@ -79,20 +80,20 @@ export default function App() {
       const sentenceCount = prompt.split(/[.!?]+/).filter(s => s.trim()).length;
       const hasMultipleScreens = /screen|page|tab/i.test(prompt);
       const hasComplexFeatures = /animation|interaction|chart|graph|map/i.test(prompt);
-      
+
       let estimatedTokens = 15000;
-      
+
       if (wordCount > 100 || sentenceCount > 5 || hasComplexFeatures) {
         estimatedTokens = 25000;
       } else if (wordCount > 50 || sentenceCount > 3 || hasMultipleScreens) {
         estimatedTokens = 20000;
       }
-      
+
       estimatedTokens += Math.floor(wordCount / 50) * 1000;
       estimatedTokens = Math.min(estimatedTokens, 35000);
-      
+
       const estimatedCredits = estimatedTokens / 70000;
-      
+
       setEstimatedCost({
         tokens: estimatedTokens,
         credits: estimatedCredits
@@ -104,7 +105,7 @@ export default function App() {
 
   const enhancePrompt = async () => {
     if (!userId) {
-      navigate('/auth', { 
+      navigate('/auth', {
         state: { from: location },
         replace: false
       });
@@ -144,9 +145,9 @@ export default function App() {
 
   const generate = async () => {
     if (!userId) {
-      navigate('/auth', { 
+      navigate('/auth', {
         state: { from: location },
-        replace: false 
+        replace: false
       });
       return;
     }
@@ -168,7 +169,7 @@ export default function App() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             prompt: finalPrompt,
             user_id: userId
           }),
@@ -177,21 +178,26 @@ export default function App() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        
+
         if (res.status === 402) {
+          const required = errorData.details?.required_credits?.toFixed(4) || "0.0000";
+          const current = errorData.details?.current_credits?.toFixed(4) || userCredits?.credits?.toFixed(4) || "0.0000";
+
           setError(
-            `Insufficient credits. You need ${errorData.details?.required_credits?.toFixed(4)} credits but have ${errorData.details?.current_credits?.toFixed(4)} credits.`
+            `Insufficient credits. You need ${required} credits but have ${current} credits.`
           );
+          setModalType('insufficient');
           setShowInsufficientCreditsModal(true);
+          setLoading(false); // Stop loading on credit error
           return;
         }
-        
+
         throw new Error(errorData.error || `Server error: ${res.status}`);
       }
 
       setProcessingStage("Structuring components...");
       await new Promise(resolve => setTimeout(resolve, 800));
-      
+
       const data = await res.json();
 
       setProcessingStage("Generating UI preview...");
@@ -231,8 +237,16 @@ export default function App() {
 
       setProcessingStage("Complete!");
       setTimeout(() => setProcessingStage(""), 2000);
-      
-      fetchUserCredits();
+
+      // ✅ SUCCESS: Update local credits
+      await fetchUserCredits();
+
+      // ✅ NEW: Show low credits warning if < 10 (and not already showing insufficient)
+      if (userCredits && userCredits.credits < 10) {
+        console.log("⚠️ Low credits warning (< 10 credits remaining)");
+        setModalType('low');
+        setShowInsufficientCreditsModal(true);
+      }
     } catch (e) {
       console.error("Generation error:", e);
       setError(e.message || "Generation failed. Please try again.");
@@ -244,12 +258,12 @@ export default function App() {
 
   const handleLayoutUpdate = (newLayout) => {
     console.log("🔄 Layout updated from edit panel:", newLayout);
-    
+
     setLayout({
       ...newLayout,
       _timestamp: Date.now()
     });
-    
+
     console.log("✅ Layout state updated, component should re-render");
   };
 
@@ -278,8 +292,8 @@ export default function App() {
   const screenCount = layout?.screens?.length || 0;
   const isSplitView = layout || loading;
 
-  const displayedPresets = showAllPresets 
-    ? PRESET_PROMPTS 
+  const displayedPresets = showAllPresets
+    ? PRESET_PROMPTS
     : PRESET_PROMPTS.slice(0, 3);
 
   return (
@@ -287,7 +301,7 @@ export default function App() {
       {/* ✅ MOBILE-OPTIMIZED DARK VEIL BACKGROUND */}
       {isMobile ? (
         // Mobile: Static, fewer particles for better performance
-        <DarkVeil 
+        <DarkVeil
           opacity={0.25}
           particleCount={15}
           enableAnimation={false}
@@ -295,7 +309,7 @@ export default function App() {
         />
       ) : (
         // Desktop: Full animated experience
-        <DarkVeil 
+        <DarkVeil
           opacity={0.4}
           particleCount={40}
           enableAnimation={true}
@@ -307,13 +321,17 @@ export default function App() {
       {showInsufficientCreditsModal && (
         <div className="credits-modal-overlay" onClick={() => setShowInsufficientCreditsModal(false)}>
           <div className="credits-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-icon">💳</div>
-            <h2 className="modal-title">Insufficient Credits</h2>
+            <div className="modal-icon">{modalType === 'insufficient' ? '💳' : '⚠️'}</div>
+            <h2 className="modal-title">
+              {modalType === 'insufficient' ? 'Insufficient Credits' : 'Low Credits Warning'}
+            </h2>
             <p className="modal-message">
-              {error || "You don't have enough credits. Please purchase more to continue."}
+              {modalType === 'insufficient'
+                ? (error || "You don't have enough credits. Please purchase more to continue.")
+                : `You have less than 10 credits remaining (${userCredits?.credits?.toFixed(4)} left). Consider topping up soon to keep generating!`}
             </p>
             <div className="modal-actions">
-              <button 
+              <button
                 className="modal-btn modal-btn-primary"
                 onClick={() => {
                   setShowInsufficientCreditsModal(false);
@@ -322,11 +340,11 @@ export default function App() {
               >
                 Buy Credits
               </button>
-              <button 
+              <button
                 className="modal-btn modal-btn-secondary"
                 onClick={() => setShowInsufficientCreditsModal(false)}
               >
-                Close
+                {modalType === 'insufficient' ? 'Close' : 'Continue'}
               </button>
             </div>
           </div>
@@ -335,10 +353,10 @@ export default function App() {
 
       {/* Main Split Layout */}
       <div className={`stitch-main-container ${isSplitView ? 'split-mode' : 'center-mode'}`}>
-        
+
         {/* Left Panel */}
         <div className={`stitch-left-panel ${isSplitView ? 'expanded' : ''}`}>
-          
+
           {/* CENTER MODE: Hero + Input */}
           {!isSplitView && (
             <div className="stitch-hero-content">
@@ -363,7 +381,7 @@ export default function App() {
                     placeholder="Describe your mobile UI (e.g., 'A minimalist portfolio for a photographer')"
                     disabled={loading || enhancing}
                   />
-                  
+
                   <button
                     onClick={generate}
                     className="stitch-btn-inline"
@@ -385,7 +403,7 @@ export default function App() {
 
                 {/* Credits Estimate */}
                 {estimatedCost && !loading && (
-                  <div 
+                  <div
                     className="credits-estimate-card"
                     style={{
                       padding: '14px 18px',
@@ -400,20 +418,20 @@ export default function App() {
                   >
                     <span style={{ fontSize: '20px' }}>ℹ️</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        fontSize: '13px', 
+                      <div style={{
+                        fontSize: '13px',
                         fontWeight: '700',
                         color: '#3B82F6',
                         marginBottom: '2px'
                       }}>
                         Estimated Cost
                       </div>
-                      <div style={{ 
-                        fontSize: '12px', 
+                      <div style={{
+                        fontSize: '12px',
                         color: '#60A5FA',
                         fontWeight: '600'
                       }}>
-                        ~{estimatedCost.credits.toFixed(4)} credits 
+                        ~{estimatedCost.credits.toFixed(4)} credits
                         ({new Intl.NumberFormat().format(estimatedCost.tokens)} tokens)
                         {userCredits && (
                           <span style={{ marginLeft: '8px', opacity: 0.8 }}>
@@ -441,7 +459,7 @@ export default function App() {
                   >
                     {enhancing ? 'Enhancing...' : '✨ Enhance Prompt'}
                   </button>
-                  
+
                   <div className="stitch-presets-row">
                     {displayedPresets.map((preset) => (
                       <button
@@ -452,7 +470,7 @@ export default function App() {
                         {preset.label}
                       </button>
                     ))}
-                    
+
                     {PRESET_PROMPTS.length > 3 && (
                       <button
                         onClick={() => setShowAllPresets(!showAllPresets)}
@@ -498,15 +516,15 @@ export default function App() {
             <div className="stitch-sidebar-content">
               <div className="stitch-sidebar-header">
                 <span className="logo-text">AppGen</span>
-                <button 
-                  onClick={handleNewGeneration} 
-                  className="new-chat-btn" 
+                <button
+                  onClick={handleNewGeneration}
+                  className="new-chat-btn"
                   title="New Project"
                 >
                   +
                 </button>
               </div>
-              
+
               {(layout && sessionId) || loading ? (
                 <ConversationalEditPanel
                   sessionId={sessionId}
@@ -540,8 +558,8 @@ export default function App() {
                 >
                   {showCode ? '📱 Preview' : '💻 Code'}
                 </button>
-                
-                
+
+
                 {rnCode && Object.keys(rnCode).length > 0 && (
                   <ExportButton rnCode={rnCode} className="toolbar-btn" />
                 )}
@@ -598,25 +616,25 @@ export default function App() {
                     <div key={`${screen.name || idx}-${layout._timestamp || ''}`} className="phone-mockup">
                       <div className="phone-frame-wrapper">
                         <div className="phone-notch"></div>
-                        
+
                         <div className="phone-screen-area">
                           <div className="phone-screen-header">
                             <div className="screen-name-display">
                               {screen.name || `Screen ${idx + 1}`}
                             </div>
                           </div>
-                          
+
                           <div className="phone-screen-content">
-                            <CanvasRendererLite 
+                            <CanvasRendererLite
                               key={`canvas-${screen.name || idx}-${layout._timestamp || ''}`}
-                              layout={{ 
+                              layout={{
                                 screens: [screen],
                                 theme: layout.theme,
                                 tokens: layout.tokens
-                              }} 
+                              }}
                             />
                           </div>
-                          
+
                           <div className="phone-home-indicator"></div>
                         </div>
                       </div>

@@ -123,7 +123,7 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
           e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
         }}
       >
-        <div 
+        <div
           style={{
             width: '32px',
             height: '32px',
@@ -150,7 +150,7 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div 
+        <div
           style={{
             position: 'absolute',
             top: 'calc(100% + 8px)',
@@ -181,7 +181,7 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
           {/* User Info Section */}
           <div style={{ padding: '20px', borderBottom: '1px solid rgba(139, 92, 246, 0.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <div 
+              <div
                 style={{
                   width: '48px',
                   height: '48px',
@@ -218,19 +218,19 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
                 borderRadius: '8px',
                 fontSize: '12px',
                 fontWeight: '700',
-                background: tierInfo.tier === 'pro' ? 'rgba(168, 85, 247, 0.2)' : 
-                           tierInfo.tier === 'starter' ? 'rgba(6, 182, 212, 0.2)' : 
-                           tierInfo.tier === 'enterprise' ? 'rgba(245, 158, 11, 0.2)' : 
-                           'rgba(100, 116, 139, 0.2)',
-                color: tierInfo.tier === 'pro' ? '#c084fc' : 
-                       tierInfo.tier === 'starter' ? '#67e8f9' : 
-                       tierInfo.tier === 'enterprise' ? '#fbbf24' : 
-                       '#94a3b8',
+                background: tierInfo.tier === 'pro' ? 'rgba(168, 85, 247, 0.2)' :
+                  tierInfo.tier === 'starter' ? 'rgba(6, 182, 212, 0.2)' :
+                    tierInfo.tier === 'enterprise' ? 'rgba(245, 158, 11, 0.2)' :
+                      'rgba(100, 116, 139, 0.2)',
+                color: tierInfo.tier === 'pro' ? '#c084fc' :
+                  tierInfo.tier === 'starter' ? '#67e8f9' :
+                    tierInfo.tier === 'enterprise' ? '#fbbf24' :
+                      '#94a3b8',
                 border: '1px solid',
-                borderColor: tierInfo.tier === 'pro' ? 'rgba(168, 85, 247, 0.4)' : 
-                            tierInfo.tier === 'starter' ? 'rgba(6, 182, 212, 0.4)' : 
-                            tierInfo.tier === 'enterprise' ? 'rgba(245, 158, 11, 0.4)' : 
-                            'rgba(100, 116, 139, 0.4)'
+                borderColor: tierInfo.tier === 'pro' ? 'rgba(168, 85, 247, 0.4)' :
+                  tierInfo.tier === 'starter' ? 'rgba(6, 182, 212, 0.4)' :
+                    tierInfo.tier === 'enterprise' ? 'rgba(245, 158, 11, 0.4)' :
+                      'rgba(100, 116, 139, 0.4)'
               }}>
                 <span>{tierInfo.tier === 'pro' ? '⚡' : tierInfo.tier === 'starter' ? '🚀' : tierInfo.tier === 'enterprise' ? '👑' : '🆓'}</span>
                 <span>{tierInfo.tier.toUpperCase()}</span>
@@ -294,7 +294,7 @@ function UserDropdownMenu({ user, userCredits, tierInfo, onLogout }) {
             >
               ➕ {tierInfo?.can_upgrade ? 'Upgrade Plan' : 'Buy More Credits'}
             </button>
-            
+
             <button
               onClick={() => {
                 setIsOpen(false);
@@ -391,7 +391,7 @@ function MainHeader() {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <header 
+    <header
       style={{
         background: 'rgba(10, 10, 20, 0.8)',
         backdropFilter: 'blur(20px) saturate(180%)',
@@ -403,7 +403,7 @@ function MainHeader() {
         boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3)'
       }}
     >
-      <div 
+      <div
         style={{
           maxWidth: '1400px',
           margin: '0 auto',
@@ -424,7 +424,7 @@ function MainHeader() {
             color: '#f8fafc'
           }}
         >
-          <div 
+          <div
             style={{
               width: '36px',
               height: '36px',
@@ -439,7 +439,7 @@ function MainHeader() {
           >
             🤖
           </div>
-          <span 
+          <span
             style={{
               fontSize: '20px',
               fontWeight: '700',
@@ -572,8 +572,8 @@ function MainHeader() {
         {/* Right: Auth Buttons or User Dropdown */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           {isAuthenticated ? (
-            <UserDropdownMenu 
-              user={user} 
+            <UserDropdownMenu
+              user={user}
               userCredits={userCredits}
               tierInfo={tierInfo}
               onLogout={handleLogout}
@@ -645,7 +645,7 @@ function MainHeader() {
 function FeaturesPage() {
   const [activeFeature, setActiveFeature] = React.useState(0);
   const [isVisible, setIsVisible] = React.useState({});
-  
+
   // Intersection Observer for scroll animations
   React.useEffect(() => {
     const observer = new IntersectionObserver(
@@ -843,7 +843,7 @@ function FeaturesPage() {
       </section>
 
       {/* Main Features - Interactive Cards */}
-      <section 
+      <section
         id="main-features"
         className="animate-on-scroll"
         style={{
@@ -865,8 +865,8 @@ function FeaturesPage() {
               key={index}
               onMouseEnter={() => setActiveFeature(index)}
               style={{
-                background: activeFeature === index 
-                  ? 'rgba(30, 30, 50, 0.8)' 
+                background: activeFeature === index
+                  ? 'rgba(30, 30, 50, 0.8)'
                   : 'rgba(30, 30, 50, 0.4)',
                 backdropFilter: 'blur(20px)',
                 border: `2px solid ${activeFeature === index ? 'rgba(139, 92, 246, 0.6)' : 'rgba(139, 92, 246, 0.2)'}`,
@@ -875,8 +875,8 @@ function FeaturesPage() {
                 cursor: 'pointer',
                 transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                 transform: activeFeature === index ? 'translateY(-8px)' : 'translateY(0)',
-                boxShadow: activeFeature === index 
-                  ? '0 20px 60px rgba(139, 92, 246, 0.3)' 
+                boxShadow: activeFeature === index
+                  ? '0 20px 60px rgba(139, 92, 246, 0.3)'
                   : '0 8px 24px rgba(0, 0, 0, 0.2)',
                 animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
               }}
@@ -933,7 +933,7 @@ function FeaturesPage() {
       </section>
 
       {/* Detailed Features Grid */}
-      <section 
+      <section
         id="detailed-features"
         className="animate-on-scroll"
         style={{
@@ -1006,12 +1006,12 @@ function FeaturesPage() {
                   display: 'inline-block',
                   transition: 'transform 0.3s ease-out'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.2) rotate(-10deg)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
-                }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.2) rotate(-10deg)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+                  }}
                 >
                   {feature.icon}
                 </div>
@@ -1037,7 +1037,7 @@ function FeaturesPage() {
       </section>
 
       {/* Use Cases Section */}
-      <section 
+      <section
         id="use-cases"
         className="animate-on-scroll"
         style={{
@@ -1117,12 +1117,12 @@ function FeaturesPage() {
                 boxShadow: `0 8px 32px ${useCase.color}66`,
                 transition: 'transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'rotate(10deg) scale(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
-              }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'rotate(10deg) scale(1.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
+                }}
               >
                 {useCase.icon}
               </div>
@@ -1308,30 +1308,305 @@ function FeaturesPage() {
   );
 }
 
+const templates = [
+  { title: "Analytics Dashboard", category: "Business", image: "/templates/AnalyticsDashboard.png", screens: 8, color: "#8b5cf6" },
+  { title: "Shopping Cart", category: "E-commerce", image: "/templates/Cart.png", screens: 4, color: "#06b6d4" },
+  { title: "User Signup", category: "Social", image: "/templates/Signup.png", screens: 3, color: "#10b981" },
+  { title: "Checkout Flow", category: "Finance", image: "/templates/checkout.png", screens: 6, color: "#f59e0b" },
+  { title: "Profile Editor", category: "Utility", image: "/templates/editprofile.png", screens: 2, color: "#ec4899" },
+  { title: "Social Feed", category: "Social", image: "/templates/feed.png", screens: 10, color: "#8b5cf6" },
+  { title: "Fitness Tracker", category: "Health", image: "/templates/fitnesstracker.png", screens: 12, color: "#06b6d4" },
+  { title: "Product Listing", category: "Shopping", image: "/templates/productlist.png", screens: 5, color: "#10b981" },
+  { title: "User Profile", category: "Social", image: "/templates/userprofile.png", screens: 4, color: "#f59e0b" },
+  { title: "Login Screen", category: "Auth", image: "/templates/login.png", screens: 3, color: "#ec4899" },
+];
+
+function TemplateCard({ template }) {
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  return (
+    <div
+      style={{
+        flex: '0 0 350px',
+        height: '450px',
+        position: 'relative',
+        borderRadius: '24px',
+        overflow: 'hidden',
+        background: 'rgba(30, 30, 50, 0.4)',
+        border: `1px solid ${isHovered ? template.color : 'rgba(139, 92, 246, 0.2)'}`,
+        transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+        transform: isHovered ? 'scale(1.05) translateY(-10px)' : 'scale(1) translateY(0)',
+        boxShadow: isHovered ? `0 20px 40px ${template.color}33` : '0 10px 30px rgba(0,0,0,0.2)',
+        cursor: 'pointer'
+      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Image */}
+      <img
+        src={template.image}
+        alt={template.title}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          transition: 'transform 0.5s ease',
+          transform: isHovered ? 'scale(1.1)' : 'scale(1)'
+        }}
+      />
+
+      {/* Overlay */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'linear-gradient(to top, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.4) 50%, transparent 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+        padding: '24px',
+        opacity: isHovered ? 1 : 0.8,
+        transition: 'opacity 0.3s ease'
+      }}>
+        <div style={{
+          padding: '6px 12px',
+          background: `${template.color}22`,
+          border: `1px solid ${template.color}44`,
+          borderRadius: '20px',
+          fontSize: '12px',
+          fontWeight: '700',
+          color: template.color,
+          width: 'fit-content',
+          marginBottom: '12px'
+        }}>
+          {template.category}
+        </div>
+        <h3 style={{
+          fontSize: '24px',
+          fontWeight: '800',
+          color: '#f8fafc',
+          marginBottom: '8px'
+        }}>
+          {template.title}
+        </h3>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          color: '#94a3b8',
+          fontSize: '14px'
+        }}>
+          <span>📱 {template.screens} Screens</span>
+          <span style={{ color: '#475569' }}>•</span>
+          <span>Ready to Export</span>
+        </div>
+      </div>
+
+      {/* Hover Light Effect */}
+      {isHovered && (
+        <div style={{
+          position: 'absolute',
+          top: '-50%',
+          left: '-50%',
+          width: '200%',
+          height: '200%',
+          background: `radial-gradient(circle, ${template.color}11 0%, transparent 70%)`,
+          pointerEvents: 'none',
+          animation: 'rotateGlow 4s linear infinite'
+        }} />
+      )}
+    </div>
+  );
+}
+
 function TemplatesPage() {
   return (
     <div style={{
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '80px 24px',
-      textAlign: 'center'
+      minHeight: 'calc(100vh - 80px)',
+      background: 'transparent',
+      color: '#f8fafc',
+      padding: '80px 0',
+      overflow: 'hidden',
+      position: 'relative'
     }}>
-      <h1 style={{ fontSize: '48px', fontWeight: '700', marginBottom: '24px', color: '#0F172A' }}>
-        Templates
-      </h1>
-      <p style={{ fontSize: '20px', color: '#64748B', marginBottom: '48px' }}>
-        Browse our collection of pre-built templates
-      </p>
+      {/* Background Orbs */}
       <div style={{
-        padding: '48px',
-        background: '#F8FAFC',
-        borderRadius: '16px',
-        border: '2px dashed #CBD5E1'
+        position: 'absolute',
+        top: '10%',
+        left: '5%',
+        width: '400px',
+        height: '400px',
+        background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1), transparent 70%)',
+        filter: 'blur(80px)',
+        pointerEvents: 'none'
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: '10%',
+        right: '5%',
+        width: '500px',
+        height: '500px',
+        background: 'radial-gradient(circle, rgba(6, 182, 212, 0.08), transparent 70%)',
+        filter: 'blur(80px)',
+        pointerEvents: 'none'
+      }} />
+
+      <div style={{
+        maxWidth: '1200px',
+        margin: '0 auto',
+        padding: '0 24px',
+        textAlign: 'center',
+        marginBottom: '80px',
+        position: 'relative',
+        zIndex: 2
       }}>
-        <p style={{ fontSize: '16px', color: '#94A3B8' }}>
-          Content coming soon...
+        <div style={{
+          display: 'inline-block',
+          padding: '8px 20px',
+          background: 'rgba(139, 92, 246, 0.2)',
+          border: '1px solid rgba(139, 92, 246, 0.4)',
+          borderRadius: '20px',
+          fontSize: '14px',
+          fontWeight: '700',
+          color: '#c084fc',
+          marginBottom: '24px'
+        }}>
+          🎨 DESIGN GALLERY
+        </div>
+        <h1 style={{
+          fontSize: '64px',
+          fontWeight: '900',
+          marginBottom: '24px',
+          background: 'linear-gradient(135deg, #f8fafc 0%, #c084fc 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          lineHeight: '1.1'
+        }}>
+          Industry-Leading Templates
+        </h1>
+        <p style={{
+          fontSize: '20px',
+          color: '#94a3b8',
+          maxWidth: '700px',
+          margin: '0 auto',
+          lineHeight: '1.6'
+        }}>
+          Jumpstart your next project with our professionally designed collection of mobile UI templates. Fully customizable and ready for production.
         </p>
       </div>
+
+      {/* Marquee Container */}
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        padding: '40px 0',
+        background: 'rgba(15, 23, 42, 0.3)',
+        backdropFilter: 'blur(20px)',
+        borderY: '1px solid rgba(255, 255, 255, 0.05)',
+        display: 'flex',
+        alignItems: 'center',
+        overflow: 'hidden'
+      }}>
+        {/* Left Mask */}
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: '200px',
+          background: 'linear-gradient(to right, #0f172a 0%, transparent 100%)',
+          zIndex: 10,
+          pointerEvents: 'none'
+        }} />
+
+        {/* Right Mask */}
+        <div style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: '200px',
+          background: 'linear-gradient(to left, #0f172a 0%, transparent 100%)',
+          zIndex: 10,
+          pointerEvents: 'none'
+        }} />
+
+        <div className="marquee-track" style={{
+          display: 'flex',
+          gap: '32px',
+          padding: '0 16px',
+          width: 'fit-content',
+          animation: 'scroll-left 30s linear infinite'
+        }}>
+          {/* First set */}
+          {templates.map((template, idx) => (
+            <TemplateCard key={`set1-${idx}`} template={template} />
+          ))}
+          {/* Second set for seamless loop */}
+          {templates.map((template, idx) => (
+            <TemplateCard key={`set2-${idx}`} template={template} />
+          ))}
+        </div>
+      </div>
+
+      <div style={{
+        marginTop: '100px',
+        textAlign: 'center',
+        position: 'relative',
+        zIndex: 2
+      }}>
+        <button
+          onClick={() => window.location.href = '/'}
+          style={{
+            padding: '16px 40px',
+            fontSize: '18px',
+            fontWeight: '700',
+            color: '#FFFFFF',
+            background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: '0 8px 32px rgba(139, 92, 246, 0.5)'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-4px)';
+            e.target.style.boxShadow = '0 12px 48px rgba(139, 92, 246, 0.6)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = '0 8px 32px rgba(139, 92, 246, 0.5)';
+          }}
+        >
+          View All 50+ Templates
+        </button>
+      </div>
+
+      <style>{`
+        @keyframes scroll-left {
+          from {
+            transform: translateX(0);
+          }
+          to {
+            transform: translateX(calc(-50% - 16px));
+          }
+        }
+
+        .marquee-track:hover {
+          animation-play-state: paused;
+        }
+
+        @keyframes rotateGlow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+          h1 { font-size: 40px !important; }
+          .marquee-track { gap: 16px !important; }
+          div[style*="flex: 0 0 350px"] { flex: 0 0 280px !important; height: 380px !important; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -1371,7 +1646,7 @@ function HomeHero() {
   const handleStart = () => {
     navigate("/");
   };
-  
+
   return (
     <main className="preview-section full-view">
       <div
@@ -1477,13 +1752,13 @@ function HomeHero() {
 function AuthRoute() {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Get the page they were trying to access, default to home (generation page)
   const from = location.state?.from?.pathname || "/";
 
   const handleSuccess = () => {
     console.log('✅ Auth successful, redirecting to:', from);
-    
+
     navigate(from, { replace: true });
   };
 
@@ -1516,23 +1791,23 @@ function Shell() {
 
         {/* 🆕 Optional about page (old landing hero) */}
         <Route path="/about" element={<HomeHero />} />
-        
+
         {/* Payment status routes - require auth */}
-        <Route 
-          path="/payment/success" 
+        <Route
+          path="/payment/success"
           element={
             <RequireAuth>
               <PaymentSuccess />
             </RequireAuth>
-          } 
+          }
         />
-        <Route 
-          path="/payment/cancel" 
+        <Route
+          path="/payment/cancel"
           element={
             <RequireAuth>
               <PaymentCancelled />
             </RequireAuth>
-          } 
+          }
         />
 
         {/* Catch all - redirect to home (generation page) */}
@@ -1552,6 +1827,6 @@ function Shell() {
  */
 export default function LandingPage() {
   return (
-      <Shell />
+    <Shell />
   );
 } 
