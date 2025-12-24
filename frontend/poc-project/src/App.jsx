@@ -415,6 +415,12 @@ export default function App() {
                             {preset.label}
                           </button>
                         ))}
+                        <button
+                          onClick={() => setShowAllPresets(!showAllPresets)}
+                          className="stitch-see-more-btn"
+                        >
+                          {showAllPresets ? 'Less' : 'More'}
+                        </button>
                       </div>
                     </div>
                   </div>

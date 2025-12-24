@@ -3718,6 +3718,24 @@ kbd {
   color: #667EEA;
 }
 
+.stitch-see-more-btn {
+  background: none;
+  border: 1px dashed rgba(102, 126, 234, 0.4);
+  color: #667EEA;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.stitch-see-more-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: #667EEA;
+}
+
 /* ============================================
    STITCH LAYOUT CORE
    ============================================ */
