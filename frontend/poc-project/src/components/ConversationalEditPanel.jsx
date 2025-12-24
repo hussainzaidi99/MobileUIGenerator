@@ -2,6 +2,8 @@
 // ✅ FIXED: Input scrolls with conversation
 
 import React, { useState, useRef, useEffect } from 'react';
+import AppIcon from '../assets/Appicon.jpg';
+
 
 export default function ConversationalEditPanel({
   sessionId,
@@ -191,7 +193,9 @@ export default function ConversationalEditPanel({
               className={`stitch-message ${msg.role === 'user' ? 'user' : 'assistant'} ${msg.isError ? 'error' : ''}`}
             >
               <div className="message-avatar">
-                {msg.role === 'user' ? '👤' : '✨'}
+                {msg.role === 'user' ? '👤' : (
+                  <img src={AppIcon} alt="AI" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                )}
               </div>
               <div className="message-content">
                 {msg.content}
@@ -202,7 +206,9 @@ export default function ConversationalEditPanel({
           {/* Loading indicator during initial generation */}
           {loading && (
             <div className="stitch-message assistant processing">
-              <div className="message-avatar">✨</div>
+              <div className="message-avatar">
+                <img src={AppIcon} alt="AI" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+              </div>
               <div className="message-content">
                 <div style={{ marginBottom: '4px' }}>
                   {processingStage || "Working on your request..."}
@@ -217,7 +223,9 @@ export default function ConversationalEditPanel({
           {/* Processing indicator for edits */}
           {isProcessing && !loading && (
             <div className="stitch-message assistant processing">
-              <div className="message-avatar">✨</div>
+              <div className="message-avatar">
+                <img src={AppIcon} alt="AI" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+              </div>
               <div className="message-content">
                 <span className="typing-dot">.</span>
                 <span className="typing-dot">.</span>

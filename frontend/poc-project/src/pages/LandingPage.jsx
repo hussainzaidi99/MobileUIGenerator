@@ -14,6 +14,8 @@ import AuthPage from "./AuthPage";
 import App from "../App";
 import { PaymentSuccess, PaymentCancelled } from './PaymentStatusPage';
 import PricingPage from './PricingPage';
+import AppIcon from "../assets/Appicon.jpg";
+
 
 /**
  * Protects routes that require authentication.
@@ -428,16 +430,19 @@ function MainHeader() {
             style={{
               width: '36px',
               height: '36px',
-              background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
               borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '20px',
-              boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)'
+              boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
+              overflow: 'hidden'
             }}
           >
-            🤖
+            <img
+              src={AppIcon}
+              alt="App Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           </div>
           <span
             style={{
@@ -539,34 +544,7 @@ function MainHeader() {
           >
             Pricing
           </Link>
-          <Link
-            to="/showcase"
-            style={{
-              fontSize: '15px',
-              fontWeight: isActive('/showcase') ? '600' : '500',
-              color: isActive('/showcase') ? '#f8fafc' : '#cbd5e1',
-              textDecoration: 'none',
-              transition: 'all 0.2s',
-              cursor: 'pointer',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              background: isActive('/showcase') ? 'rgba(139, 92, 246, 0.2)' : 'transparent'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.color = '#f8fafc';
-              if (!isActive('/showcase')) {
-                e.target.style.background = 'rgba(139, 92, 246, 0.15)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.color = isActive('/showcase') ? '#f8fafc' : '#cbd5e1';
-              if (!isActive('/showcase')) {
-                e.target.style.background = 'transparent';
-              }
-            }}
-          >
-            Showcase
-          </Link>
+
         </nav>
 
         {/* Right: Auth Buttons or User Dropdown */}
@@ -1772,48 +1750,50 @@ function Shell() {
   const location = useLocation();
   const isAuthPage = location.pathname === '/auth' || location.pathname.startsWith('/auth/');
   return (
-    <>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {!isAuthPage && <MainHeader />}
-      <Routes>
-        {/* 🆕 Default route - PUBLIC generation page */}
-        <Route path="/" element={<App />} />
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}>
+        <Routes>
+          {/* 🆕 Default route - PUBLIC generation page */}
+          <Route path="/" element={<App />} />
 
-        {/* Navigation pages */}
-        <Route path="/features" element={<FeaturesPage />} />
-        <Route path="/templates" element={<TemplatesPage />} />
-        <Route path="/showcase" element={<ShowcasePage />} />
+          {/* Navigation pages */}
+          <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/templates" element={<TemplatesPage />} />
+          <Route path="/showcase" element={<ShowcasePage />} />
 
-        {/* Auth page - accessible to all */}
-        <Route path="/auth" element={<AuthRoute />} />
+          {/* Auth page - accessible to all */}
+          <Route path="/auth" element={<AuthRoute />} />
 
-        {/* Pricing page - accessible to all but requires auth for purchase */}
-        <Route path="/pricing" element={<PricingPage />} />
+          {/* Pricing page - accessible to all but requires auth for purchase */}
+          <Route path="/pricing" element={<PricingPage />} />
 
-        {/* 🆕 Optional about page (old landing hero) */}
-        <Route path="/about" element={<HomeHero />} />
+          {/* 🆕 Optional about page (old landing hero) */}
+          <Route path="/about" element={<HomeHero />} />
 
-        {/* Payment status routes - require auth */}
-        <Route
-          path="/payment/success"
-          element={
-            <RequireAuth>
-              <PaymentSuccess />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/payment/cancel"
-          element={
-            <RequireAuth>
-              <PaymentCancelled />
-            </RequireAuth>
-          }
-        />
+          {/* Payment status routes - require auth */}
+          <Route
+            path="/payment/success"
+            element={
+              <RequireAuth>
+                <PaymentSuccess />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/payment/cancel"
+            element={
+              <RequireAuth>
+                <PaymentCancelled />
+              </RequireAuth>
+            }
+          />
 
-        {/* Catch all - redirect to home (generation page) */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </>
+          {/* Catch all - redirect to home (generation page) */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+    </div>
   );
 }
 

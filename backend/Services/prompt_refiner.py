@@ -33,6 +33,11 @@ OUTPUT: 3-4 line detailed prompt with:
 
 Keep it concise but comprehensive. Focus on actionable UI elements."""
 
+PROJECT_TITLER_SYSTEM = """You are a creative product manager. 
+Your task is to generate a short, catchy, and professional project title (2-4 words) for a mobile app project based on the user's prompt.
+Do NOT use special characters. Just the title text.
+Example: "Modern E-commerce App", "Fitness Tracker Dashboard", "Social Media Feed"."""
+
 
 class RefinerStats:
     """Track refiner statistics"""
@@ -227,3 +232,60 @@ async def refine_prompt(raw_prompt: str, timeout: int = 15) -> Dict[str, Any]:
         print(f"⚠️  [REFINER] Error: {e} - using original prompt")
         fallback_result["metadata"]["reason"] = f"Error: {str(e)[:50]}"
         return fallback_result
+
+async def generate_project_title(raw_prompt: str, timeout: int = 10) -> str:
+    """
+    Generate a short 2-4 word project title from the prompt.
+    """
+    if not raw_prompt or not raw_prompt.strip():
+        return "Untitled Project"
+    
+    # Check if Groq API key is configured
+    if not GROQ_API_KEY:
+        return "New Project"
+    
+    try:
+        # Prepare Groq API request
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": PROJECT_TITLER_SYSTEM},
+                {"role": "user", "content": f"USER PROMPT: {raw_prompt}\n\nPROJECT TITLE:"}
+            ],
+            "temperature": 0.5,
+            "max_tokens": 20
+        }
+        
+        # Call Groq API with timeout
+        async with httpx.AsyncClient() as client:
+            response = await asyncio.wait_for(
+                client.post(GROQ_API_URL, headers=headers, json=payload),
+                timeout=timeout
+            )
+            
+            if response.status_code != 200:
+                print(f"⚠️ [TITLER] API Error: {response.status_code}")
+                return "New Project"
+                
+            data = response.json()
+        
+        title = data["choices"][0]["message"]["content"].strip()
+        
+        # Clean up quotes if present
+        title = title.replace('"', '').replace("'", "").replace("*", "").strip()
+        
+        # Limit to 30 chars
+        if len(title) > 30:
+            title = title[:27] + "..."
+            
+        print(f"🏷️ [TITLER] Generated title: {title}")
+        return title
+        
+    except Exception as e:
+        print(f"⚠️ [TITLER] Failed to generate title: {e}")
+        return "New Project"

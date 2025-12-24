@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv
 import io
 import zipfile
-from Services.prompt_refiner import refine_prompt, refiner_stats
+from Services.prompt_refiner import refine_prompt, refiner_stats, generate_project_title
 from LLM_Schema.llm_client import (
     extract_intent,
     componentize,
@@ -847,7 +847,14 @@ async def generate_pipeline(request: Request):
         print(f"⚠️ Credit deduction warning: {deduction_result.get('error')}")
 
     # --------------------------------------------------------------------- #
-    # 🆕 STEP 9: TOKEN / CREDIT USAGE SUMMARY
+    # 🆕 STEP 9: GENERATE PROJECT TITLE
+    # --------------------------------------------------------------------- #
+    
+    project_title = await generate_project_title(raw_prompt)
+    print(f"🏷️ [STEP 9] Auto-generated project title: {project_title}")
+
+    # --------------------------------------------------------------------- #
+    # 🆕 STEP 10: TOKEN / CREDIT USAGE SUMMARY
     # --------------------------------------------------------------------- #
 
     usage_summary = token_tracker.get_summary()
@@ -889,12 +896,12 @@ async def generate_pipeline(request: Request):
             "images_enriched": True,
             "preview_enhanced": True,
         },
-        # 🆕 Credit & token usage stats
         "usage": {
             "tokens": usage_summary,
             "credits": deduction_result,
             "estimated_tokens": estimated_tokens,
         },
+        "project_title": project_title,
     }
 
 
@@ -1469,6 +1476,7 @@ async def create_edit_session_endpoint(request: Request):
     web_preview = body.get("web_preview")
     react_native_code = body.get("react_native_code")
     user_id = body.get("user_id")
+    title = body.get("title", "New Project")
     
     if not component_model:
         return JSONResponse(
@@ -1486,6 +1494,7 @@ async def create_edit_session_endpoint(request: Request):
     session_id = await create_editing_session(
         component_model, 
         user_id, 
+        title=title,
         web_preview=web_preview, 
         react_native_code=react_native_code
     )
@@ -1543,6 +1552,26 @@ async def delete_conversation(conversation_id: str, user_id: str):
         
     await session_manager.delete_session(conversation_id)
     return {"success": True}
+
+@app.patch("/conversations/{conversation_id}/title")
+async def update_conversation_title(conversation_id: str, request: Request):
+    """Update a conversation title."""
+    body = await request.json()
+    new_title = body.get("title")
+    user_id = body.get("user_id")
+    
+    if not new_title:
+        raise HTTPException(status_code=400, detail="Missing title")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Missing user_id")
+        
+    # Ownership Check
+    session = await session_manager.get_session(conversation_id)
+    if not session or session["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+        
+    success = await session_manager.update_session_title(conversation_id, new_title)
+    return {"success": success, "new_title": new_title}
 
 
 # ============================================================================ #

@@ -216,6 +216,17 @@ class SessionManager:
         print(f"🗑️ Deleted conversation history for {session_id}")
         return True
 
+    async def update_session_title(self, session_id: str, new_title: str) -> bool:
+        """
+        Update the title of a conversation.
+        """
+        db = Database.get_db()
+        result = await db.conversations.update_one(
+            {"conversation_id": session_id},
+            {"$set": {"title": new_title, "last_modified": datetime.utcnow()}}
+        )
+        return result.modified_count > 0
+
     async def get_conversation_history(self, session_id: str, last_n_exchanges: int = 3) -> List[Dict]:
         """
         Get recent message history.

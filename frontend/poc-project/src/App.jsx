@@ -219,7 +219,8 @@ export default function App() {
               component_model: data?.component_model,
               web_preview: data?.web_preview,
               react_native_code: data?.react_native_code,
-              user_id: userId
+              user_id: userId,
+              title: data?.project_title || "New Project"
             })
           }
         );

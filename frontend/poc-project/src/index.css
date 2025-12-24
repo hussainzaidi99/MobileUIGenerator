@@ -88,7 +88,7 @@ body {
    APP LAYOUT
    ============================================ */
 .app-container {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -3741,7 +3741,7 @@ kbd {
    ============================================ */
 .stitch-main-layout {
   display: flex;
-  height: 100vh;
+  height: 100%;
   width: 100vw;
   overflow: hidden;
   background: #0a0a0f;
@@ -6921,6 +6921,47 @@ body::after {
 .sidebar-hide-btn:hover {
   background: rgba(139, 92, 246, 0.2) !important;
   color: white !important;
+}
+
+/* Renaming UI */
+.sidebar-item-input {
+  background: rgba(255, 255, 256, 0.05) !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+  border-radius: 6px !important;
+  color: #f1f5f9 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 2px 8px !important;
+  width: 90% !important;
+  outline: none !important;
+  margin-bottom: 4px !important;
+}
+
+.item-rename-btn {
+  opacity: 0;
+  background: none !important;
+  border: none !important;
+  color: #94a3b8 !important;
+  cursor: pointer !important;
+  padding: 4px !important;
+  font-size: 12px !important;
+  transition: all 0.2s !important;
+  margin-left: 8px !important;
+}
+
+.sidebar-item:hover .item-rename-btn {
+  opacity: 1 !important;
+}
+
+.item-rename-btn:hover {
+  color: #a78bfa !important;
+  transform: scale(1.2) !important;
+}
+
+.item-title {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
 }
 
 .stitch-sidebar-toggle-btn.floating {

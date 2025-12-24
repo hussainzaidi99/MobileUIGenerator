@@ -13,6 +13,8 @@ export default function Sidebar({
     const [conversations, setConversations] = useState([]);
     const [loading, setLoading] = useState(false);
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, convId: null, title: '' });
+    const [editingId, setEditingId] = useState(null);
+    const [editingTitle, setEditingTitle] = useState("");
 
     useEffect(() => {
         if (userId) {
@@ -74,6 +76,45 @@ export default function Sidebar({
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
+    const handleTitleEditStart = (e, conv) => {
+        e.stopPropagation();
+        setEditingId(conv.conversation_id);
+        setEditingTitle(conv.title || "");
+    };
+
+    const handleTitleSave = async (convId) => {
+        if (!editingTitle.trim() || editingTitle === conversations.find(c => c.conversation_id === convId)?.title) {
+            setEditingId(null);
+            return;
+        }
+
+        try {
+            const res = await fetch(`${apiBaseUrl}/conversations/${convId}/title`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: editingTitle, user_id: userId })
+            });
+
+            if (res.ok) {
+                setConversations(prev => prev.map(c =>
+                    c.conversation_id === convId ? { ...c, title: editingTitle } : c
+                ));
+            }
+        } catch (err) {
+            console.error("Rename failed:", err);
+        } finally {
+            setEditingId(null);
+        }
+    };
+
+    const handleKeyDown = (e, convId) => {
+        if (e.key === 'Enter') {
+            handleTitleSave(convId);
+        } else if (e.key === 'Escape') {
+            setEditingId(null);
+        }
+    };
+
     const grouped = conversations.reduce((acc, conv) => {
         const label = formatDate(conv.last_modified);
         if (!acc[label]) acc[label] = [];
@@ -107,7 +148,32 @@ export default function Sidebar({
                             >
                                 <div className="item-icon">📱</div>
                                 <div className="item-details">
-                                    <div className="item-title">{conv.title || "Untitled Project"}</div>
+                                    {editingId === conv.conversation_id ? (
+                                        <input
+                                            autoFocus
+                                            className="sidebar-item-input"
+                                            value={editingTitle}
+                                            onChange={(e) => setEditingTitle(e.target.value)}
+                                            onBlur={() => handleTitleSave(conv.conversation_id)}
+                                            onKeyDown={(e) => handleKeyDown(e, conv.conversation_id)}
+                                            onClick={(e) => e.stopPropagation()}
+                                        />
+                                    ) : (
+                                        <div
+                                            className="item-title"
+                                            title="Click to rename"
+                                            onDoubleClick={(e) => handleTitleEditStart(e, conv)}
+                                        >
+                                            {conv.title || "Untitled Project"}
+                                            <button
+                                                className="item-rename-btn"
+                                                onClick={(e) => handleTitleEditStart(e, conv)}
+                                                title="Rename project"
+                                            >
+                                                ✎
+                                            </button>
+                                        </div>
+                                    )}
                                     <div className="item-meta">{conv.screen_type} • {conv.version_count} v</div>
                                 </div>
                                 <button
