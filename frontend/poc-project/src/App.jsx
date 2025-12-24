@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import CanvasRendererLite from "./components/CanvasRendererLite";
 import CodePreview from "./components/CodePreview";
 import ExportButton from "./components/ExportButton";
+import Sidebar from "./components/Sidebar";
 import ConversationalEditPanel from "./components/ConversationalEditPanel";
 import { getPresetById, PRESET_PROMPTS } from "./constants/presetPrompts";
 import "./index.css";
@@ -18,6 +19,7 @@ export default function App() {
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState(null);
   const [showCode, setShowCode] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(window.innerWidth > 1400); // Default open on large screens
   const [processingStage, setProcessingStage] = useState("");
   const [enhancing, setEnhancing] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(null);
@@ -215,6 +217,8 @@ export default function App() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               component_model: data?.component_model,
+              web_preview: data?.web_preview,
+              react_native_code: data?.react_native_code,
               user_id: userId
             })
           }
@@ -256,13 +260,46 @@ export default function App() {
     }
   };
 
-  const handleLayoutUpdate = (newLayout) => {
+  const handleSelectConversation = async (convId) => {
+    setLoading(true);
+    setError(null);
+    setProcessingStage("Loading project...");
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/edit-session/${convId}`);
+      if (!res.ok) throw new Error("Failed to load conversation");
+
+      const data = await res.json();
+
+      // Load state
+      setSessionId(data.session_id);
+      setLayout(data?.web_preview || data?.component_model);
+      setRnCode(data?.react_native_code || {});
+      setShowCode(false);
+      setPrompt(""); // Clear search prompt
+
+      console.log("✅ Project loaded:", convId);
+    } catch (err) {
+      console.error("Load error:", err);
+      setError("Failed to load project history.");
+    } finally {
+      setLoading(false);
+      setProcessingStage("");
+    }
+  };
+
+  const handleLayoutUpdate = (newLayout, newRnCode) => {
     console.log("🔄 Layout updated from edit panel:", newLayout);
 
     setLayout({
       ...newLayout,
       _timestamp: Date.now()
     });
+
+    if (newRnCode) {
+      console.log("🔄 Code updated from edit panel");
+      setRnCode(newRnCode);
+    }
 
     console.log("✅ Layout state updated, component should re-render");
   };
@@ -289,8 +326,10 @@ export default function App() {
     setSessionId(null);
   };
 
+  const toggleSidebar = () => setShowSidebar(prev => !prev);
+
   const screenCount = layout?.screens?.length || 0;
-  const isSplitView = layout || loading;
+  const isSplitView = !!(layout || loading); // Ensure boolean
 
   const displayedPresets = showAllPresets
     ? PRESET_PROMPTS
@@ -298,370 +337,170 @@ export default function App() {
 
   return (
     <div className="app-container stitch-layout">
-      {/* ✅ MOBILE-OPTIMIZED DARK VEIL BACKGROUND */}
+      {/* Dark Veil background */}
       {isMobile ? (
-        // Mobile: Static, fewer particles for better performance
-        <DarkVeil
-          opacity={0.25}
-          particleCount={15}
-          enableAnimation={false}
-          showMesh={false}
-        />
+        <DarkVeil opacity={0.25} particleCount={15} enableAnimation={false} showMesh={false} />
       ) : (
-        // Desktop: Full animated experience
-        <DarkVeil
-          opacity={0.4}
-          particleCount={40}
-          enableAnimation={true}
-          showMesh={true}
-        />
+        <DarkVeil opacity={0.4} particleCount={40} enableAnimation={true} showMesh={true} />
       )}
 
-      {/* Insufficient Credits Modal */}
+      {/* Credits Modals */}
       {showInsufficientCreditsModal && (
         <div className="credits-modal-overlay" onClick={() => setShowInsufficientCreditsModal(false)}>
           <div className="credits-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-icon">{modalType === 'insufficient' ? '💳' : '⚠️'}</div>
-            <h2 className="modal-title">
-              {modalType === 'insufficient' ? 'Insufficient Credits' : 'Low Credits Warning'}
-            </h2>
+            <h2 className="modal-title">{modalType === 'insufficient' ? 'Insufficient Credits' : 'Low Credits Warning'}</h2>
             <p className="modal-message">
-              {modalType === 'insufficient'
-                ? (error || "You don't have enough credits. Please purchase more to continue.")
-                : `You have less than 10 credits remaining (${userCredits?.credits?.toFixed(4)} left). Consider topping up soon to keep generating!`}
+              {modalType === 'insufficient' ? (error || "You don't have enough credits.") : `Low credits (${userCredits?.credits?.toFixed(2)} left).`}
             </p>
             <div className="modal-actions">
-              <button
-                className="modal-btn modal-btn-primary"
-                onClick={() => {
-                  setShowInsufficientCreditsModal(false);
-                  navigate('/pricing');
-                }}
-              >
-                Buy Credits
-              </button>
-              <button
-                className="modal-btn modal-btn-secondary"
-                onClick={() => setShowInsufficientCreditsModal(false)}
-              >
-                {modalType === 'insufficient' ? 'Close' : 'Continue'}
-              </button>
+              <button className="modal-btn modal-btn-primary" onClick={() => navigate('/pricing')}>Buy Credits</button>
+              <button className="modal-btn modal-btn-secondary" onClick={() => setShowInsufficientCreditsModal(false)}>Close</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Split Layout */}
-      <div className={`stitch-main-container ${isSplitView ? 'split-mode' : 'center-mode'}`}>
+      <div className={`stitch-main-layout ${!showSidebar ? 'sidebar-collapsed' : ''}`}>
+        {/* Sidebar Toggle Trigger (Floating or Header) */}
+        {!showSidebar && (
+          <button onClick={toggleSidebar} className="stitch-sidebar-toggle-btn floating">
+            📁
+          </button>
+        )}
 
-        {/* Left Panel */}
-        <div className={`stitch-left-panel ${isSplitView ? 'expanded' : ''}`}>
+        {/* HISTORY SIDEBAR */}
+        {userId && (
+          <Sidebar
+            userId={userId}
+            activeSessionId={sessionId}
+            onSelectConversation={handleSelectConversation}
+            onNewProject={handleNewGeneration}
+            apiBaseUrl={import.meta.env.VITE_API_BASE_URL}
+            onClose={() => setShowSidebar(false)} // Optional: close on mobile/select
+          />
+        )}
 
-          {/* CENTER MODE: Hero + Input */}
-          {!isSplitView && (
-            <div className="stitch-hero-content">
-              <h1 className="stitch-title">
-                Generate Your Dream Mobile<br />
-                User Interfaces with <span className="gradient-text-stitch">AI</span>
-              </h1>
+        <div className="stitch-content-area">
+          <div className={`stitch-main-container ${isSplitView ? 'split-mode' : 'center-mode'}`}>
+            <div className={`stitch-left-panel ${isSplitView ? 'expanded' : ''}`}>
+              {!isSplitView && (
+                <div className="stitch-hero-content">
+                  <h1 className="stitch-title">Generate Your Dream Mobile UI with <span className="gradient-text-stitch">AI</span></h1>
+                  <p className="stitch-subtitle">Describe your vision, and we'll build it instantly.</p>
 
-              <p className="stitch-subtitle">
-                Simply describe the Mobile UI you envision, and our advanced AI will<br />
-                build, design & write content for you instantly. No coding required.
-              </p>
+                  <div className="stitch-input-wrapper-center">
+                    <div className="stitch-input-container">
+                      <div className="sparkle-icon-stitch">✨</div>
+                      <textarea
+                        className="stitch-input"
+                        rows={1}
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder="Describe your mobile UI..."
+                        disabled={loading || enhancing}
+                      />
+                      <button onClick={generate} className="stitch-btn-inline" disabled={loading || enhancing || !prompt.trim()}>
+                        {loading ? 'Generating...' : 'Generate UI →'}
+                      </button>
+                    </div>
 
-              <div className="stitch-input-wrapper-center">
-                <div className="stitch-input-container">
-                  <div className="sparkle-icon-stitch">✨</div>
-                  <textarea
-                    className="stitch-input"
-                    rows={1}
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Describe your mobile UI (e.g., 'A minimalist portfolio for a photographer')"
-                    disabled={loading || enhancing}
-                  />
-
-                  <button
-                    onClick={generate}
-                    className="stitch-btn-inline"
-                    disabled={loading || enhancing || !prompt.trim()}
-                  >
-                    {loading ? (
-                      <>
-                        <span className="spinner-small"></span>
-                        Generating
-                      </>
-                    ) : (
-                      <>
-                        Generate UI
-                        <span className="arrow-icon-stitch">→</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Credits Estimate */}
-                {estimatedCost && !loading && (
-                  <div
-                    className="credits-estimate-card"
-                    style={{
-                      padding: '14px 18px',
-                      background: 'rgba(59, 130, 246, 0.1)',
-                      border: '2px solid rgba(59, 130, 246, 0.3)',
-                      borderRadius: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      animation: 'fadeIn 0.3s ease-out',
-                    }}
-                  >
-                    <span style={{ fontSize: '20px' }}>ℹ️</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        color: '#3B82F6',
-                        marginBottom: '2px'
-                      }}>
-                        Estimated Cost
-                      </div>
-                      <div style={{
-                        fontSize: '12px',
-                        color: '#60A5FA',
-                        fontWeight: '600'
-                      }}>
-                        ~{estimatedCost.credits.toFixed(4)} credits
-                        ({new Intl.NumberFormat().format(estimatedCost.tokens)} tokens)
-                        {userCredits && (
-                          <span style={{ marginLeft: '8px', opacity: 0.8 }}>
-                            • You have: {userCredits.credits.toFixed(4)} credits
-                          </span>
-                        )}
-                      </div>
-                      <div style={{
-                        fontSize: '11px',
-                        color: '#93C5FD',
-                        marginTop: '4px',
-                        fontStyle: 'italic'
-                      }}>
-                        This is an estimate. Actual cost may vary.
+                    <div className="stitch-initial-controls">
+                      <button onClick={enhancePrompt} className="stitch-text-btn" disabled={enhancing || loading || !prompt.trim()}>
+                        {enhancing ? 'Enhancing...' : '✨ Enhance Prompt'}
+                      </button>
+                      <div className="stitch-presets-row">
+                        {displayedPresets.map(preset => (
+                          <button key={preset.id} onClick={() => handlePresetClick(preset.id)} className="stitch-preset-chip-small">
+                            {preset.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
-                )}
+                  {error && <div className="stitch-error">⚠️ {error}</div>}
+                </div>
+              )}
 
-                <div className="stitch-initial-controls">
-                  <button
-                    onClick={enhancePrompt}
-                    className="stitch-text-btn"
-                    disabled={enhancing || loading || !prompt.trim()}
-                  >
-                    {enhancing ? 'Enhancing...' : '✨ Enhance Prompt'}
-                  </button>
+              {isSplitView && (
+                <div className="stitch-sidebar-content">
+                  <div className="stitch-sidebar-header">
+                    <button onClick={toggleSidebar} className="sidebar-hide-btn" title="Hide History">
+                      {showSidebar ? '◀' : '▶'}
+                    </button>
+                    <span className="logo-text">AppGen</span>
+                    <button onClick={handleNewGeneration} className="new-chat-btn">+</button>
+                  </div>
+                  {(layout && sessionId) || loading ? (
+                    <ConversationalEditPanel
+                      sessionId={sessionId}
+                      userId={userId}
+                      initialPrompt={prompt}
+                      onLayoutUpdate={handleLayoutUpdate}
+                      apiBaseUrl={import.meta.env.VITE_API_BASE_URL}
+                      loading={loading}
+                      processingStage={processingStage}
+                    />
+                  ) : (
+                    <div className="stitch-loading-state">
+                      <div className="loading-pulse-ring"></div>
+                      <p>{processingStage || "Loading..."}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-                  <div className="stitch-presets-row">
-                    {displayedPresets.map((preset) => (
-                      <button
-                        key={preset.id}
-                        onClick={() => handlePresetClick(preset.id)}
-                        className={`stitch-preset-chip-small ${selectedPreset === preset.id ? 'active' : ''}`}
-                      >
-                        {preset.label}
-                      </button>
-                    ))}
-
-                    {PRESET_PROMPTS.length > 3 && (
-                      <button
-                        onClick={() => setShowAllPresets(!showAllPresets)}
-                        className="stitch-preset-chip-small"
-                        style={{
-                          background: 'rgba(99, 102, 241, 0.1)',
-                          border: '1px solid rgba(99, 102, 241, 0.3)',
-                          color: '#667EEA',
-                          fontWeight: '700'
-                        }}
-                      >
-                        {showAllPresets ? '↑ Show Less' : `↓ ${PRESET_PROMPTS.length - 3} More`}
-                      </button>
-                    )}
+            <div className={`stitch-right-panel ${isSplitView ? 'visible' : ''}`}>
+              {isSplitView && layout && (
+                <div className="stitch-floating-toolbar">
+                  <div className="toolbar-group">
+                    <button onClick={toggleCodeView} className="toolbar-btn">{showCode ? '📱 Preview' : '💻 Code'}</button>
+                    {rnCode && <ExportButton rnCode={rnCode} className="toolbar-btn" />}
                   </div>
                 </div>
-              </div>
-
-              {/* Error Message */}
-              {error && !loading && (
-                <div className="stitch-error" style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '16px 20px',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '2px solid rgba(239, 68, 68, 0.2)',
-                  borderRadius: '12px',
-                  color: '#DC2626',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  marginTop: '16px'
-                }}>
-                  <span style={{ fontSize: '20px' }}>⚠️</span>
-                  <span>{error}</span>
-                </div>
               )}
-            </div>
-          )}
 
-          {/* SPLIT MODE: Sidebar with Conversation */}
-          {isSplitView && (
-            <div className="stitch-sidebar-content">
-              <div className="stitch-sidebar-header">
-                <span className="logo-text">AppGen</span>
-                <button
-                  onClick={handleNewGeneration}
-                  className="new-chat-btn"
-                  title="New Project"
-                >
-                  +
-                </button>
-              </div>
-
-              {(layout && sessionId) || loading ? (
-                <ConversationalEditPanel
-                  sessionId={sessionId}
-                  userId={userId}
-                  initialPrompt={prompt}
-                  onLayoutUpdate={handleLayoutUpdate}
-                  apiBaseUrl={import.meta.env.VITE_API_BASE_URL}
-                  loading={loading}
-                  processingStage={processingStage}
-                />
-              ) : (
-                <div className="stitch-loading-state">
-                  <div className="loading-pulse-ring"></div>
-                  <p>{processingStage || "Getting things ready..."}</p>
+              {loading ? (
+                <div className="stitch-canvas-placeholder">
+                  <div className="placeholder-icon">📱</div>
+                  <div className="placeholder-text">Generating...</div>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right Panel - Preview/Code Canvas */}
-        <div className={`stitch-right-panel ${isSplitView ? 'visible' : ''}`}>
-          {/* Floating Toolbar */}
-          {isSplitView && layout && (
-            <div className="stitch-floating-toolbar">
-              <div className="toolbar-group">
-                <button
-                  onClick={toggleCodeView}
-                  className={`toolbar-btn ${showCode ? 'active' : ''}`}
-                  title={showCode ? "Show Preview" : "Show Code"}
-                >
-                  {showCode ? '📱 Preview' : '💻 Code'}
-                </button>
-
-
-                {rnCode && Object.keys(rnCode).length > 0 && (
-                  <ExportButton rnCode={rnCode} className="toolbar-btn" />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Canvas Content */}
-          {loading ? (
-            <div className="stitch-canvas-placeholder" style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              padding: '60px 40px',
-              textAlign: 'center',
-              color: 'white'
-            }}>
-              <div className="placeholder-icon" style={{
-                fontSize: '120px',
-                marginBottom: '32px',
-                opacity: 0.9,
-                animation: 'float 3s ease-in-out infinite'
-              }}>📱</div>
-              <div className="placeholder-text" style={{
-                fontSize: '28px',
-                fontWeight: '800',
-                marginBottom: '16px',
-                textShadow: '0 2px 16px rgba(0, 0, 0, 0.2)'
-              }}>Generating your UI...</div>
-              <div className="placeholder-progress" style={{ width: '100%', maxWidth: '400px' }}>
-                <div className="progress-bar" style={{
-                  width: '100%',
-                  height: '8px',
-                  background: '#E2E8F0',
-                  borderRadius: '10px',
-                  overflow: 'hidden'
-                }}>
-                  <div className="progress-fill" style={{
-                    height: '100%',
-                    background: 'linear-gradient(90deg, #667EEA, #764BA2)',
-                    borderRadius: '10px',
-                    animation: 'progressFill 2s ease-in-out infinite'
-                  }}></div>
-                </div>
-              </div>
-            </div>
-          ) : layout ? (
-            <div className="stitch-canvas-container">
-              {!showCode ? (
-                <div className="phone-mockups-grid">
-                  {layout.screens?.map((screen, idx) => (
-                    <div key={`${screen.name || idx}-${layout._timestamp || ''}`} className="phone-mockup">
-                      <div className="phone-frame-wrapper">
-                        <div className="phone-notch"></div>
-
-                        <div className="phone-screen-area">
-                          <div className="phone-screen-header">
-                            <div className="screen-name-display">
-                              {screen.name || `Screen ${idx + 1}`}
+              ) : layout ? (
+                <div className="stitch-canvas-container">
+                  {!showCode ? (
+                    layout.screens && layout.screens.length > 0 ? (
+                      <div className="phone-mockups-grid">
+                        {layout.screens.map((screen, idx) => (
+                          <div key={idx} className="phone-mockup">
+                            <div className="phone-frame-wrapper">
+                              <div className="phone-notch"></div>
+                              <div className="phone-screen-area">
+                                <div className="phone-screen-content">
+                                  <CanvasRendererLite layout={{ screens: [screen], theme: layout.theme, tokens: layout.tokens }} />
+                                </div>
+                              </div>
                             </div>
                           </div>
-
-                          <div className="phone-screen-content">
-                            <CanvasRendererLite
-                              key={`canvas-${screen.name || idx}-${layout._timestamp || ''}`}
-                              layout={{
-                                screens: [screen],
-                                theme: layout.theme,
-                                tokens: layout.tokens
-                              }}
-                            />
-                          </div>
-
-                          <div className="phone-home-indicator"></div>
-                        </div>
+                        ))}
                       </div>
-                    </div>
-                  ))}
+                    ) : (
+                      <div className="code-preview-empty">
+                        <p>No screens found in design</p>
+                      </div>
+                    )
+                  ) : (
+                    <CodePreview rnCode={rnCode} />
+                  )}
                 </div>
               ) : (
-                rnCode && Object.keys(rnCode).length > 0 ? (
-                  <CodePreview rnCode={rnCode} />
-                ) : (
-                  <div className="empty-state" style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    padding: '60px 40px',
-                    textAlign: 'center',
-                    color: 'white'
-                  }}>
-                    <div className="empty-icon" style={{ fontSize: '120px', marginBottom: '32px' }}>📄</div>
-                    <h3 className="empty-title" style={{ fontSize: '28px', fontWeight: '800' }}>No Code Generated</h3>
-                  </div>
-                )
+                <div className="stitch-canvas-placeholder">
+                  <div className="placeholder-icon">🌑</div>
+                  <div className="placeholder-text">Waiting for design data...</div>
+                </div>
               )}
             </div>
-          ) : null}
+          </div>
         </div>
       </div>
     </div>

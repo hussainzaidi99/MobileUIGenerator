@@ -3719,6 +3719,70 @@ kbd {
 }
 
 /* ============================================
+   STITCH LAYOUT CORE
+   ============================================ */
+.stitch-main-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: #0a0a0f;
+  position: relative;
+}
+
+.stitch-content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  z-index: 10;
+}
+
+.stitch-main-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transition: all 0.4s ease;
+}
+
+.stitch-main-container.center-mode {
+  justify-content: center;
+  align-items: center;
+}
+
+.stitch-main-container.split-mode {
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+/* ============================================
+   SIDEBAR CONTENT (History & Edits)
+   ============================================ */
+.stitch-left-panel {
+  width: 100%;
+  max-width: 1200px;
+  padding: 80px 120px 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stitch-main-container.split-mode .stitch-left-panel {
+  width: 380px;
+  max-width: 380px;
+  min-width: 380px;
+  padding: 20px;
+  justify-content: flex-start;
+  border-right: 1px solid #E5E7EB;
+  overflow-y: auto;
+  flex-shrink: 0;
+  background: #FAFBFC;
+}
+
+/* ============================================
    SIDEBAR CONTENT (Split Mode)
    ============================================ */
 .stitch-sidebar-content {
@@ -4068,14 +4132,16 @@ kbd {
 }
 
 .stitch-main-container.split-mode .stitch-right-panel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch !important;
+  /* Don't center children if they have own size */
+  justify-content: flex-start !important;
+  padding: 0 !important;
 }
 
 .stitch-right-panel.visible {
-  opacity: 1;
+  opacity: 1 !important;
 }
 
 /* Floating Toolbar (Right Panel) */
@@ -4089,14 +4155,15 @@ kbd {
 }
 
 .toolbar-group {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  padding: 6px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  display: flex;
-  gap: 8px;
+  background: rgba(15, 23, 42, 0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  padding: 8px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
 }
 
 .toolbar-btn {
@@ -4127,17 +4194,17 @@ kbd {
    PHONE MOCKUPS
    ============================================ */
 .stitch-canvas-container {
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 1;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  position: relative !important;
+  z-index: 5 !important;
+  padding: 40px 0 !important;
+  overflow-y: auto !important;
+  background: transparent !important;
 }
 
 .phone-mockups-grid {
@@ -6373,4 +6440,492 @@ body::after {
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* ============================================
+   STITCH HISTORY SIDEBAR
+   ============================================ */
+.stitch-history-sidebar {
+  width: 250px;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.sidebar-collapsed .stitch-history-sidebar {
+  width: 0;
+  opacity: 0;
+  border-right: none;
+  pointer-events: none;
+}
+
+.sidebar-new-chat {
+  padding: 20px;
+}
+
+.new-chat-full-btn {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all var(--transition-fast);
+}
+
+.new-chat-full-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.plus-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.sidebar-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.sidebar-scroll-area::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.sidebar-group {
+  margin-bottom: 24px;
+}
+
+.sidebar-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 8px 10px;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  margin-bottom: 2px;
+  position: relative;
+}
+
+.sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-item.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-left: 3px solid var(--primary);
+}
+
+.item-icon {
+  font-size: 16px;
+  margin-right: 12px;
+}
+
+.item-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.item-delete-btn {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  transition: opacity var(--transition-fast);
+}
+
+.sidebar-item:hover .item-delete-btn {
+  opacity: 1;
+}
+
+.item-delete-btn:hover {
+  color: var(--error);
+}
+
+.sidebar-empty,
+.sidebar-loading {
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stitch-main-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.stitch-content-area {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ============================================
+   STITCH MODAL - Professional Styled Dialogs
+   ============================================ */
+.stitch-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.stitch-modal-content {
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.5rem;
+  padding: 2.5rem;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+}
+
+.stitch-modal-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  font-size: 2rem;
+  color: #ef4444;
+}
+
+.stitch-modal-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.stitch-modal-description {
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.stitch-modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.btn-modal-cancel {
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-modal-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-modal-delete {
+  padding: 0.75rem 1.5rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-modal-delete:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ============================================
+   CODE PREVIEW - Premium Developer Experience
+   ============================================ */
+.code-preview {
+  display: flex !important;
+  height: calc(100vh - 160px) !important;
+  min-height: 600px !important;
+  width: 95% !important;
+  max-width: 1300px !important;
+  background: #0f172a !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+  color: #e2e8f0 !important;
+  margin: 20px auto !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
+}
+
+.file-tree {
+  width: 220px !important;
+  background: #1e293b !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.file-tree-header {
+  padding: 18px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.file-tree-title {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  color: #a78bfa !important;
+  letter-spacing: 0.1em !important;
+}
+
+.file-list {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 10px !important;
+}
+
+.file-item {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 8px 12px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #94a3b8 !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-size: 13px !important;
+  transition: all 0.2s !important;
+  text-align: left !important;
+  margin-bottom: 4px !important;
+}
+
+.file-item:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #f1f5f9 !important;
+  transform: translateX(2px);
+}
+
+.file-item.active {
+  background: rgba(139, 92, 246, 0.2) !important;
+  color: #a78bfa !important;
+  font-weight: 600 !important;
+  border-left: 3px solid #8b5cf6 !important;
+}
+
+.file-icon {
+  margin-right: 10px !important;
+  font-size: 14px !important;
+}
+
+.code-display {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #0f172a !important;
+  min-width: 0 !important;
+}
+
+.code-header {
+  padding: 12px 24px !important;
+  background: #1e293b !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.current-file {
+  font-family: 'Fira Code', 'JetBrains Mono', monospace !important;
+  font-size: 13px !important;
+  color: #e2e8f0 !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  padding: 4px 12px !important;
+  border-radius: 6px !important;
+}
+
+.copy-button {
+  padding: 6px 14px !important;
+  background: rgba(139, 92, 246, 0.1) !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+  border-radius: 8px !important;
+  color: #a78bfa !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+}
+
+.copy-button:hover {
+  background: rgba(139, 92, 246, 0.2) !important;
+  color: white !important;
+  transform: translateY(-1px);
+}
+
+.code-content {
+  flex: 1 !important;
+  margin: 0 !important;
+  padding: 24px !important;
+  overflow: auto !important;
+  font-family: 'Fira Code', 'JetBrains Mono', monospace !important;
+  font-size: 14px !important;
+  line-height: 1.7 !important;
+  color: #cbd5e1 !important;
+  text-align: left !important;
+  background: #0f172a !important;
+}
+
+.code-preview-empty {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 600px !important;
+  color: #94a3b8 !important;
+  font-size: 18px !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px dashed rgba(139, 92, 246, 0.4) !important;
+  border-radius: 16px !important;
+  width: 100% !important;
+  margin: 20px 0 !important;
+}
+
+.code-preview-empty p {
+  margin-top: 16px !important;
+  font-weight: 600 !important;
+}
+
+/* ============================================
+   SIDEBAR TOGGLE BUTTONS
+   ============================================ */
+.sidebar-hide-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #a78bfa !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  transition: all 0.2s !important;
+  margin-right: 12px !important;
+}
+
+.sidebar-hide-btn:hover {
+  background: rgba(139, 92, 246, 0.2) !important;
+  color: white !important;
+}
+
+.stitch-sidebar-toggle-btn.floating {
+  position: fixed !important;
+  left: 20px !important;
+  top: 80px !important;
+  width: 44px !important;
+  height: 44px !important;
+  background: #8b5cf6 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  color: white !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  z-index: 1000 !important;
+  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4) !important;
+  transition: all 0.3s !important;
+  font-size: 20px !important;
+}
+
+.stitch-sidebar-toggle-btn.floating:hover {
+  transform: scale(1.1) rotate(5deg) !important;
+  background: #7c3aed !important;
 }

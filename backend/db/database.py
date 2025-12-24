@@ -11,7 +11,7 @@ Production-grade MongoDB configuration with:
 import os
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient  
-from pymongo import ASCENDING 
+from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError  
 from dotenv import load_dotenv
 import logging
@@ -237,6 +237,36 @@ class Database:
                 expireAfterSeconds=3600,
                 name="verifications_ttl_idx",
             )
+
+            # ==========================================
+            # Conversations collection indexes
+            # ==========================================
+            conversations_collection = cls.db.conversations
+
+            # User ID + Last Modified (for sidebar)
+            await conversations_collection.create_index(
+                [("user_id", ASCENDING), ("last_modified", DESCENDING)],
+                name="user_last_modified_idx",
+            )
+
+            # ==========================================
+            # Conversation Versions collection indexes
+            # ==========================================
+            versions_collection = cls.db.conversation_versions
+
+            # Conversation ID + Version Number (for quick fetching)
+            await versions_collection.create_index(
+                [("conversation_id", ASCENDING), ("version_num", ASCENDING)],
+                unique=True,
+                name="conv_version_idx",
+            )
+
+            # TTL index for versions (optional, but good for cleanup if needed)
+            # await versions_collection.create_index(
+            #     [("created_at", ASCENDING)],
+            #     expireAfterSeconds=2592000, # 30 days
+            #     name="versions_ttl_idx",
+            # )
 
             logger.info("✅ Database indexes created successfully")
 

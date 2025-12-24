@@ -47,7 +47,7 @@ export default function CodePreview({ rnCode }) {  // ✅ RENAMED PROP
   }
 
   return (
-    <div className="code-preview">
+    <div className="code-preview" style={{ background: '#0f172a', zIndex: 10, width: '100%', height: '100%' }}>
       {/* File Tree Sidebar */}
       <div className="file-tree">
         <div className="file-tree-header">

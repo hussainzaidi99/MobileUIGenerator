@@ -264,15 +264,25 @@ class PexelsQueryBuilder:
         
         prompt_lower = user_prompt.lower()
         
+        # Clean common prefixes and noise
+        prefixes = ["refined prompt:", "refined prompt", "prompt:", "user prompt:"]
+        for prefix in prefixes:
+            if prompt_lower.startswith(prefix):
+                prompt_lower = prompt_lower[len(prefix):].strip()
+        
         # Remove common UI/tech words
         noise_words = [
             "app", "mobile", "ui", "screen", "authentication", "auth",
             "login", "signup", "modern", "design", "interface", "with",
             "email", "password", "social", "google", "apple", "facebook",
-            "create", "build", "generate", "make", "for", "and", "the"
+            "create", "build", "generate", "make", "for", "and", "the",
+            "refined", "prompt", "images", "themed", "theme"
         ]
         
-        words = prompt_lower.split()
+        # Strip punctuation and split
+        import re
+        clean_prompt = re.sub(r'[^\w\s]', ' ', prompt_lower)
+        words = clean_prompt.split()
         context_words = []
         
         for word in words:

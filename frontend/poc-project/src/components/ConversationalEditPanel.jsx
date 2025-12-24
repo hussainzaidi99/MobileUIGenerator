@@ -21,45 +21,45 @@ export default function ConversationalEditPanel({
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null); // NEW: Reference to scrollable container
 
-  // Initialize conversation with the initial prompt
+  // Fetch history when sessionId changes
   useEffect(() => {
-    if (initialPrompt && messages.length === 0 && !loading) {
-      setMessages([
-        {
-          id: 'init-user',
-          role: 'user',
-          content: initialPrompt,
-          timestamp: new Date().toISOString()
-        },
-        {
-          id: 'init-ai',
-          role: 'assistant',
-          content: "I've generated the initial UI based on your description. What would you like to refine?",
-          timestamp: new Date().toISOString()
-        }
-      ]);
+    if (sessionId && !loading) {
+      fetchHistory();
     }
-  }, [initialPrompt, loading, messages.length]);
+  }, [sessionId, loading]);
 
-  // Show loading state during initial generation
-  useEffect(() => {
-    if (loading && initialPrompt && messages.length === 0) {
-      setMessages([
-        {
-          id: 'init-user',
-          role: 'user',
-          content: initialPrompt,
-          timestamp: new Date().toISOString()
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/edit-session/${sessionId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.conversation_history && data.conversation_history.length > 0) {
+          // Format history from backend
+          const history = data.conversation_history.map((m, idx) => ({
+            id: `hist-${idx}`,
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp
+          }));
+          setMessages(history);
+        } else if (initialPrompt && !loading) {
+          // Initial generation fallback
+          setMessages([
+            { id: 'init-user', role: 'user', content: initialPrompt, timestamp: new Date().toISOString() },
+            { id: 'init-ai', role: 'assistant', content: "Initial UI generated. What refinement would you like?", timestamp: new Date().toISOString() }
+          ]);
         }
-      ]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch history:", err);
     }
-  }, [loading, initialPrompt, messages.length]);
+  };
 
   // ✅ IMPROVED: Smooth scroll to bottom with better timing
   useEffect(() => {
     const scrollToBottom = () => {
       if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ 
+        messagesEndRef.current.scrollIntoView({
           behavior: 'smooth',
           block: 'end'
         });
@@ -68,10 +68,10 @@ export default function ConversationalEditPanel({
 
     // Scroll immediately
     scrollToBottom();
-    
+
     // Scroll again after a short delay to ensure content is rendered
     const timeoutId = setTimeout(scrollToBottom, 100);
-    
+
     return () => clearTimeout(timeoutId);
   }, [messages, isProcessing]);
 
@@ -119,26 +119,26 @@ export default function ConversationalEditPanel({
 
       if (!response.ok) {
         const errorData = await response.json();
-        
+
         // Handle insufficient credits
         if (response.status === 402) {
           throw new Error(`Insufficient credits: ${errorData.details?.message || 'Please top up your account'}`);
         }
-        
+
         throw new Error(errorData.error || `Error: ${response.status}`);
       }
 
       const data = await response.json();
-      
+
       console.log("✅ Edit response received:", data);
 
       // ✅ CRITICAL FIX: Update layout with proper data structure
       if (data.web_preview) {
         console.log("🔄 Updating layout with web_preview");
-        onLayoutUpdate(data.web_preview);
+        onLayoutUpdate(data.web_preview, data.react_native_code);
       } else if (data.component_model) {
         console.log("🔄 Updating layout with component_model");
-        onLayoutUpdate(data.component_model);
+        onLayoutUpdate(data.component_model, data.react_native_code);
       } else {
         console.warn("⚠️ No layout data in response");
       }
@@ -154,7 +154,7 @@ export default function ConversationalEditPanel({
     } catch (err) {
       console.error('❌ Edit error:', err);
       setError(err.message);
-      
+
       // Add assistant error message
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -182,12 +182,12 @@ export default function ConversationalEditPanel({
     <div className="stitch-sub-panel" ref={containerRef}>
       {/* ✅ FIXED: Messages + Input in scrollable container */}
       <div className="stitch-conversation-wrapper">
-        
+
         {/* Messages Container */}
         <div className="stitch-messages-container">
           {messages.map((msg) => (
-            <div 
-              key={msg.id} 
+            <div
+              key={msg.id}
               className={`stitch-message ${msg.role === 'user' ? 'user' : 'assistant'} ${msg.isError ? 'error' : ''}`}
             >
               <div className="message-avatar">
@@ -198,7 +198,7 @@ export default function ConversationalEditPanel({
               </div>
             </div>
           ))}
-          
+
           {/* Loading indicator during initial generation */}
           {loading && (
             <div className="stitch-message assistant processing">
@@ -213,7 +213,7 @@ export default function ConversationalEditPanel({
               </div>
             </div>
           )}
-          
+
           {/* Processing indicator for edits */}
           {isProcessing && !loading && (
             <div className="stitch-message assistant processing">
@@ -225,7 +225,7 @@ export default function ConversationalEditPanel({
               </div>
             </div>
           )}
-          
+
           {/* ✅ IMPROVED: Input Dock - Now inside scrollable area */}
           <div className="stitch-input-dock-inline">
             <div className="stitch-dock-inner">
@@ -235,31 +235,31 @@ export default function ConversationalEditPanel({
                 onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  loading 
-                    ? "Generating... please wait" 
-                    : sessionId 
-                      ? "Type your changes here..." 
+                  loading
+                    ? "Generating... please wait"
+                    : sessionId
+                      ? "Type your changes here..."
                       : "Waiting for initial generation..."
                 }
                 className="stitch-dock-input"
                 rows={1}
                 disabled={isProcessing || loading || !sessionId}
               />
-              <button 
-                onClick={handleSendMessage} 
-                disabled={!prompt.trim() || isProcessing || loading || !sessionId} 
+              <button
+                onClick={handleSendMessage}
+                disabled={!prompt.trim() || isProcessing || loading || !sessionId}
                 className="stitch-dock-load-btn"
                 title="Send message (Enter)"
               >
                 {isProcessing ? '...' : '↑'}
               </button>
             </div>
-            
+
             {/* Error message */}
             {error && !isProcessing && (
               <div className="stitch-mini-error">⚠️ {error}</div>
             )}
-            
+
             {/* Helper text */}
             {!loading && !isProcessing && sessionId && (
               <div style={{
@@ -272,7 +272,7 @@ export default function ConversationalEditPanel({
               </div>
             )}
           </div>
-          
+
           {/* Scroll anchor */}
           <div ref={messagesEndRef} style={{ height: '1px' }} />
         </div>

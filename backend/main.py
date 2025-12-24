@@ -1132,7 +1132,7 @@ async def edit_component_model(request: Request):
         )
     
     # Get session using helper function
-    session = get_editing_session(session_id)
+    session = await get_editing_session(session_id)
     
     if not session:
         return JSONResponse(
@@ -1197,20 +1197,38 @@ async def edit_component_model(request: Request):
             web_preview = PreviewAdapter.to_web_preview(updated_model)
             
             # Update session with correct parameters
-            session_manager.update_session(
+            await session_manager.update_session(
                 session_id=session_id,
                 new_component_model=updated_model,
                 user_message=edit_prompt,
                 assistant_response=f"Updated all images to {context} theme using Pexels",
-                tokens_used=0  # No LLM tokens used for direct update
+                tokens_used=0,  # No LLM tokens used for direct update
+                web_preview=web_preview
             )
             
             print(f"✅ [EDIT] Images updated in ~2 seconds (bypassed Gemini)")
             print(f"   Edit count: {session['edit_count']}")
             
+            # ✅ ENSURE HISTORY IS UPDATED EVEN FOR DIRECT UPDATES
+            # Regenerate RN code even for direct image updates to keep consistency
+            from Services.preview_to_react_native import PreviewToReactNativeConverter
+            converter = PreviewToReactNativeConverter(updated_model)
+            react_native_code = converter.convert()
+
+            await session_manager.update_session(
+                session_id=session_id,
+                new_component_model=updated_model,
+                user_message=edit_prompt,
+                assistant_response=f"Images updated to {context} theme (Direct Update)",
+                tokens_used=0,
+                web_preview=web_preview,
+                react_native_code=react_native_code
+            )
+
             return {
                 "component_model": updated_model,
                 "web_preview": web_preview,
+                "react_native_code": react_native_code,
                 "message": f"Images updated to {context} theme",
                 "edit_type": "image_only",
                 "bypassed_llm": True
@@ -1234,7 +1252,7 @@ async def edit_component_model(request: Request):
     print(f"   Theme: {current_model.get('theme', {}).get('primary', 'N/A')}")
     
     # Get recent conversation history
-    conversation_history = session_manager.get_conversation_history(
+    conversation_history = await session_manager.get_conversation_history(
         session_id,
         last_n_exchanges=3
     )
@@ -1359,6 +1377,22 @@ Return the complete updated component model as JSON."""
         web_preview = updated_model
     
     # -------------------------------------------------------------------- #
+    # STEP 4.5: REGENERATE REACT NATIVE CODE
+    # -------------------------------------------------------------------- #
+    
+    print("🔧 [EDIT] Regenerating React Native code...")
+    try:
+        from Services.preview_to_react_native import PreviewToReactNativeConverter
+        converter = PreviewToReactNativeConverter(updated_model)
+        react_native_code = converter.convert()
+        print(f"✅ [EDIT] RN code regenerated ({len(react_native_code)} files)")
+    except Exception as e:
+        print(f"⚠️ [EDIT] RN conversion failed during edit: {e}")
+        import traceback
+        traceback.print_exc()
+        react_native_code = {}
+
+    # -------------------------------------------------------------------- #
     # STEP 5: UPDATE SESSION & DEDUCT CREDITS
     # -------------------------------------------------------------------- #
     
@@ -1367,12 +1401,14 @@ Return the complete updated component model as JSON."""
     tokens_used = usage_summary.get("total_tokens", 0)
     
     # Update session
-    session_manager.update_session(
+    await session_manager.update_session(
         session_id,
         updated_model,
         edit_prompt,
         "Applied changes successfully",
-        tokens_used=tokens_used
+        tokens_used=tokens_used,
+        web_preview=web_preview,
+        react_native_code=react_native_code
     )
     
     # Deduct credits
@@ -1392,6 +1428,7 @@ Return the complete updated component model as JSON."""
         "session_id": session_id,
         "component_model": updated_model,
         "web_preview": web_preview,
+        "react_native_code": react_native_code,
         "edit_count": session["edit_count"] + 1,
         "usage": {
             "tokens": usage_summary,
@@ -1429,6 +1466,8 @@ async def create_edit_session_endpoint(request: Request):
     body = await request.json()
     
     component_model = body.get("component_model")
+    web_preview = body.get("web_preview")
+    react_native_code = body.get("react_native_code")
     user_id = body.get("user_id")
     
     if not component_model:
@@ -1444,7 +1483,12 @@ async def create_edit_session_endpoint(request: Request):
         )
     
     # Use helper function
-    session_id = create_editing_session(component_model, user_id)
+    session_id = await create_editing_session(
+        component_model, 
+        user_id, 
+        web_preview=web_preview, 
+        react_native_code=react_native_code
+    )
     
     return {
         "session_id": session_id,
@@ -1461,7 +1505,7 @@ async def create_edit_session_endpoint(request: Request):
 async def get_edit_session_status(session_id: str):
     """Get current session status and statistics"""
     
-    session = get_editing_session(session_id)
+    session = await get_editing_session(session_id)
     
     if not session:
         return JSONResponse(
@@ -1476,10 +1520,29 @@ async def get_edit_session_status(session_id: str):
         "total_tokens_used": session["total_tokens_used"],
         "created_at": session["created_at"].isoformat(),
         "last_activity": session["last_activity"].isoformat(),
-        "conversation_length": len(session["conversation_history"]),
-        "screens": session["metadata"]["screens"],
-        "screen_type": session["metadata"]["screen_type"]
+        "conversation_history": session.get("conversation_history", []),
+        "component_model": session.get("component_model"),
+        "web_preview": session.get("web_preview"),
+        "react_native_code": session.get("react_native_code"),
+        "metadata": session["metadata"]
     }
+
+@app.get("/conversations/list/{user_id}")
+async def list_user_conversations(user_id: str):
+    """List all persistent conversations for a user."""
+    conversations = await session_manager.get_user_sessions(user_id)
+    return {"conversations": conversations}
+
+@app.delete("/conversations/{conversation_id}")
+async def delete_conversation(conversation_id: str, user_id: str):
+    """Delete a conversation history."""
+    # Verify ownership (simplified for now)
+    session = await session_manager.get_session(conversation_id)
+    if not session or session["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Unauthorized or not found")
+        
+    await session_manager.delete_session(conversation_id)
+    return {"success": True}
 
 
 # ============================================================================ #
@@ -1517,7 +1580,7 @@ async def delete_edit_session(session_id: str, request: Request):
         )
     
     # Verify ownership before deletion
-    session = get_editing_session(session_id)
+    session = await get_editing_session(session_id)
     
     if not session:
         return JSONResponse(
@@ -1531,7 +1594,7 @@ async def delete_edit_session(session_id: str, request: Request):
             status_code=403
         )
     
-    success = session_manager.delete_session(session_id)
+    success = await session_manager.delete_session(session_id)
     
     if success:
         return {

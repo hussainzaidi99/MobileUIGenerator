@@ -1,419 +1,239 @@
 # backend/Services/session_manager.py
 """
-Session Manager for Conversational Editing
+Session Manager for Conversational Editing & History
 
-Manages editing sessions with:
-- Component model storage
-- Conversation history tracking
-- Automatic cleanup
-- Session timeout handling
+Manages persistent conversations with:
+- MongoDB storage for component models and history
+- Snapshot-based versioning
+- User-based retrieval
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+import os
+import json
+from datetime import datetime
+from typing import Dict, List, Optional, Any
 import uuid
-from threading import Lock
-
+from db.database import Database
 
 class SessionManager:
     """
-    Manages conversation sessions for live editing.
+    Manages persistent conversation sessions using MongoDB.
     
-    Each session stores:
-    - Original component model
-    - Conversation history with LLM
-    - Current state
-    - Edit statistics
-    
-    Features:
-    - Thread-safe operations
-    - Automatic timeout handling
-    - Memory-efficient storage
-    - Detailed session tracking
+    Architecture:
+    - 'conversations' collection: Metadata & sidebar info
+    - 'conversation_versions' collection: Full snapshots of each step
     """
     
-    def __init__(self, session_timeout_hours: int = 2):
-        """
-        Initialize session manager.
-        
-        Args:
-            session_timeout_hours: Hours before session expires (default: 2)
-        """
-        self.sessions: Dict[str, Dict] = {}
-        self.session_timeout = timedelta(hours=session_timeout_hours)
-        self._lock = Lock()
-        
-        print(f"✅ SessionManager initialized (timeout: {session_timeout_hours}h)")
+    def __init__(self):
+        """Initialize session manager wrapper."""
+        from datetime import timedelta
+        self.session_timeout = timedelta(hours=2) # Compatibility with main.py
+        print("✅ SessionManager (Persistent) initialized")
     
-    def create_session(self, component_model: dict, user_id: str) -> str:
+    def __len__(self) -> int:
+        """Compatibility with main.py startup check."""
+        return 0 # We don't track in-memory count anymore
+
+    def cleanup_expired_sessions(self):
+        """No-op: MongoDB handles persistence now."""
+        pass
+    
+    async def create_session(self, component_model: dict, user_id: str, title: str = "New Project", web_preview: dict = None, react_native_code: dict = None) -> str:
         """
-        Create new editing session.
-        
-        Args:
-            component_model: Initial component model from generation
-            user_id: User who owns this session
-            
-        Returns:
-            session_id: Unique identifier for the session
+        Create a new persistent conversation.
         """
-        session_id = str(uuid.uuid4())
+        db = Database.get_db()
+        conversation_id = str(uuid.uuid4())
         
-        with self._lock:
-            self.sessions[session_id] = {
-                "session_id": session_id,
-                "user_id": user_id,
+        # 1. Create Conversation Metadata
+        conversation = {
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "title": title,
+            "screen_type": component_model.get("design_strategy", {}).get("screen_type", "general"),
+            "last_modified": datetime.utcnow(),
+            "created_at": datetime.utcnow(),
+            "latest_version": 1,
+            "total_tokens": 0
+        }
+        await db.conversations.insert_one(conversation)
+        
+        # 2. Store First Version Snapshot
+        version_snapshot = {
+            "version_id": str(uuid.uuid4()),
+            "conversation_id": conversation_id,
+            "version_num": 1,
+            "data": {
                 "component_model": component_model,
-                "conversation_history": [],
-                "created_at": datetime.now(),
-                "last_activity": datetime.now(),
-                "edit_count": 0,
-                "total_tokens_used": 0,
-                "metadata": {
-                    "screens": len(component_model.get("screens", [])),
-                    "screen_type": component_model.get("design_strategy", {}).get("screen_type", "unknown")
-                }
+                "web_preview": web_preview,
+                "react_native_code": react_native_code
+            },
+            "message_history": [], # Initial generation has no history yet
+            "created_at": datetime.utcnow()
+        }
+        await db.conversation_versions.insert_one(version_snapshot)
+        
+        print(f"✅ Created persistent conversation {conversation_id} for user {user_id}")
+        return conversation_id
+    
+    async def get_session(self, session_id: str) -> Optional[Dict]:
+        """
+        Get the latest version of a conversation.
+        """
+        db = Database.get_db()
+        
+        # Fetch metadata
+        conversation = await db.conversations.find_one({"conversation_id": session_id})
+        if not conversation:
+            return None
+            
+        # Fetch latest version
+        latest_version = await db.conversation_versions.find_one(
+            {"conversation_id": session_id},
+            sort=[("version_num", -1)]
+        )
+        
+        if not latest_version:
+            return None
+            
+        # Format for return (mimicking old session structure but from DB)
+        return {
+            "session_id": session_id,
+            "user_id": conversation["user_id"],
+            "component_model": latest_version["data"]["component_model"],
+            "web_preview": latest_version["data"].get("web_preview"),
+            "react_native_code": latest_version["data"].get("react_native_code"),
+            "conversation_history": latest_version["message_history"],
+            "created_at": conversation["created_at"],
+            "last_activity": conversation["last_modified"],
+            "edit_count": latest_version["version_num"] - 1,
+            "total_tokens_used": conversation.get("total_tokens", 0),
+            "metadata": {
+                "screens": len(latest_version["data"]["component_model"].get("screens", [])),
+                "screen_type": conversation["screen_type"]
             }
-        
-        print(f"✅ Created session {session_id} for user {user_id}")
-        print(f"   Screens: {self.sessions[session_id]['metadata']['screens']}")
-        print(f"   Type: {self.sessions[session_id]['metadata']['screen_type']}")
-        
-        return session_id
-    
-    def get_session(self, session_id: str) -> Optional[Dict]:
-        """
-        Get session by ID with timeout check.
-        
-        Args:
-            session_id: Session identifier
-            
-        Returns:
-            Session dict or None if not found/expired
-        """
-        with self._lock:
-            session = self.sessions.get(session_id)
-            
-            if not session:
-                return None
-            
-            # Check timeout
-            if datetime.now() - session["last_activity"] > self.session_timeout:
-                print(f"⏰ Session {session_id} expired (inactive for {self.session_timeout})")
-                del self.sessions[session_id]
-                return None
-            
-            # Update last activity
-            session["last_activity"] = datetime.now()
-            
-            return session
-    
-    def update_session(
+        }
+
+    async def update_session(
         self,
         session_id: str,
         new_component_model: dict,
         user_message: str,
         assistant_response: str,
-        tokens_used: int = 0
+        tokens_used: int = 0,
+        web_preview: dict = None,
+        react_native_code: dict = None
     ) -> bool:
         """
-        Update session with new state and conversation.
-        
-        Args:
-            session_id: Session identifier
-            new_component_model: Updated component model
-            user_message: User's edit prompt
-            assistant_response: LLM's response summary
-            tokens_used: Tokens consumed in this edit
-            
-        Returns:
-            True if successful, False if session not found
+        Add a new version snapshot to the conversation.
         """
-        with self._lock:
-            session = self.sessions.get(session_id)
+        db = Database.get_db()
+        
+        # 1. Get current conversation to find next version number
+        conversation = await db.conversations.find_one({"conversation_id": session_id})
+        if not conversation:
+            return False
             
-            if not session:
-                return False
+        next_version = conversation.get("latest_version", 0) + 1
+        
+        # 2. Get previous message history
+        prev_version = await db.conversation_versions.find_one(
+            {"conversation_id": session_id},
+            sort=[("version_num", -1)]
+        )
+        
+        current_history = prev_version["message_history"] if prev_version else []
+        
+        # 3. Append new messages
+        new_messages = [
+            {"role": "user", "content": user_message, "timestamp": datetime.utcnow().isoformat()},
+            {"role": "assistant", "content": assistant_response, "timestamp": datetime.utcnow().isoformat()}
+        ]
+        updated_history = current_history + new_messages
+        
+        # Limit history size
+        if len(updated_history) > 20:
+            updated_history = updated_history[-20:]
             
-            # Update component model
-            session["component_model"] = new_component_model
-            
-            # Add to conversation history
-            session["conversation_history"].extend([
-                {
-                    "role": "user",
-                    "content": user_message,
-                    "timestamp": datetime.now().isoformat()
+        # 4. Save New Version Snapshot
+        new_snapshot = {
+            "version_id": str(uuid.uuid4()),
+            "conversation_id": session_id,
+            "version_num": next_version,
+            "data": {
+                "component_model": new_component_model,
+                "web_preview": web_preview,
+                "react_native_code": react_native_code
+            },
+            "message_history": updated_history,
+            "created_at": datetime.utcnow()
+        }
+        await db.conversation_versions.insert_one(new_snapshot)
+        
+        # 5. Update Conversation Metadata
+        await db.conversations.update_one(
+            {"conversation_id": session_id},
+            {
+                "$set": {
+                    "last_modified": datetime.utcnow(),
+                    "latest_version": next_version
                 },
-                {
-                    "role": "assistant",
-                    "content": assistant_response,
-                    "timestamp": datetime.now().isoformat()
+                "$inc": {
+                    "total_tokens": tokens_used
                 }
-            ])
-            
-            # Update statistics
-            session["edit_count"] += 1
-            session["total_tokens_used"] += tokens_used
-            session["last_activity"] = datetime.now()
-            
-            # Keep only last 10 exchanges (20 messages) to prevent memory bloat
-            if len(session["conversation_history"]) > 20:
-                session["conversation_history"] = session["conversation_history"][-20:]
-            
-            print(f"✅ Updated session {session_id}")
-            print(f"   Edit #{session['edit_count']}")
-            print(f"   Total tokens: {session['total_tokens_used']:,}")
-            print(f"   History length: {len(session['conversation_history'])} messages")
-            
-            return True
-    
-    def get_conversation_history(
-        self,
-        session_id: str,
-        last_n_exchanges: int = 3
-    ) -> List[Dict]:
-        """
-        Get recent conversation history for context.
+            }
+        )
         
-        Args:
-            session_id: Session identifier
-            last_n_exchanges: Number of recent exchanges to return (default: 3)
-            
-        Returns:
-            List of conversation messages (user + assistant pairs)
+        print(f"✅ Version {next_version} saved for conversation {session_id}")
+        return True
+
+    async def get_user_sessions(self, user_id: str) -> List[Dict]:
         """
-        session = self.get_session(session_id)
+        Get all conversations for a user (for sidebar).
+        """
+        db = Database.get_db()
+        cursor = db.conversations.find({"user_id": user_id}).sort("last_modified", -1)
         
+        results = []
+        async for doc in cursor:
+            results.append({
+                "conversation_id": doc["conversation_id"],
+                "title": doc.get("title", "New Project"),
+                "screen_type": doc.get("screen_type", "general"),
+                "last_modified": doc["last_modified"].isoformat(),
+                "created_at": doc["created_at"].isoformat(),
+                "version_count": doc.get("latest_version", 1)
+            })
+        return results
+
+    async def delete_session(self, session_id: str) -> bool:
+        """
+        Delete a conversation and all its versions.
+        """
+        db = Database.get_db()
+        await db.conversations.delete_one({"conversation_id": session_id})
+        await db.conversation_versions.delete_many({"conversation_id": session_id})
+        print(f"🗑️ Deleted conversation history for {session_id}")
+        return True
+
+    async def get_conversation_history(self, session_id: str, last_n_exchanges: int = 3) -> List[Dict]:
+        """
+        Get recent message history.
+        """
+        session = await self.get_session(session_id)
         if not session:
             return []
         
         history = session["conversation_history"]
-        
-        # Return last N exchanges (N*2 messages since each exchange = user + assistant)
         num_messages = last_n_exchanges * 2
         return history[-num_messages:] if len(history) > num_messages else history
-    
-    def delete_session(self, session_id: str) -> bool:
-        """
-        Manually delete a session.
-        
-        Args:
-            session_id: Session identifier
-            
-        Returns:
-            True if deleted, False if not found
-        """
-        with self._lock:
-            if session_id in self.sessions:
-                del self.sessions[session_id]
-                print(f"🗑️  Deleted session {session_id}")
-                return True
-            return False
-    
-    def cleanup_expired_sessions(self) -> int:
-        """
-        Remove all expired sessions.
-        
-        Returns:
-            Number of sessions cleaned up
-        """
-        now = datetime.now()
-        
-        with self._lock:
-            expired = [
-                sid for sid, session in self.sessions.items()
-                if now - session["last_activity"] > self.session_timeout
-            ]
-            
-            for sid in expired:
-                del self.sessions[sid]
-        
-        if expired:
-            print(f"🧹 Cleaned up {len(expired)} expired sessions")
-        
-        return len(expired)
-    
-    def get_stats(self) -> Dict:
-        """
-        Get overall session statistics.
-        
-        Returns:
-            Statistics dictionary
-        """
-        with self._lock:
-            total_sessions = len(self.sessions)
-            total_edits = sum(s["edit_count"] for s in self.sessions.values())
-            total_tokens = sum(s["total_tokens_used"] for s in self.sessions.values())
-            
-            # Group by user
-            users = {}
-            for session in self.sessions.values():
-                uid = session["user_id"]
-                if uid not in users:
-                    users[uid] = {"sessions": 0, "edits": 0, "tokens": 0}
-                users[uid]["sessions"] += 1
-                users[uid]["edits"] += session["edit_count"]
-                users[uid]["tokens"] += session["total_tokens_used"]
-            
-            return {
-                "total_sessions": total_sessions,
-                "total_edits": total_edits,
-                "total_tokens_used": total_tokens,
-                "unique_users": len(users),
-                "avg_edits_per_session": round(total_edits / total_sessions, 2) if total_sessions > 0 else 0,
-                "avg_tokens_per_edit": round(total_tokens / total_edits, 0) if total_edits > 0 else 0,
-                "timeout_hours": self.session_timeout.total_seconds() / 3600
-            }
-    
-    def get_user_sessions(self, user_id: str) -> List[Dict]:
-        """
-        Get all active sessions for a user.
-        
-        Args:
-            user_id: User identifier
-            
-        Returns:
-            List of session summaries
-        """
-        with self._lock:
-            user_sessions = []
-            
-            for session in self.sessions.values():
-                if session["user_id"] == user_id:
-                    user_sessions.append({
-                        "session_id": session["session_id"],
-                        "created_at": session["created_at"].isoformat(),
-                        "last_activity": session["last_activity"].isoformat(),
-                        "edit_count": session["edit_count"],
-                        "screens": session["metadata"]["screens"],
-                        "screen_type": session["metadata"]["screen_type"]
-                    })
-            
-            return user_sessions
-    
-    def __len__(self) -> int:
-        """Return number of active sessions."""
-        return len(self.sessions)
-    
-    def __contains__(self, session_id: str) -> bool:
-        """Check if session exists."""
-        return session_id in self.sessions
 
+# Global instance
+session_manager = SessionManager()
 
-# ============================================================================
-# SINGLETON INSTANCE
-# ============================================================================
+# Async Helper wrappers
+async def create_editing_session(component_model: dict, user_id: str, title: str = "New Project", web_preview: dict = None, react_native_code: dict = None) -> str:
+    return await session_manager.create_session(component_model, user_id, title, web_preview, react_native_code)
 
-# Global session manager instance (initialized on import)
-session_manager = SessionManager(session_timeout_hours=2)
-
-
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
-def get_session_manager() -> SessionManager:
-    """
-    Get the global session manager instance.
-    
-    Returns:
-        Global SessionManager instance
-    """
-    return session_manager
-
-
-def create_editing_session(component_model: dict, user_id: str) -> str:
-    """
-    Convenience function to create a new editing session.
-    
-    Args:
-        component_model: Component model from generation
-        user_id: User identifier
-        
-    Returns:
-        session_id: New session identifier
-    """
-    return session_manager.create_session(component_model, user_id)
-
-
-def get_editing_session(session_id: str) -> Optional[Dict]:
-    """
-    Convenience function to get a session.
-    
-    Args:
-        session_id: Session identifier
-        
-    Returns:
-        Session dict or None
-    """
-    return session_manager.get_session(session_id)
-
-
-# ============================================================================
-# MODULE EXPORTS
-# ============================================================================
-
-__all__ = [
-    "SessionManager",
-    "session_manager",
-    "get_session_manager",
-    "create_editing_session",
-    "get_editing_session"
-]
-
-
-# ============================================================================
-# MODULE INITIALIZATION
-# ============================================================================
-
-if __name__ == "__main__":
-    """Test session manager functionality"""
-    
-    print("\n" + "="*70)
-    print("SESSION MANAGER TEST")
-    print("="*70)
-    
-    # Test data
-    test_model = {
-        "screens": [{"name": "Test", "components": []}],
-        "theme": {},
-        "tokens": {}
-    }
-    
-    # Create session
-    print("\n1. Creating test session...")
-    sid = session_manager.create_session(test_model, "test_user_123")
-    print(f"   Session ID: {sid}")
-    
-    # Get session
-    print("\n2. Retrieving session...")
-    session = session_manager.get_session(sid)
-    print(f"   Found: {session is not None}")
-    print(f"   User: {session['user_id']}")
-    print(f"   Edits: {session['edit_count']}")
-    
-    # Update session
-    print("\n3. Updating session...")
-    success = session_manager.update_session(
-        sid,
-        test_model,
-        "Change button to blue",
-        "Applied changes successfully",
-        tokens_used=3000
-    )
-    print(f"   Updated: {success}")
-    
-    # Get stats
-    print("\n4. Session statistics...")
-    stats = session_manager.get_stats()
-    for key, value in stats.items():
-        print(f"   {key}: {value}")
-    
-    # Cleanup
-    print("\n5. Cleanup test...")
-    session_manager.delete_session(sid)
-    print(f"   Sessions remaining: {len(session_manager)}")
-    
-    print("\n" + "="*70)
-    print("✅ ALL TESTS PASSED")
-    print("="*70 + "\n")
+async def get_editing_session(session_id: str) -> Optional[Dict]:
+    return await session_manager.get_session(session_id)
