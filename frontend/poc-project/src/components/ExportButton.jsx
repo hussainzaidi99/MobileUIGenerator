@@ -1,5 +1,7 @@
 // frontend/src/components/ExportButton.jsx - React Native Edition
 import React, { useState } from "react";
+import { toast } from '../utils/toast';
+
 
 export default function ExportButton({ rnCode }) {  // ✅ RENAMED PROP
   const [exporting, setExporting] = useState(false);
@@ -38,9 +40,9 @@ export default function ExportButton({ rnCode }) {  // ✅ RENAMED PROP
       document.body.removeChild(a);
 
       console.log("✅ Export successful");
-    } catch (err) {
       console.error("Export error:", err);
       setError(err.message);
+      toast.error("Export Failed", err.message);
     } finally {
       setExporting(false);
     }
@@ -66,12 +68,6 @@ export default function ExportButton({ rnCode }) {  // ✅ RENAMED PROP
           </>
         )}
       </button>
-      {error && (
-        <div className="export-error">
-          <span className="error-icon-small">⚠️</span>
-          {error}
-        </div>
-      )}
     </div>
   );
 }

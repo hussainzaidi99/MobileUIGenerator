@@ -1,8 +1,11 @@
-// frontend/poc-project/src/App.jsx - FINAL PRODUCTION VERSION WITH DARK VEIL
-import React, { useState, useEffect } from "react";
+// frontend/poc-project/src/App.jsx - ENHANCED WITH TOAST NOTIFICATIONS
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+
 import CanvasRendererLite from "./components/CanvasRendererLite";
 import CodePreview from "./components/CodePreview";
+import { toast } from './utils/toast';
+
 import ExportButton from "./components/ExportButton";
 import Sidebar from "./components/Sidebar";
 import ConversationalEditPanel from "./components/ConversationalEditPanel";
@@ -40,6 +43,9 @@ export default function App() {
   const location = useLocation();
   const userId = user?.id;
 
+  // ✅ Auto-expanding textarea ref
+  const textareaRef = useRef(null);
+
   // ✅ NEW: Detect mobile devices
   useEffect(() => {
     const checkMobile = () => {
@@ -63,7 +69,7 @@ export default function App() {
 
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/payment/balance/${userId}`
+        `${import.meta.env.VITE_API_BASE_URL} /payment/balance / ${userId} `
       );
 
       if (res.ok) {
@@ -105,6 +111,16 @@ export default function App() {
     }
   }, [prompt, layout]);
 
+  // ✅ Auto-resize textarea
+  const handleTextareaChange = (e) => {
+    setPrompt(e.target.value);
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  };
+
   const enhancePrompt = async () => {
     if (!userId) {
       navigate('/auth', {
@@ -140,6 +156,7 @@ export default function App() {
     } catch (e) {
       console.error("Prompt enhancement error:", e);
       setError(e.message || "Failed to enhance prompt. Please try again.");
+      toast.error("Enhancement Failed", e.message || "Failed to enhance prompt.");
     } finally {
       setEnhancing(false);
     }
@@ -158,6 +175,7 @@ export default function App() {
 
     if (!finalPrompt) {
       setError("Please enter a prompt or select a preset.");
+      toast.info("Input Required", "Please enter a prompt or select a preset.");
       return;
     }
 
@@ -255,6 +273,7 @@ export default function App() {
     } catch (e) {
       console.error("Generation error:", e);
       setError(e.message || "Generation failed. Please try again.");
+      toast.error("Generation failed", e.message || "Please try again later.");
       setProcessingStage("");
     } finally {
       setLoading(false);
@@ -283,6 +302,7 @@ export default function App() {
     } catch (err) {
       console.error("Load error:", err);
       setError("Failed to load project history.");
+      toast.error("Load Failed", "Failed to load project history.");
     } finally {
       setLoading(false);
       setProcessingStage("");
@@ -338,6 +358,7 @@ export default function App() {
 
   return (
     <div className="app-container stitch-layout">
+
       {/* Dark Veil background */}
       {isMobile ? (
         <DarkVeil opacity={0.25} particleCount={15} enableAnimation={false} showMesh={false} />
@@ -392,14 +413,20 @@ export default function App() {
 
                   <div className="stitch-input-wrapper-center">
                     <div className="stitch-input-container">
-                      <div className="sparkle-icon-stitch">✨</div>
                       <textarea
+                        ref={textareaRef}
                         className="stitch-input"
                         rows={1}
                         value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
+                        onChange={handleTextareaChange}
                         placeholder="Describe your mobile UI..."
                         disabled={loading || enhancing}
+                        style={{
+                          minHeight: '60px',
+                          maxHeight: '300px',
+                          overflow: 'auto',
+                          resize: 'none'
+                        }}
                       />
                       <button onClick={generate} className="stitch-btn-inline" disabled={loading || enhancing || !prompt.trim()}>
                         {loading ? 'Generating...' : 'Generate UI →'}
@@ -425,7 +452,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                  {error && <div className="stitch-error">⚠️ {error}</div>}
+
                 </div>
               )}
 

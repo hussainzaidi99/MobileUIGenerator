@@ -8,6 +8,8 @@ import {
   useNavigate,
   Link,
 } from "react-router-dom";
+import { Toaster } from 'sonner';
+
 
 import { useAuth } from "../contexts/AuthContext";
 import AuthPage from "./AuthPage";
@@ -1752,6 +1754,8 @@ function Shell() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {!isAuthPage && <MainHeader />}
+      <Toaster position="top-right" richColors expand={true} theme="dark" />
+
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}>
         <Routes>
           {/* 🆕 Default route - PUBLIC generation page */}

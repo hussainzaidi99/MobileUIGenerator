@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import DarkVeil from "../components/backgrounds/DarkVeil";
+import { toast } from '../utils/toast';
+
 
 export default function PricingPage() {
   const [packages, setPackages] = useState([]);
@@ -74,7 +76,7 @@ export default function PricingPage() {
 
   const handlePurchase = async (packageId) => {
     if (!userId) {
-      alert("Please log in to purchase credits");
+      toast.info("Login Required", "Please log in to purchase credits");
       navigate("/auth");
       return;
     }
@@ -101,13 +103,13 @@ export default function PricingPage() {
         // Redirect to Stripe Checkout
         window.location.href = data.url;
       } else {
-        alert(data.detail || "Failed to create checkout session");
+        toast.error("Checkout Failed", data.detail || "Failed to create checkout session");
         setPurchaseLoading(false);
         setSelectedPackage(null);
       }
     } catch (error) {
       console.error("Purchase error:", error);
-      alert("Something went wrong. Please try again.");
+      toast.error("Something went wrong", "Please try again later.");
       setPurchaseLoading(false);
       setSelectedPackage(null);
     }

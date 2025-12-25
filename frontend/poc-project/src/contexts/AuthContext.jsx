@@ -95,7 +95,13 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || 'Signup failed');
+        // ✅ Return full error details from backend
+        return {
+          success: false,
+          error: data.error || data.detail || 'Signup failed',
+          error_code: data.error_code,
+          status: response.status
+        };
       }
 
       saveAuthState(data.user, data.tokens);
@@ -103,7 +109,11 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       const errorMessage = err.message || 'Signup failed. Please try again.';
       setError(errorMessage);
-      return { success: false, error: errorMessage };
+      return {
+        success: false,
+        error: errorMessage,
+        status: 500
+      };
     } finally {
       setLoading(false);
     }
@@ -123,7 +133,13 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || 'Login failed');
+        // ✅ Return full error details from backend
+        return {
+          success: false,
+          error: data.error || data.detail || 'Login failed',
+          error_code: data.error_code,
+          status: response.status
+        };
       }
 
       saveAuthState(data.user, data.tokens);
@@ -131,7 +147,11 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
       setError(errorMessage);
-      return { success: false, error: errorMessage };
+      return {
+        success: false,
+        error: errorMessage,
+        status: 500
+      };
     } finally {
       setLoading(false);
     }
@@ -227,7 +247,7 @@ export const AuthProvider = ({ children }) => {
   const authFetch = async (url, options = {}) => {
     try {
       const token = await getAccessToken();
-      
+
       if (!token) {
         throw new Error('Not authenticated');
       }
@@ -244,7 +264,7 @@ export const AuthProvider = ({ children }) => {
       if (response.status === 401) {
         try {
           const newToken = await refreshAccessToken();
-          
+
           const retryResponse = await fetch(url, {
             ...options,
             headers: {
@@ -276,7 +296,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     isAuthenticated: !!user,
-    
+
     // Methods
     signup,
     login,
@@ -285,7 +305,7 @@ export const AuthProvider = ({ children }) => {
     refreshAccessToken,
     getAccessToken,
     authFetch,
-    
+
     // Utility
     clearError: () => setError(null)
   };

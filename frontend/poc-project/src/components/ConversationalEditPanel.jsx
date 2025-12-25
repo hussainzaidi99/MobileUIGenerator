@@ -3,6 +3,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import AppIcon from '../assets/Appicon.jpg';
+import { toast } from '../utils/toast';
+
 
 
 export default function ConversationalEditPanel({
@@ -156,6 +158,7 @@ export default function ConversationalEditPanel({
     } catch (err) {
       console.error('❌ Edit error:', err);
       setError(err.message);
+      toast.error("Edit Failed", err.message);
 
       // Add assistant error message
       setMessages(prev => [...prev, {
@@ -263,10 +266,6 @@ export default function ConversationalEditPanel({
               </button>
             </div>
 
-            {/* Error message */}
-            {error && !isProcessing && (
-              <div className="stitch-mini-error">⚠️ {error}</div>
-            )}
 
             {/* Helper text */}
             {!loading && !isProcessing && sessionId && (

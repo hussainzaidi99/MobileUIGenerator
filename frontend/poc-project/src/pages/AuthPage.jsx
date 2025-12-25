@@ -1,16 +1,18 @@
 // frontend/poc-project/src/pages/AuthPage.jsx
-// COMPLETE FILE WITH EMAIL VERIFICATION & PASSWORD RESET
+// COMPLETE FILE WITH EMAIL VERIFICATION & PASSWORD RESET + TOAST NOTIFICATIONS
 
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { toast } from '../utils/toast';
+import { getErrorMessage } from '../utils/errorMessages';
 
 export default function AuthPage({ onSuccess }) {
   const location = useLocation();
   const { login, signup, loginWithGoogle, error: authError } = useAuth();
-  
+
   const initialMode = location.state?.mode || "login";
-  
+
   // Main flow state
   const [mode, setMode] = useState(initialMode); // "login" | "signup" | "verify" | "forgot" | "reset"
   const [email, setEmail] = useState("");
@@ -19,7 +21,7 @@ export default function AuthPage({ onSuccess }) {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Verification & Reset state
   const [verificationCode, setVerificationCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -32,7 +34,7 @@ export default function AuthPage({ onSuccess }) {
   // Initialize Google Sign-In SDK
   useEffect(() => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    
+
     if (!googleClientId) {
       console.error('❌ VITE_GOOGLE_CLIENT_ID is not configured in .env file');
       return;
@@ -50,7 +52,7 @@ export default function AuthPage({ onSuccess }) {
   }, []);
 
   // Google Sign-In Handler
-    // ✅ FIX: Update handleGoogleLogin to use AuthContext
+  // ✅ FIX: Update handleGoogleLogin to use AuthContext
   const handleGoogleLogin = () => {
     if (!window.google || !window.google.accounts) {
       setError("Google Sign-In is not loaded. Please refresh the page.");
@@ -93,7 +95,7 @@ export default function AuthPage({ onSuccess }) {
             }
 
             const userInfo = await userInfoResponse.json();
-            
+
             // Create the ID token payload
             const idTokenPayload = JSON.stringify({
               email: userInfo.email,
@@ -112,7 +114,7 @@ export default function AuthPage({ onSuccess }) {
             } else {
               throw new Error(result.error || 'Authentication failed');
             }
-            
+
           } catch (err) {
             console.error('❌ Google authentication error:', err);
             setError(err.message || "Failed to authenticate with Google");
@@ -122,7 +124,7 @@ export default function AuthPage({ onSuccess }) {
       });
 
       client.requestAccessToken();
-      
+
     } catch (err) {
       console.error('❌ Error initializing Google Sign-In:', err);
       setError("Failed to open Google Sign-In. Please try again.");
@@ -132,76 +134,92 @@ export default function AuthPage({ onSuccess }) {
 
   // Email/Password Signup
   const handleSignup = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError(null);
-  // ✅ ADD VALIDATION BEFORE SENDING
-  console.log("Signup attempt:", {
-    email,
-    password: `${password.length} chars`,
-    username,
-    fullName
-  });
-
-  // ✅ CHECK PASSWORD STRENGTH
-  if (password.length < 8) {
-    setError("Password must be at least 8 characters");
-    setLoading(false);
-    return;
-  }
-    const hasUpper = /[A-Z]/.test(password);
-  const hasLower = /[a-z]/.test(password);
-  const hasDigit = /[0-9]/.test(password);
-
-  if (!hasUpper || !hasLower || !hasDigit) {
-    setError("Password must contain uppercase, lowercase, and a number");
-    setLoading(false);
-    return;
-  }
-
-  // ✅ CHECK USERNAME
-  if (username.length < 3) {
-    setError("Username must be at least 3 characters");
-    setLoading(false);
-    return;
-  }
-  if (!/^[a-zA-Z0-9]+$/.test(username)) {
-    setError("Username must be alphanumeric (no special characters)");
-    setLoading(false);
-    return;
-  }
-
-
-  try {
-    const result = await fetch(`${API_BASE}/auth/signup`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        username,
-        full_name: fullName,  // ✅ FIXED - matches backend expectation
-      }),
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    // ✅ ADD VALIDATION BEFORE SENDING
+    console.log("Signup attempt:", {
+      email,
+      password: `${password.length} chars`,
+      username,
+      fullName
     });
 
-    const data = await result.json();  // ✅ FIXED - correct variable name
+    // ✅ CHECK PASSWORD STRENGTH
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      setLoading(false);
+      return;
+    }
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasDigit = /[0-9]/.test(password);
 
-    if (!result.ok) {  // ✅ FIXED - use result instead of response
-      throw new Error(data.detail || "Signup failed");
+    if (!hasUpper || !hasLower || !hasDigit) {
+      setError("Password must contain uppercase, lowercase, and a number");
+      setLoading(false);
+      return;
     }
 
-    // ✅ Move to verification screen
-    setMode("verify");
-    setSuccessMessage("Verification code sent to your email!");
+    // ✅ CHECK USERNAME
+    if (username.length < 3) {
+      setError("Username must be at least 3 characters");
+      setLoading(false);
+      return;
+    }
+    if (!/^[a-zA-Z0-9]+$/.test(username)) {
+      setError("Username must be alphanumeric (no special characters)");
+      setLoading(false);
+      return;
+    }
 
-  } catch (err) {
-    setError(err.message || "An error occurred. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+
+    try {
+      const result = await fetch(`${API_BASE}/auth/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          username,
+          full_name: fullName,  // ✅ FIXED - matches backend expectation
+        }),
+      });
+
+      const data = await result.json();  // ✅ FIXED - correct variable name
+
+      if (!result.ok) {  // ✅ FIXED - use result instead of response
+        const errorMsg = getErrorMessage({
+          error_code: data.error_code,
+          status: result.status,
+          error: data.detail || data.error
+        });
+
+        setError(errorMsg.description);
+        toast.error(errorMsg.title, errorMsg.description);
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Move to verification screen
+      setMode("verify");
+      setSuccessMessage("Verification code sent to your email!");
+      toast.success('Account created!', 'Check your email to verify your account');
+
+    } catch (err) {
+      const errorMsg = getErrorMessage({
+        error: err.message,
+        status: err.status
+      });
+
+      setError(errorMsg.description);
+      toast.error(errorMsg.title, errorMsg.description);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Email Verification
   const handleVerifyEmail = async (e) => {
@@ -226,14 +244,21 @@ export default function AuthPage({ onSuccess }) {
       }
 
       setSuccessMessage("Email verified successfully! Redirecting...");
-      
+      toast.success('Email verified!', 'You can now log in to your account');
+
       // Auto-login after verification
       setTimeout(() => {
         onSuccess?.();
       }, 1500);
 
     } catch (err) {
-      setError(err.message || "Verification failed. Please try again.");
+      const errorMsg = getErrorMessage({
+        error: err.message,
+        status: err.status
+      });
+
+      setError(errorMsg.description);
+      toast.error(errorMsg.title, errorMsg.description);
     } finally {
       setLoading(false);
     }
@@ -241,38 +266,39 @@ export default function AuthPage({ onSuccess }) {
 
   // Resend Verification Code
   const handleResendVerification = async () => {
-  setLoading(true);
-  setError(null);
+    setLoading(true);
+    setError(null);
 
-  try {
-    // ⚠️ ISSUE: Your backend's /verify-email/send requires AUTH token
-    // But user isn't logged in during signup verification
-    // SOLUTION: Create a public resend endpoint OR use the send endpoint differently
-    
-    // For now, let's use a workaround - re-trigger signup email send
-    // You'll need to add a PUBLIC resend endpoint to your backend
-    
-    const response = await fetch(`${API_BASE}/auth/resend-verification`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.toLowerCase() })
-    });
+    try {
+      // ⚠️ ISSUE: Your backend's /verify-email/send requires AUTH token
+      // But user isn't logged in during signup verification
+      // SOLUTION: Create a public resend endpoint OR use the send endpoint differently
 
-    const data = await response.json();
+      // For now, let's use a workaround - re-trigger signup email send
+      // You'll need to add a PUBLIC resend endpoint to your backend
 
-    if (!response.ok) {
-      throw new Error(data.detail || 'Failed to resend code');
+      const response = await fetch(`${API_BASE}/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase() })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to resend code');
+      }
+
+      setSuccessMessage("New verification code sent!");
+      toast.success("Code Sent", "A new verification code has been sent to your email.");
+      setTimeout(() => setSuccessMessage(""), 3000);
+
+    } catch (err) {
+      setError(err.message || "Failed to resend code.");
+    } finally {
+      setLoading(false);
     }
-
-    setSuccessMessage("New verification code sent!");
-    setTimeout(() => setSuccessMessage(""), 3000);
-
-  } catch (err) {
-    setError(err.message || "Failed to resend code.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Login
   const handleLogin = async (e) => {
@@ -284,12 +310,23 @@ export default function AuthPage({ onSuccess }) {
       const result = await login(email, password);
 
       if (result.success) {
+        toast.success('Welcome back!', 'Login successful');
         onSuccess?.();
       } else {
-        setError(result.error || "Login failed");
+        // Get user-friendly error message
+        const errorMsg = getErrorMessage({
+          error_code: result.error_code,
+          status: result.status,
+          error: result.error
+        });
+
+        setError(errorMsg.description);
+        toast.error(errorMsg.title, errorMsg.description);
       }
     } catch (err) {
-      setError(err.message || "An error occurred. Please try again.");
+      const errorMsg = getErrorMessage(err);
+      setError(errorMsg.description);
+      toast.error(errorMsg.title, errorMsg.description);
     } finally {
       setLoading(false);
     }
@@ -316,6 +353,7 @@ export default function AuthPage({ onSuccess }) {
 
       setMode("reset");
       setSuccessMessage("Password reset code sent to your email!");
+      toast.success("Reset Code Sent", "Verification code sent to your email.");
 
     } catch (err) {
       setError(err.message || "Failed to send reset code.");
@@ -326,57 +364,58 @@ export default function AuthPage({ onSuccess }) {
 
   // Verify Reset Code & Reset Password
   // Verify Reset Code & Reset Password
-const handleResetPassword = async (e) => {
-  e.preventDefault();
-  
-  if (newPassword !== confirmPassword) {
-    setError("Passwords don't match");
-    return;
-  }
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
 
-  if (newPassword.length < 8) {
-    setError("Password must be at least 8 characters");
-    return;
-  }
-
-  setLoading(true);
-  setError(null);
-
-  try {
-    // ✅ FIXED: Send all 3 fields in ONE request
-    const response = await fetch(`${API_BASE}/auth/password-reset/confirm`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email.toLowerCase(),
-        code: verificationCode,
-        new_password: newPassword  // ✅ ADD THIS!
-      })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.detail || 'Password reset failed');
+    if (newPassword !== confirmPassword) {
+      setError("Passwords don't match");
+      return;
     }
 
-    setSuccessMessage("Password reset successful! Redirecting to login...");
-    
-    setTimeout(() => {
-      setMode("login");
-      setPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setVerificationCode("");
-      setSuccessMessage("");
-    }, 2000);
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
 
-  } catch (err) {
-    setError(err.message || "Password reset failed.");
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    setError(null);
+
+    try {
+      // ✅ FIXED: Send all 3 fields in ONE request
+      const response = await fetch(`${API_BASE}/auth/password-reset/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.toLowerCase(),
+          code: verificationCode,
+          new_password: newPassword  // ✅ ADD THIS!
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Password reset failed');
+      }
+
+      setSuccessMessage("Password reset successful! Redirecting to login...");
+      toast.success("Password Reset", "Your password has been successfully updated.");
+
+      setTimeout(() => {
+        setMode("login");
+        setPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setVerificationCode("");
+        setSuccessMessage("");
+      }, 2000);
+
+    } catch (err) {
+      setError(err.message || "Password reset failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const displayError = error || authError;
 
@@ -448,7 +487,7 @@ const handleResetPassword = async (e) => {
                 type="text"
                 value={verificationCode}
                 onChange={(e) => {
-                  const cleaned = e.target.value.replace(/\D/g, ''); 
+                  const cleaned = e.target.value.replace(/\D/g, '');
                   setVerificationCode(cleaned)
                 }}
                 required
@@ -914,10 +953,10 @@ const handleResetPassword = async (e) => {
           }}
         >
           <svg width="18" height="18" viewBox="0 0 18 18">
-            <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-            <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.593.102-1.17.282-1.709V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.335z"/>
-            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+            <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
+            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
+            <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.593.102-1.17.282-1.709V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.335z" />
+            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" />
           </svg>
           <span style={{ color: "#1f2937" }}>
             {loading ? "Signing in..." : "Continue with Google"}
@@ -925,9 +964,9 @@ const handleResetPassword = async (e) => {
         </button>
 
         {/* Divider */}
-        <div style={{ 
-          display: "flex", 
-          alignItems: "center", 
+        <div style={{
+          display: "flex",
+          alignItems: "center",
           margin: "24px 0",
           gap: "16px"
         }}>
@@ -1254,43 +1293,6 @@ const handleResetPassword = async (e) => {
         boxShadow: "0 30px 80px rgba(0, 0, 0, 0.5)",
         border: "1px solid rgba(99, 102, 241, 0.3)",
       }}>
-        {/* Error Message */}
-        {displayError && (
-          <div style={{
-            padding: "14px 18px",
-            background: "rgba(239, 68, 68, 0.15)",
-            border: "1px solid rgba(239, 68, 68, 0.3)",
-            borderRadius: "12px",
-            color: "#fca5a5",
-            fontSize: "14px",
-            marginBottom: "24px",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}>
-            <span style={{ fontSize: "20px" }}>⚠️</span>
-            <span>{displayError}</span>
-          </div>
-        )}
-
-        {/* Success Message */}
-        {successMessage && (
-          <div style={{
-            padding: "14px 18px",
-            background: "rgba(16, 185, 129, 0.15)",
-            border: "1px solid rgba(16, 185, 129, 0.3)",
-            borderRadius: "12px",
-            color: "#6ee7b7",
-            fontSize: "14px",
-            marginBottom: "24px",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}>
-            <span style={{ fontSize: "20px" }}>✅</span>
-            <span>{successMessage}</span>
-          </div>
-        )}
 
         {renderContent()}
       </div>

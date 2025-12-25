@@ -444,77 +444,7 @@ body {
   transform: translateX(4px);
 }
 
-/* ============================================
-   INPUT SECTION - Premium Card
-   ============================================ */
-.input-section {
-  padding: 2rem;
-  background: rgba(30, 41, 59, 0.6);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  animation: fadeInUp 0.6s ease-out 0.2s both;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.input-card {
-  max-width: 900px;
-  margin: 0 auto;
-  background: rgba(51, 65, 85, 0.4);
-  padding: 2rem;
-  border-radius: var(--card-radius);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: var(--shadow-lg);
-}
-
-.input-label {
-  display: block;
-  font-weight: 700;
-  margin-bottom: 0.875rem;
-  color: var(--text-primary);
-  font-size: 1rem;
-  letter-spacing: -0.01em;
-}
-
-.prompt-input {
-  width: 100%;
-  padding: 1rem 1.25rem;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  font-size: 0.95rem;
-  font-family: inherit;
-  resize: vertical;
-  transition: all var(--transition-base);
-  background: rgba(30, 41, 59, 0.6);
-  color: var(--text-primary);
-  backdrop-filter: blur(10px);
-}
-
-.prompt-input::placeholder {
-  color: var(--text-muted);
-}
-
-.prompt-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
-  background: rgba(30, 41, 59, 0.8);
-}
-
-.prompt-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+/* Legacy input section removed to avoid UI conflicts */
 
 /* ============================================
    BUTTONS - Modern & Animated
@@ -3514,7 +3444,8 @@ kbd {
   min-width: 380px;
   padding: 20px;
   justify-content: flex-start;
-  border-right: 1px solid #E5E7EB;
+  border-right: none !important;
+  /* ✅ FORCED REMOVAL - This was the persistent vertical line */
   overflow-y: auto;
   flex-shrink: 0;
   background: #FAFBFC;
@@ -3561,50 +3492,142 @@ kbd {
   gap: 16px;
   width: 100%;
   max-width: 900px;
+  margin: 0 auto;
+  border: none !important;
+  /* Explicitly remove any legacy borders */
+}
+
+@keyframes rotate-border {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-inner {
+
+  0%,
+  100% {
+    background: rgba(30, 41, 59, 0.7);
+  }
+
+  50% {
+    background: rgba(39, 54, 78, 0.85);
+  }
+}
+
+@keyframes heavy-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.2), 0 10px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(139, 92, 246, 0.4), 0 15px 50px rgba(0, 0, 0, 0.5);
+  }
 }
 
 .stitch-input-container {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  background: transparent;
+  border-radius: 36px;
+  padding: 2px;
+  /* This becomes the border thickness */
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+  animation: heavy-glow 6s ease-in-out infinite;
+  border: none !important;
 }
 
-.sparkle-icon-stitch {
+.stitch-input-container::before {
+  content: '';
   position: absolute;
-  left: 22px;
-  top: 22px;
-  font-size: 26px;
-  pointer-events: none;
+  top: -150%;
+  left: -50%;
+  width: 200%;
+  height: 400%;
+  background: conic-gradient(from 0deg,
+      transparent 0%,
+      transparent 25%,
+      #a855f7 40%,
+      #ec4899 50%,
+      #a855f7 60%,
+      transparent 75%,
+      transparent 100%);
+  animation: rotate-border 4s linear infinite;
+  z-index: 0;
+}
+
+.stitch-input-container::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 34px;
+  z-index: 1;
+  backdrop-filter: blur(20px);
+  animation: pulse-inner 8s ease-in-out infinite;
+}
+
+/* Ensure interactive elements stay on top */
+.stitch-input-container>* {
+  position: relative;
   z-index: 2;
+}
+
+.stitch-input-container:focus-within {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 0 50px rgba(168, 85, 247, 0.4), 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.stitch-input-container:focus-within::before {
+  animation-duration: 2s;
+  /* Speed up animation on focus */
+}
+
+/* Sparkle icon removed - no longer needed */
+.sparkle-icon-stitch {
+  display: none;
+  /* Hide sparkle icon */
 }
 
 .stitch-input {
   width: 100%;
-  min-height: 68px;
-  max-height: 200px;
-  padding: 20px 170px 20px 65px;
-  font-size: 17px;
+  min-height: 60px;
+  max-height: 300px;
+  padding: 24px 180px 32px 24px;
+  font-size: 18px;
   font-family: inherit;
-  color: #0F172A;
-  background: #F8FAFC;
-  border: 2px solid #E2E8F0;
-  border-radius: 16px;
+  color: #F8FAFC;
+  background: transparent;
+  border: none;
   outline: none;
   transition: all 0.2s;
   resize: none;
-  overflow: hidden;
-  line-height: 1.5;
+  overflow: auto;
+  line-height: 1.6;
+  box-sizing: border-box;
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge */
+}
+
+.stitch-input::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari, Opera */
 }
 
 .stitch-input::placeholder {
   color: #94A3B8;
 }
 
-.stitch-input:focus {
-  background: #FFFFFF;
-  border-color: #667EEA;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-}
 
 .stitch-input:disabled {
   opacity: 0.6;
@@ -3794,7 +3817,7 @@ kbd {
   min-width: 380px;
   padding: 20px;
   justify-content: flex-start;
-  border-right: 1px solid #E5E7EB;
+  border-right: none !important;
   overflow-y: auto;
   flex-shrink: 0;
   background: #FAFBFC;
@@ -5906,12 +5929,12 @@ body::after {
 .stitch-left-panel {
   background: rgba(10, 10, 20, 0.4) !important;
   backdrop-filter: blur(20px) saturate(180%) !important;
-  border-right: 1px solid rgba(139, 92, 246, 0.2) !important;
+  border-right: none !important;
 }
 
 .stitch-main-container.split-mode .stitch-left-panel {
   background: rgba(10, 10, 20, 0.6) !important;
-  border-right: 1px solid rgba(139, 92, 246, 0.3) !important;
+  border-right: none !important;
 }
 
 /* ============================================
