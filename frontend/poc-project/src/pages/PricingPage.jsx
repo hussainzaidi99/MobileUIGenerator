@@ -475,7 +475,7 @@ export default function PricingPage() {
         <div className="support-cta">
           <h3>Still have questions?</h3>
           <p>Our support team is here to help you</p>
-          <a href="mailto:support@example.com">
+          <a href="mailto:contact@sabasoftgames.com">
             Contact Support
           </a>
         </div>

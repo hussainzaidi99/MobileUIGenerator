@@ -1,11 +1,10 @@
-# backend/Auth/auth_routes.py - FIXED ALL LOGICAL ERRORS
+# backend/Auth/auth_routes.py - PROFESSIONAL ERROR HANDLING
 """
-FIXES:
-1. Signup now sends email verification WITHOUT logging in user
-2. User must verify email before being able to login
-3. All async database operations now have 'await'
-4. Password reset flow corrected
-5. Resend verification endpoint added (public)
+✅ ENHANCED WITH PROFESSIONAL ERROR HANDLING:
+1. User-friendly error messages (no technical jargon)
+2. Comprehensive input validation
+3. Detailed developer logging
+4. Proper error codes for tracking
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
@@ -18,6 +17,21 @@ from bson import ObjectId
 from typing import Optional
 import logging
 import os
+
+# ✅ Import error handling utilities
+from utils.error_handler import (
+    create_error_response,
+    create_success_response,
+    log_exception,
+    UserFacingError
+)
+from utils.validators import (
+    validate_email,
+    validate_password,
+    validate_username,
+    validate_name,
+    validate_user_id
+)
 
 from Auth.auth_models import (
     UserSignupRequest,
@@ -82,22 +96,51 @@ async def get_current_user(
 # ✅ FIXED SIGNUP - NO AUTO-LOGIN, REQUIRES EMAIL VERIFICATION
 # ============================================================================
 
-@router.post("/signup", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def signup(request: UserSignupRequest, http_request: Request):
     """
-    ✅ FIXED: Register user but DON'T login until email is verified
+    ✅ ENHANCED: Register user with comprehensive validation and user-friendly errors
     
     Flow:
-    1. Create user (is_verified=False)
-    2. Send verification email
-    3. Return success message (NO tokens)
-    4. User must verify email
-    5. Then user can login
+    1. Validate all inputs (email, password, username, name)
+    2. Check email uniqueness
+    3. Create user (is_verified=False)
+    4. Send verification email
+    5. Return success message (NO tokens)
     """
     try:
-        ip_address = http_request.client.host if http_request.client else None
+        # ✅ VALIDATE EMAIL
+        is_valid, error_msg = validate_email(request.email)
+        if not is_valid:
+            return create_error_response(error_msg, 400, "INVALID_EMAIL")
         
-        # Create user (NOT logged in yet)
+        # ✅ CHECK EMAIL UNIQUENESS
+        users_collection = get_users_collection()
+        existing_user = await users_collection.find_one({"email": request.email.lower()})
+        if existing_user:
+            return create_error_response(
+                UserFacingError.EMAIL_EXISTS,
+                409,
+                "EMAIL_EXISTS",
+                {"email": request.email}
+            )
+        
+        # ✅ VALIDATE PASSWORD
+        is_valid, error_msg = validate_password(request.password)
+        if not is_valid:
+            return create_error_response(error_msg, 400, "WEAK_PASSWORD")
+        
+        # ✅ VALIDATE USERNAME
+        is_valid, error_msg = validate_username(request.username)
+        if not is_valid:
+            return create_error_response(error_msg, 400, "INVALID_USERNAME")
+        
+        # ✅ VALIDATE NAME
+        is_valid, error_msg = validate_name(request.full_name)
+        if not is_valid:
+            return create_error_response(error_msg, 400, "INVALID_NAME")
+        
+        # Create user
         user = await AuthService.create_user(
             email=request.email,
             password=request.password,
@@ -115,34 +158,37 @@ async def signup(request: UserSignupRequest, http_request: Request):
             )
             
             if email_sent:
-                logger.info(f"📧 Verification email sent to: {request.email}")
+                logger.info(f"✅ User created and verification email sent: {request.email}")
             else:
-                logger.error(f"⚠️ Failed to send verification email to: {request.email}")
-                # Don't fail signup if email fails, user can resend later
+                logger.warning(f"⚠️ User created but email failed: {request.email}")
         
-        except Exception as e:
-            logger.error(f"❌ Email service error: {e}")
-            # Don't fail signup if email fails
+        except Exception as email_error:
+            log_exception(
+                "EMAIL_SEND_FAILED",
+                email_error,
+                {"email": request.email, "user_id": str(user["_id"])}
+            )
         
-        logger.info(f"✅ User created (unverified): {request.email}")
-        
-        # ✅ RETURN MESSAGE ONLY - NO TOKENS/LOGIN
-        return MessageResponse(
-            message="Account created! Please check your email to verify your account.",
-            success=True
+        # ✅ RETURN USER-FRIENDLY SUCCESS MESSAGE
+        return create_success_response(
+            "Account created! Please check your email to verify your account.",
+            status_code=201
         )
         
     except ValueError as e:
-        logger.warning(f"Signup validation error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+        # Validation errors from AuthService
+        return create_error_response(
+            str(e),
+            400,
+            "VALIDATION_ERROR",
+            {"error": str(e)}
         )
     except Exception as e:
-        logger.error(f"Signup error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Registration failed. Please try again."
+        log_exception("SIGNUP_FAILED", e, {"email": request.email})
+        return create_error_response(
+            UserFacingError.TECHNICAL_DIFFICULTY,
+            500,
+            "SIGNUP_FAILED"
         )
 @router.post("/signup-debug")
 async def signup_debug(request: Request):
@@ -176,12 +222,20 @@ async def signup_debug(request: Request):
 # ✅ FIXED LOGIN - CHECK EMAIL VERIFICATION
 # ============================================================================
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login")
 async def login(request: UserLoginRequest, http_request: Request):
     """
-    ✅ FIXED: Check if email is verified before allowing login
+    ✅ ENHANCED: Login with user-friendly error messages
     """
     try:
+        # ✅ VALIDATE INPUTS
+        if not request.email or not request.password:
+            return create_error_response(
+                UserFacingError.INVALID_CREDENTIALS,
+                401,
+                "MISSING_CREDENTIALS"
+            )
+        
         ip_address = http_request.client.host if http_request.client else None
         user_agent = http_request.headers.get("user-agent")
         
@@ -193,16 +247,19 @@ async def login(request: UserLoginRequest, http_request: Request):
         )
         
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
+            return create_error_response(
+                UserFacingError.INVALID_CREDENTIALS,
+                401,
+                "INVALID_CREDENTIALS"
             )
         
         # ✅ CHECK EMAIL VERIFICATION
         if not user.get("is_verified", False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Please verify your email before logging in. Check your inbox for the verification code."
+            return create_error_response(
+                UserFacingError.EMAIL_NOT_VERIFIED,
+                403,
+                "EMAIL_NOT_VERIFIED",
+                {"email": request.email}
             )
         
         # Create session
@@ -219,18 +276,19 @@ async def login(request: UserLoginRequest, http_request: Request):
         return LoginResponse(user=user_response, tokens=tokens)
         
     except ValueError as e:
-        logger.warning(f"Login error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=str(e)
+        return create_error_response(
+            str(e),
+            403,
+            "LOGIN_VALIDATION_ERROR"
         )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Login error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Login failed. Please try again."
+        log_exception("LOGIN_FAILED", e, {"email": request.email})
+        return create_error_response(
+            "Login failed. Please try again.",
+            500,
+            "LOGIN_FAILED"
         )
 
 
