@@ -1095,8 +1095,15 @@ def extract_image_context(edit_prompt: str) -> str:
     return PexelsQueryBuilder._extract_context_from_prompt(edit_prompt)
 
 async def update_images_directly(component_model: Dict[str, Any], user_context: str) -> Dict[str, Any]:
-    """Update all images in component model using Pexels."""
-    updated_model = await enrich_layout_with_pexels(component_model, user_prompt=user_context)
+    """
+    ✅ ENHANCED: Update all images in component model using Pexels with FORCE mode.
+    This ensures the user's exact query is used, bypassing all other logic.
+    """
+    updated_model = await enrich_layout_with_pexels(
+        component_model, 
+        user_prompt=user_context,
+        force_context=user_context  # ✅ Force mode - absolute priority
+    )
     return updated_model
 
 # ============================================================================ #

@@ -20,6 +20,23 @@ import { ThemeCtx } from "./CanvasRendererLite";
 const StarIcon = () => <span style={{ color: "#FCD34D" }}>★</span>;
 
 /* ============================================
+   ✅ CACHE-BUSTING UTILITY
+   ============================================ */
+/**
+ * Add cache-busting timestamp to image URLs
+ * Forces browser to fetch fresh images instead of using cache
+ */
+function addCacheBuster(url) {
+  if (!url || typeof url !== 'string') return url;
+
+  // Don't add to data URLs or already cache-busted URLs
+  if (url.startsWith('data:') || url.includes('_t=')) return url;
+
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}_t=${Date.now()}`;
+}
+
+/* ============================================
    PHONE SPACING CONSTANT - GLOBAL
    ============================================ */
 // ✅ MOVED TO TOP - Must be accessible to all components
@@ -1021,8 +1038,8 @@ function getColoredPlaceholder(text, width = 400, height = 400) {
 }
 
 /**
- * Main Image Component - PEXELS-FIRST APPROACH
- * Priority: Pexels → Backend URL → Unsplash → Colored Placeholder
+ * Main Image Component - ✅ BACKEND-FIRST APPROACH (FIXED)
+ * Priority: Backend URL → Pexels → Unsplash → Colored Placeholder
  */
 export const Image = ({
   src,
@@ -1031,14 +1048,16 @@ export const Image = ({
   alt,
   fit = "cover",
   borderRadius = "md",
-  style
+  style,
+  loading,
+  onError
 }) => {
   const radiusMap = { sm: "8px", md: "12px", lg: "16px" };
   const [imgSrc, setImgSrc] = React.useState(getColoredPlaceholder(alt || 'Image', 400, 400));
   const [isLoading, setIsLoading] = React.useState(true);
   const [errorCount, setErrorCount] = React.useState(0);
 
-  // ✅ PEXELS-FIRST: Fetch from Pexels on mount
+  // ✅ BACKEND-FIRST: Check backend URLs before fetching from Pexels
   React.useEffect(() => {
     let isMounted = true;
 
@@ -1046,9 +1065,18 @@ export const Image = ({
       setIsLoading(true);
       setErrorCount(0);
 
-      // Priority 1: Try Pexels
+      // ✅ PRIORITY 1: Check backend URL FIRST (already has perfect images!)
+      const backendUrl = getImageUrlFromProps({ src, image, illustration });
+      if (backendUrl && isMounted) {
+        console.log(`✅ Using backend image URL: ${backendUrl.substring(0, 60)}...`);
+        setImgSrc(backendUrl);
+        setIsLoading(false);
+        return;
+      }
+
+      // ✅ PRIORITY 2: Only fetch from Pexels if backend didn't provide URL
       const query = generatePexelsQuery('Image', alt);
-      console.log(`🔍 Attempting Pexels fetch for query: "${query}"`);
+      console.log(`🔵 Attempting Pexels fetch for query: "${query}"`);
 
       const pexelsUrl = await searchPexelsPhoto(query, { orientation: 'landscape' });
 
@@ -1059,16 +1087,7 @@ export const Image = ({
         return;
       }
 
-      // Priority 2: Check backend URL (if provided)
-      const backendUrl = getImageUrlFromProps({ src, image, illustration });
-      if (backendUrl && isMounted) {
-        console.log(`✅ Using backend URL: ${backendUrl.substring(0, 60)}...`);
-        setImgSrc(backendUrl);
-        setIsLoading(false);
-        return;
-      }
-
-      // Priority 3: Unsplash fallback
+      // ✅ PRIORITY 3: Unsplash fallback
       console.log(`⚠️ Pexels failed, using Unsplash fallback`);
       if (isMounted) {
         setImgSrc(getUnsplashFallback(alt || 'image', 400, 400));
@@ -1190,14 +1209,19 @@ export const IllustrationHeader = ({
       }}
     >
       <Image
-        illustration={illustration}
+        illustration={addCacheBuster(illustration)}
         alt={title || "Illustration"}
+        loading="eager"
         style={{
           width: "100%",
           height: "180px",
           objectFit: "cover",
           borderRadius: "16px",
           marginBottom: "20px",
+        }}
+        onError={(e) => {
+          console.error('❌ [IMAGE] Failed to load:', illustration);
+          e.target.style.background = '#F3F4F6';
         }}
       />
       {title && (

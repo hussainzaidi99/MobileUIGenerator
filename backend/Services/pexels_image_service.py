@@ -187,24 +187,35 @@ class PexelsQueryBuilder:
         component: Dict[str, Any],
         screen_type: str = "general",
         fallback_keyword: str = "modern minimal",
-        user_context: str = ""  # ✅ NEW: User prompt context
+        user_context: str = "",  # User prompt context
+        force_context: str = ""  # ✅ NEW: Force mode for direct edits
     ) -> str:
         """
-        Build optimal Pexels search query from component context.
+        ✅ ENHANCED: Build optimal Pexels search query with priority system.
         
-        Strategy:
-        1. Extract context from user prompt (e.g., "barber shop")
-        2. Extract semantic hints from component props
-        3. Match to category-specific keywords
-        4. Build query with modifiers for quality
+        Priority Order:
+        1. FORCE MODE (highest) - Direct image edit requests
+        2. USER CONTEXT - Extracted from user prompt
+        3. COMPONENT PROPS - Semantic hints from component
+        4. CATEGORY KEYWORDS - Screen type defaults
+        5. FALLBACK - Generic modern minimal
+        
+        Examples:
+        - force_context="car" → "car" (absolute priority)
+        - user_context="barber shop app" → "barber shop"
+        - component title="headphones" → "wireless headphones"
         """
         comp_type = (component.get("type") or "").lower()
         props = component.get("props") or {}
         
-        # ✅ NEW: Extract business/domain context from user prompt
+        # ✅ PRIORITY 0: FORCE MODE (absolute priority for direct edits)
+        if force_context:
+            return force_context
+        
+        # ✅ PRIORITY 1: Extract context from user prompt
         context_keywords = cls._extract_context_from_prompt(user_context)
         
-        # Extract text content
+        # Extract text content from component
         text_parts = [
             str(props.get("title", "")),
             str(props.get("name", "")),
@@ -216,15 +227,15 @@ class PexelsQueryBuilder:
         
         all_text = " ".join(text_parts).lower().strip()
         
-        # ✅ PRIORITY 1: If user context exists, use it!
+        # ✅ PRIORITY 2: If user context exists, use it!
         if context_keywords:
-            # For auth screens with business context: "barber shop login"
+            # For auth screens with business context: "barber shop professional"
             if screen_type == "auth":
                 return f"{context_keywords} professional"
             # For other screens: use context directly
             return context_keywords
         
-        # Detect specific item type
+        # ✅ PRIORITY 3: Detect specific item type from component
         detected_type = cls._detect_item_type(all_text, screen_type)
         
         # Get category-specific keywords
@@ -252,46 +263,85 @@ class PexelsQueryBuilder:
     @classmethod
     def _extract_context_from_prompt(cls, user_prompt: str) -> str:
         """
-        Extract business/domain context from user prompt.
+        ✅ ENHANCED: Extract business/domain context from user prompt.
+        
+        Handles:
+        - Single words: "car", "forest", "beach" → "car", "forest", "beach"
+        - Multi-word: "sports car images" → "sports car"
+        - Compound: "tropical beach all screens" → "tropical beach"
+        - Noise removal: "car images please" → "car"
         
         Examples:
+        - "car" → "car"
+        - "car images" → "car"
+        - "sports car all screens" → "sports car"
         - "barber shop app" → "barber shop"
         - "coffee shop mobile UI" → "coffee shop"
-        - "fitness gym authentication" → "fitness gym"
         """
         if not user_prompt:
             return ""
         
-        prompt_lower = user_prompt.lower()
+        prompt_lower = user_prompt.lower().strip()
         
-        # Clean common prefixes and noise
+        # Clean common prefixes
         prefixes = ["refined prompt:", "refined prompt", "prompt:", "user prompt:"]
         for prefix in prefixes:
             if prompt_lower.startswith(prefix):
                 prompt_lower = prompt_lower[len(prefix):].strip()
         
-        # Remove common UI/tech words
-        noise_words = [
-            "app", "mobile", "ui", "screen", "authentication", "auth",
-            "login", "signup", "modern", "design", "interface", "with",
+        # ✅ COMPREHENSIVE noise word list
+        noise_words = {
+            # Image-related filler
+            "image", "images", "picture", "pictures", "photo", "photos",
+            "illustration", "illustrations", "themed", "theme",
+            
+            # UI/Tech words
+            "app", "mobile", "ui", "screen", "screens", "authentication", "auth",
+            "login", "signup", "modern", "design", "interface", "website",
+            
+            # Action words
+            "create", "build", "generate", "make", "add", "change", "update",
+            "show", "display", "use", "get", "set",
+            
+            # Connectors & fillers
+            "with", "for", "and", "the", "all", "in", "on", "at", "to",
+            "of", "from", "please", "thanks", "thank", "you",
+            
+            # Social/Auth specific
             "email", "password", "social", "google", "apple", "facebook",
-            "create", "build", "generate", "make", "for", "and", "the",
-            "refined", "prompt", "images", "themed", "theme"
-        ]
+            "github", "twitter",
+            
+            # Misc
+            "refined", "prompt", "new", "old"
+        }
         
         # Strip punctuation and split
         import re
         clean_prompt = re.sub(r'[^\w\s]', ' ', prompt_lower)
         words = clean_prompt.split()
-        context_words = []
         
+        # ✅ DETECT single-word requests (high priority)
+        if len(words) == 1 and words[0] not in noise_words:
+            return words[0]
+        
+        # ✅ EXTRACT meaningful context words
+        context_words = []
         for word in words:
-            # Keep meaningful business/domain words
+            # Keep words that are:
+            # 1. Not in noise list
+            # 2. Longer than 2 characters (avoid "ui", "to", etc.)
             if word not in noise_words and len(word) > 2:
                 context_words.append(word)
         
-        # Take first 2-3 meaningful words
-        if context_words:
+        # ✅ HANDLE multi-word contexts
+        if len(context_words) == 0:
+            return ""
+        elif len(context_words) == 1:
+            return context_words[0]
+        else:
+            # Take first 2 words for compound subjects
+            # "sports car" > "sports"
+            # "tropical beach" > "tropical"
             return " ".join(context_words[:2])
         
         return ""
@@ -461,11 +511,12 @@ class PexelsImageService:
         width: int = 400,
         height: int = 300,
         use_cache: bool = True,
-        user_context: str = "",  # ✅ NEW: User prompt context
-        used_ids: set = None      # ✅ NEW: Tracking used image IDs
+        user_context: str = "",  # User prompt context
+        force_context: str = "",  # ✅ NEW: Force mode for direct edits
+        used_ids: set = None      # Tracking used image IDs
     ) -> str:
         """
-        Get optimal image URL for component.
+        ✅ ENHANCED: Get optimal image URL for component.
         
         Args:
             component: Component dict with type, props, id
@@ -474,17 +525,19 @@ class PexelsImageService:
             height: Desired height
             use_cache: Whether to use cached results
             user_context: User's original prompt for context-aware queries
+            force_context: Force specific query (for direct image edits)
             used_ids: Set of photo IDs already used in this generation
             
         Returns:
             Pexels image URL
         """
         try:
-            # Build query with user context
+            # ✅ Build query with force mode support
             query = self.query_builder.build_query(
                 component, 
                 screen_type,
-                user_context=user_context
+                user_context=user_context,
+                force_context=force_context
             )
 
             # Determine orientation
@@ -614,17 +667,19 @@ async def enrich_component_with_pexels(
     component: Dict[str, Any],
     screen_type: str = "general",
     depth: int = 0,
-    user_context: str = "",  # ✅ NEW: User prompt context
-    used_ids: set = None      # ✅ NEW: Tracking used image IDs
+    user_context: str = "",  # User prompt context
+    force_context: str = "",  # ✅ NEW: Force mode for direct edits
+    used_ids: set = None      # Tracking used image IDs
 ) -> Dict[str, Any]:
     """
-    Recursively enrich component with Pexels image URLs.
+    ✅ ENHANCED: Recursively enrich component with Pexels image URLs.
     
     Args:
         component: Component to enrich
         screen_type: Screen category
         depth: Recursion depth
         user_context: Context from user prompt
+        force_context: Force specific query (for direct image edits)
         used_ids: Set of already used image IDs
     """
     comp_type = (component.get("type") or "").lower()
@@ -675,6 +730,7 @@ async def enrich_component_with_pexels(
             width, 
             height,
             user_context=user_context,
+            force_context=force_context,
             used_ids=used_ids
         )
         
@@ -694,6 +750,7 @@ async def enrich_component_with_pexels(
                 screen_type, 
                 depth + 1,
                 user_context=user_context,
+                force_context=force_context,
                 used_ids=used_ids
             )
             enriched_children.append(enriched_child)
@@ -703,23 +760,25 @@ async def enrich_component_with_pexels(
 
 async def enrich_layout_with_pexels(
     layout: Dict[str, Any],
-    user_prompt: str = ""  # ✅ NEW: User's original prompt
+    user_prompt: str = "",  # User's original prompt
+    force_context: str = ""  # ✅ NEW: Force mode for direct edits
 ) -> Dict[str, Any]:
     """
-    Enrich entire layout with Pexels image URLs.
+    ✅ ENHANCED: Enrich entire layout with Pexels image URLs.
     
     Drop-in replacement for enrich_layout_with_images()
     
     Args:
         layout: Component model layout
         user_prompt: User's original prompt for context-aware image selection
+        force_context: Force specific query (overrides everything else)
     """
     screens: List[Dict[str, Any]] = layout.get("screens", [])
     design_strategy = layout.get("design_strategy", {}) or {}
     screen_type = design_strategy.get("screen_type", "general")
     
-    # ✅ Extract context from user prompt
-    user_context = PexelsQueryBuilder._extract_context_from_prompt(user_prompt)
+    # ✅ Extract context from user prompt (unless force mode)
+    user_context = force_context if force_context else PexelsQueryBuilder._extract_context_from_prompt(user_prompt)
     
     print("\n" + "=" * 60)
     print(f"[PEXELS ENRICHMENT] Starting for {len(screens)} screens")
@@ -744,6 +803,7 @@ async def enrich_layout_with_pexels(
                 screen_type, 
                 depth=0,
                 user_context=user_context,
+                force_context=force_context,
                 used_ids=used_ids
             )
             enriched_components.append(enriched_comp)

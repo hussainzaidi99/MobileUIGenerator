@@ -47,6 +47,43 @@ export default function CanvasRendererLite({ layout }) {
     cardRadius: toCssVarNumber(tokens.cardRadius, 12),
   }), [tokens]);
 
+  // ✅ CACHE-BUSTING: Extract all image URLs from layout
+  const extractAllImageUrls = (screens) => {
+    const urls = [];
+
+    const extractFromComponent = (comp) => {
+      if (!comp) return;
+
+      const props = comp.props || {};
+      // Check all possible image properties
+      if (props.src) urls.push(props.src);
+      if (props.image) urls.push(props.image);
+      if (props.illustration) urls.push(props.illustration);
+      if (props.coverImage) urls.push(props.coverImage);
+
+      // Recurse through children
+      const children = comp.children || [];
+      children.forEach(extractFromComponent);
+    };
+
+    screens.forEach(screen => {
+      const components = screen?.components || [];
+      components.forEach(extractFromComponent);
+    });
+
+    return urls;
+  };
+
+  // ✅ LAYOUT KEY: Generate unique key from image URLs to force re-render
+  const layoutKey = useMemo(() => {
+    const imageUrls = extractAllImageUrls(screens);
+    // Simple hash function
+    const hash = imageUrls.join('|').split('').reduce((acc, char) => {
+      return ((acc << 5) - acc) + char.charCodeAt(0);
+    }, 0);
+    return `layout-${hash}`;
+  }, [screens]);
+
   // Memoized theme context
   const ctx = useMemo(() => ({ theme, tokens: safeTokens }), [theme, safeTokens]);
 
@@ -79,17 +116,17 @@ export default function CanvasRendererLite({ layout }) {
         componentCount: components.length,
         backgroundEnabled: backgroundConfig.enabled,
         backgroundStyle: backgroundConfig.primary_style,
-        components: components.map(c => ({ 
-          type: c?.type, 
-          id: c?.id 
+        components: components.map(c => ({
+          type: c?.type,
+          id: c?.id
         }))
       });
 
       return (
-        <div key={s?.name || idx} style={{ width: '100%' }}>
+        <div key={`${s?.name || idx}-${layoutKey}`} style={{ width: '100%' }}>
           {/* Dynamic background wrapper for phone content */}
           <DynamicBackgroundPreview config={backgroundConfig}>
-            <div style={{ 
+            <div style={{
               minHeight: '100%',
               display: 'flex',
               flexDirection: 'column',
@@ -116,21 +153,21 @@ export default function CanvasRendererLite({ layout }) {
                 })
               ) : (
                 // Empty screen state
-                <div style={{ 
-                  textAlign: "center", 
-                  padding: "32px 16px", 
+                <div style={{
+                  textAlign: "center",
+                  padding: "32px 16px",
                   color: "#9CA3AF",
                   background: "rgba(248, 250, 252, 0.5)",
                   borderRadius: "8px",
                   margin: "16px"
                 }}>
-                  <div style={{ 
-                    fontSize: "32px", 
-                    marginBottom: "8px" 
+                  <div style={{
+                    fontSize: "32px",
+                    marginBottom: "8px"
                   }}>
                     📦
                   </div>
-                  <div style={{ 
+                  <div style={{
                     fontSize: "14px",
                     fontWeight: "500",
                     color: "#64748B"
@@ -156,9 +193,9 @@ export default function CanvasRendererLite({ layout }) {
   // Empty state - no screens
   if (!screens.length) {
     return (
-      <div style={{ 
-        textAlign: "center", 
-        padding: "48px 24px", 
+      <div style={{
+        textAlign: "center",
+        padding: "48px 24px",
         color: "#9CA3AF",
         minHeight: "400px",
         display: "flex",
