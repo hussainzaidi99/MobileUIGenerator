@@ -4,6 +4,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AppIcon from '../assets/Appicon.jpg';
 import { toast } from '../utils/toast';
+import useAutoResize from '../hooks/useAutoResize';
+import { WavyBars } from 'spinny-loader';
 
 
 
@@ -24,6 +26,9 @@ export default function ConversationalEditPanel({
   const textareaRef = useRef(null);
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null); // NEW: Reference to scrollable container
+
+  // ✅ Auto-resizing textarea hook
+  useAutoResize(textareaRef, prompt);
 
   // Fetch history when sessionId changes
   useEffect(() => {
@@ -79,13 +84,6 @@ export default function ConversationalEditPanel({
     return () => clearTimeout(timeoutId);
   }, [messages, isProcessing]);
 
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
-  }, [prompt]);
 
   const handleSendMessage = async () => {
     if (!prompt.trim() || !sessionId || isProcessing) return;
@@ -213,12 +211,12 @@ export default function ConversationalEditPanel({
                 <img src={AppIcon} alt="AI" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
               </div>
               <div className="message-content">
-                <div style={{ marginBottom: '4px' }}>
+                <div style={{ marginBottom: '8px' }}>
                   {processingStage || "Working on your request..."}
                 </div>
-                <span className="typing-dot">.</span>
-                <span className="typing-dot">.</span>
-                <span className="typing-dot">.</span>
+                <div style={{ display: 'flex', justifyContent: 'flex-start', padding: '4px 0' }}>
+                  <WavyBars color="#a855f7" />
+                </div>
               </div>
             </div>
           )}
@@ -230,9 +228,9 @@ export default function ConversationalEditPanel({
                 <img src={AppIcon} alt="AI" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
               </div>
               <div className="message-content">
-                <span className="typing-dot">.</span>
-                <span className="typing-dot">.</span>
-                <span className="typing-dot">.</span>
+                <div style={{ display: 'flex', justifyContent: 'flex-start', padding: '4px 0' }}>
+                  <WavyBars color="#a855f7" />
+                </div>
               </div>
             </div>
           )}

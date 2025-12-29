@@ -15,7 +15,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { FaGoogle, FaCog, FaApple, FaFacebook, FaGithub } from "react-icons/fa";
-import { ThemeCtx, ScreenCtx } from "./CanvasRendererLite";
+import { ThemeCtx } from "./CanvasRendererLite";
 
 const StarIcon = () => <span style={{ color: "#FCD34D" }}>★</span>;
 
@@ -950,7 +950,6 @@ export const Link = LinkButton;
 
 import { searchPexelsPhoto, generatePexelsQuery } from '../utils/pexelsClient';
 
-
 /**
  * Helper to check if a URL is a placeholder
  */
@@ -1057,7 +1056,6 @@ export const Image = ({
   const [imgSrc, setImgSrc] = React.useState(getColoredPlaceholder(alt || 'Image', 400, 400));
   const [isLoading, setIsLoading] = React.useState(true);
   const [errorCount, setErrorCount] = React.useState(0);
-  const screenContext = React.useContext(ScreenCtx);
 
   // ✅ BACKEND-FIRST: Check backend URLs before fetching from Pexels
   React.useEffect(() => {
@@ -1077,8 +1075,8 @@ export const Image = ({
       }
 
       // ✅ PRIORITY 2: Only fetch from Pexels if backend didn't provide URL
-      const query = generatePexelsQuery('Image', alt, screenContext);
-      console.log(`🔵 Attempting Pexels fetch for query: "${query}" (Screen: ${screenContext.name})`);
+      const query = generatePexelsQuery('Image', alt);
+      console.log(`🔵 Attempting Pexels fetch for query: "${query}"`);
 
       const pexelsUrl = await searchPexelsPhoto(query, { orientation: 'landscape' });
 
@@ -1265,7 +1263,6 @@ export const HeroSection = ({
 }) => {
   const [bgUrl, setBgUrl] = React.useState(getColoredPlaceholder('Hero', 800, 400));
   const [isLoading, setIsLoading] = React.useState(true);
-  const screenContext = React.useContext(ScreenCtx);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -1274,7 +1271,7 @@ export const HeroSection = ({
       setIsLoading(true);
 
       // Priority 1: Try Pexels
-      const query = generatePexelsQuery('HeroSection', 'hero banner', screenContext);
+      const query = generatePexelsQuery('HeroSection', 'hero banner', {});
       const pexelsUrl = await searchPexelsPhoto(query, { orientation: 'landscape' });
 
       if (pexelsUrl && isMounted) {

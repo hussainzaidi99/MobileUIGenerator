@@ -3422,7 +3422,7 @@ kbd {
 
 .stitch-main-container.split-mode {
   justify-content: flex-start;
-  min-height: 100vh;
+  height: 100%;
 }
 
 /* ============================================
@@ -3431,24 +3431,49 @@ kbd {
 .stitch-left-panel {
   width: 100%;
   max-width: 1200px;
+  height: 100vh;
   padding: 80px 120px 60px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stitch-left-panel::-webkit-scrollbar {
+  display: none;
 }
 
 .stitch-main-container.split-mode .stitch-left-panel {
   width: 380px;
   max-width: 380px;
   min-width: 380px;
-  padding: 20px;
+  height: 100%;
+  padding: 40px 20px 20px;
+  /* Increased top padding to 40px */
   justify-content: flex-start;
   border-right: none !important;
   /* ✅ FORCED REMOVAL - This was the persistent vertical line */
   overflow-y: auto;
+  /* Enable full-panel scrolling */
   flex-shrink: 0;
   background: #FAFBFC;
+  scrollbar-width: thin;
+  /* Show scrollbar */
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+.stitch-main-container.split-mode .stitch-left-panel::-webkit-scrollbar {
+  display: block;
+  /* Ensure it's visible */
+  width: 6px;
+}
+
+.stitch-main-container.split-mode .stitch-left-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
 }
 
 /* Hero Content (Center Mode) */
@@ -3829,9 +3854,11 @@ kbd {
 .stitch-sidebar-content {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   width: 100%;
   overflow: hidden;
+  min-height: 0;
+  /* Allow flex child to shrink correctly */
 }
 
 .stitch-sidebar-header {
@@ -3881,25 +3908,20 @@ kbd {
 .stitch-sub-panel {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   overflow: hidden;
   position: relative;
-  flex: 1;
+  min-height: 0;
 }
 
 .stitch-messages-container {
   flex: 1;
-  overflow-y: auto;
+  overflow: visible;
+  /* Let the parent handle scrolling */
   padding: 20px 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  scrollbar-width: thin;
-  scrollbar-color: #E2E8F0 transparent;
-}
-
-.stitch-messages-container::-webkit-scrollbar {
-  width: 6px;
 }
 
 .stitch-messages-container::-webkit-scrollbar-track {
@@ -4132,7 +4154,7 @@ kbd {
   transition: opacity 0.4s ease-out;
   overflow-y: auto;
   position: relative;
-  min-height: 100vh;
+  height: 100vh;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -6498,7 +6520,20 @@ body::after {
   top: 0;
   z-index: 100;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  overflow-y: auto;
+  /* Enable full-panel scrolling */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.stitch-history-sidebar::-webkit-scrollbar {
+  display: block;
+  width: 4px;
+}
+
+.stitch-history-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }
 
 .sidebar-collapsed .stitch-history-sidebar {
@@ -6540,17 +6575,9 @@ body::after {
 
 .sidebar-scroll-area {
   flex: 1;
-  overflow-y: auto;
+  overflow: visible;
+  /* Let parent handle scrolling */
   padding: 10px 12px;
-}
-
-.sidebar-scroll-area::-webkit-scrollbar {
-  width: 4px;
-}
-
-.sidebar-scroll-area::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
 }
 
 .sidebar-group {
@@ -6643,6 +6670,12 @@ body::after {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stitch-main-layout::-webkit-scrollbar {
+  display: none;
 }
 
 .stitch-content-area {

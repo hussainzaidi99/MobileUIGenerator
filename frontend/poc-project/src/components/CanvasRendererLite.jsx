@@ -4,7 +4,6 @@ import ComponentRendererLite from "./ComponentRendererLite";
 import DynamicBackgroundPreview from "./DynamicBackgroundPreview";
 
 export const ThemeCtx = createContext({ theme: {}, tokens: {} });
-export const ScreenCtx = createContext({ name: '', category: '' });
 
 /**
  * Safe number parser for CSS variables
@@ -146,11 +145,10 @@ export default function CanvasRendererLite({ layout }) {
                   console.log(`  ↳ Rendering component ${nidx}:`, node.type, node.id);
 
                   return (
-                    <ScreenCtx.Provider key={String(node?.id ?? `${screenName}-${idx}-${nidx}`)} value={{ name: screenName, category: s?.category || '' }}>
-                      <ComponentRendererLite
-                        node={node}
-                      />
-                    </ScreenCtx.Provider>
+                    <ComponentRendererLite
+                      key={String(node?.id ?? `${screenName}-${idx}-${nidx}`)}
+                      node={node}
+                    />
                   );
                 })
               ) : (

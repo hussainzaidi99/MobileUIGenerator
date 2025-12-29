@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import CanvasRendererLite from "./components/CanvasRendererLite";
 import CodePreview from "./components/CodePreview";
 import { toast } from './utils/toast';
+import { WavyBars } from 'spinny-loader';
 
 import ExportButton from "./components/ExportButton";
 import Sidebar from "./components/Sidebar";
@@ -13,6 +14,7 @@ import { getPresetById, PRESET_PROMPTS } from "./constants/presetPrompts";
 import "./index.css";
 import { useAuth } from "./contexts/AuthContext";
 import DarkVeil from './components/backgrounds/DarkVeil';
+import useAutoResize from "./hooks/useAutoResize";
 
 
 export default function App() {
@@ -45,6 +47,9 @@ export default function App() {
 
   // ✅ Auto-expanding textarea ref
   const textareaRef = useRef(null);
+
+  // ✅ Auto-resizing textarea hook
+  useAutoResize(textareaRef, prompt);
 
   // ✅ NEW: Detect mobile devices
   useEffect(() => {
@@ -111,14 +116,9 @@ export default function App() {
     }
   }, [prompt, layout]);
 
-  // ✅ Auto-resize textarea
+  // ✅ Handle textarea change
   const handleTextareaChange = (e) => {
     setPrompt(e.target.value);
-
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
   };
 
   const enhancePrompt = async () => {
@@ -385,7 +385,7 @@ export default function App() {
 
       <div className={`stitch-main-layout ${!showSidebar ? 'sidebar-collapsed' : ''}`}>
         {/* Sidebar Toggle Trigger (Floating or Header) */}
-        {!showSidebar && (
+        {!showSidebar && !isSplitView && (
           <button onClick={toggleSidebar} className="stitch-sidebar-toggle-btn floating">
             📁
           </button>
@@ -497,8 +497,10 @@ export default function App() {
 
               {loading ? (
                 <div className="stitch-canvas-placeholder">
-                  <div className="placeholder-icon">📱</div>
-                  <div className="placeholder-text">Generating...</div>
+                  <div className="placeholder-icon">
+                    <WavyBars color="#a855f7" />
+                  </div>
+                  <div className="placeholder-text">{processingStage || "Generating..."}</div>
                 </div>
               ) : layout ? (
                 <div className="stitch-canvas-container">
