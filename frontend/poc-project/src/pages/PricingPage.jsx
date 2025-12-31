@@ -335,10 +335,7 @@ export default function PricingPage() {
                     </span>
                   </div>
 
-                  <div className="feature-item">
-                    <div className="feature-icon">✓</div>
-                    <span className="feature-text">Never expires</span>
-                  </div>
+                  {/* Removed: Never expires claim */}
 
                   <div className="feature-item">
                     <div className="feature-icon">✓</div>

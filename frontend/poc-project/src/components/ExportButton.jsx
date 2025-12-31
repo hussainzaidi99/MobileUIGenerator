@@ -15,6 +15,7 @@ export default function ExportButton({ rnCode }) {  // ✅ RENAMED PROP
 
     setExporting(true);
     setError(null);
+    const exportToastId = toast.loading("Preparing your project export...");
 
     try {
       // ✅ FIX: Use correct endpoint and payload key
@@ -40,9 +41,13 @@ export default function ExportButton({ rnCode }) {  // ✅ RENAMED PROP
       document.body.removeChild(a);
 
       console.log("✅ Export successful");
+      toast.success("Export Complete!", "Your React Native project ZIP is ready.");
+      toast.dismiss(exportToastId);
+    } catch (err) {
       console.error("Export error:", err);
       setError(err.message);
       toast.error("Export Failed", err.message);
+      if (typeof exportToastId !== 'undefined') toast.dismiss(exportToastId);
     } finally {
       setExporting(false);
     }

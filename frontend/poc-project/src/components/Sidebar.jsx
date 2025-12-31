@@ -1,6 +1,7 @@
 // frontend/poc-project/src/components/Sidebar.jsx
 import React, { useState, useEffect } from 'react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import { toast } from '../utils/toast';
 
 export default function Sidebar({
     userId,
@@ -56,6 +57,7 @@ export default function Sidebar({
             });
             if (res.ok) {
                 setConversations(prev => prev.filter(c => c.conversation_id !== convId));
+                toast.success("Project Deleted", "The project has been removed from your history.");
                 if (activeSessionId === convId) {
                     onNewProject();
                 }
@@ -99,6 +101,7 @@ export default function Sidebar({
                 setConversations(prev => prev.map(c =>
                     c.conversation_id === convId ? { ...c, title: editingTitle } : c
                 ));
+                toast.success("Project Renamed", `New title: ${editingTitle}`);
             }
         } catch (err) {
             console.error("Rename failed:", err);

@@ -1750,16 +1750,19 @@ function AuthRoute() {
  */
 function Shell() {
   const location = useLocation();
+  const [isGeneratorSplit, setIsGeneratorSplit] = React.useState(false); // Track if generator is in split mode
   const isAuthPage = location.pathname === '/auth' || location.pathname.startsWith('/auth/');
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {!isAuthPage && <MainHeader />}
+      {/* Hide navbar on auth page or when generator is in split mode */}
+      {!isAuthPage && !isGeneratorSplit && <MainHeader />}
       <Toaster position="top-right" richColors expand={true} theme="dark" />
 
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}>
         <Routes>
-          {/* 🆕 Default route - PUBLIC generation page */}
-          <Route path="/" element={<App />} />
+          {/* 🆕 Default route - PUBLIC generation page. Pass prop to track split mode. */}
+          <Route path="/" element={<App onSplitModeChange={setIsGeneratorSplit} />} />
 
           {/* Navigation pages */}
           <Route path="/features" element={<FeaturesPage />} />

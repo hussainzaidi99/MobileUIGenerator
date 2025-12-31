@@ -145,6 +145,8 @@ export default function ConversationalEditPanel({
         console.warn("⚠️ No layout data in response");
       }
 
+      toast.success("Updated!", "The UI layout has been updated with your changes.");
+
       // Add assistant success message
       setMessages(prev => [...prev, {
         id: Date.now().toString(),

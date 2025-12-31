@@ -118,6 +118,7 @@ export default function AuthPage({ onSuccess }) {
           } catch (err) {
             console.error('❌ Google authentication error:', err);
             setError(err.message || "Failed to authenticate with Google");
+            toast.error("Google Auth Failed", err.message || "Could not authenticate with your Google account.");
             setLoading(false);
           }
         },
@@ -128,6 +129,7 @@ export default function AuthPage({ onSuccess }) {
     } catch (err) {
       console.error('❌ Error initializing Google Sign-In:', err);
       setError("Failed to open Google Sign-In. Please try again.");
+      toast.error("Google Sign-In Error", "Failed to open Google Sign-In. Please check your browser settings.");
       setLoading(false);
     }
   };
@@ -145,9 +147,18 @@ export default function AuthPage({ onSuccess }) {
       fullName
     });
 
+    // ✅ CHECK EMAIL FORMAT
+    if (!email.includes("@") || !email.includes(".")) {
+      setError("Please enter a valid email address");
+      toast.error("Invalid Email", "Please enter a valid email address (e.g., user@example.com)");
+      setLoading(false);
+      return;
+    }
+
     // ✅ CHECK PASSWORD STRENGTH
     if (password.length < 8) {
       setError("Password must be at least 8 characters");
+      toast.error("Weak Password", "Password must be at least 8 characters long.");
       setLoading(false);
       return;
     }
@@ -157,6 +168,7 @@ export default function AuthPage({ onSuccess }) {
 
     if (!hasUpper || !hasLower || !hasDigit) {
       setError("Password must contain uppercase, lowercase, and a number");
+      toast.error("Weak Password", "Inlcude uppercase, lowercase letters and at least one number.");
       setLoading(false);
       return;
     }
@@ -164,11 +176,13 @@ export default function AuthPage({ onSuccess }) {
     // ✅ CHECK USERNAME
     if (username.length < 3) {
       setError("Username must be at least 3 characters");
+      toast.error("Invalid Username", "Username must be at least 3 characters long.");
       setLoading(false);
       return;
     }
     if (!/^[a-zA-Z0-9]+$/.test(username)) {
       setError("Username must be alphanumeric (no special characters)");
+      toast.error("Invalid Username", "Username can only contain letters and numbers.");
       setLoading(false);
       return;
     }
@@ -206,7 +220,7 @@ export default function AuthPage({ onSuccess }) {
       // ✅ Move to verification screen
       setMode("verify");
       setSuccessMessage("Verification code sent to your email!");
-      toast.success('Account created!', 'Check your email to verify your account');
+      toast.success('Account created!', 'Check your email to verify. Then login to start building!');
 
     } catch (err) {
       const errorMsg = getErrorMessage({
@@ -310,7 +324,7 @@ export default function AuthPage({ onSuccess }) {
       const result = await login(email, password);
 
       if (result.success) {
-        toast.success('Welcome back!', 'Login successful');
+        toast.success('Welcome back!', "You're all set! Let's start building your dream App.");
         onSuccess?.();
       } else {
         // Get user-friendly error message

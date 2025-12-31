@@ -17,7 +17,7 @@ import DarkVeil from './components/backgrounds/DarkVeil';
 import useAutoResize from "./hooks/useAutoResize";
 
 
-export default function App() {
+export default function App({ onSplitModeChange }) {
   const [layout, setLayout] = useState(null);
   const [rnCode, setRnCode] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -69,12 +69,73 @@ export default function App() {
     }
   }, [userId]);
 
+  // ✅ NEW: Restore state on initial mount
+  const [hasRestored, setHasRestored] = useState(false);
+
+  // ✅ NEW: Persist state to localStorage whenever it changes
+  useEffect(() => {
+    // Only persist for logged-in users AND after we've attempted restoration
+    if (userId && hasRestored) {
+      const stateToSave = {
+        layout,
+        rnCode,
+        prompt,
+        sessionId,
+        loading,
+        processingStage, // NEW: Persist the stage (Analyzing, Structuring, etc.)
+        userId
+      };
+
+      localStorage.setItem(`stitch_state_${userId}`, JSON.stringify(stateToSave));
+      // console.log("💾 State persisted to localStorage");
+    }
+  }, [layout, rnCode, prompt, sessionId, loading, processingStage, userId, hasRestored]);
+
+  useEffect(() => {
+    if (userId && !hasRestored) {
+      const saved = localStorage.getItem(`stitch_state_${userId}`);
+      if (saved) {
+        try {
+          const {
+            layout: savedLayout,
+            rnCode: savedRnCode,
+            prompt: savedPrompt,
+            sessionId: savedSessionId,
+            loading: wasLoading,
+            processingStage: savedStage, // Restore stage
+            userId: savedUserId
+          } = JSON.parse(saved);
+
+          if (savedUserId === userId) {
+            if (savedLayout) setLayout(savedLayout);
+            if (savedRnCode) setRnCode(savedRnCode);
+            if (savedPrompt) setPrompt(savedPrompt);
+            if (savedSessionId) setSessionId(savedSessionId);
+            if (savedStage) setProcessingStage(savedStage);
+
+            // Auto-resume if it was generating
+            if (wasLoading && savedPrompt && !savedLayout) {
+              console.log("🔄 Resuming interrupted generation for prompt:", savedPrompt);
+              // Pass prompt directly to ensure it doesn't use empty state due to batched update
+              setTimeout(() => {
+                generate(savedPrompt);
+              }, 500);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to restore state:", e);
+        }
+      }
+      setHasRestored(true);
+    }
+  }, [userId, hasRestored]);
+
   const fetchUserCredits = async () => {
     if (!userId) return;
 
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL} /payment/balance / ${userId} `
+        `${import.meta.env.VITE_API_BASE_URL}/payment/balance/${userId}`
       );
 
       if (res.ok) {
@@ -162,8 +223,9 @@ export default function App() {
     }
   };
 
-  const generate = async () => {
+  const generate = async (overridePrompt = null) => {
     if (!userId) {
+      toast.info("Authentication Required", "Please sign in or sign up to start building your screens.");
       navigate('/auth', {
         state: { from: location },
         replace: false
@@ -171,7 +233,10 @@ export default function App() {
       return;
     }
 
-    const finalPrompt = prompt.trim();
+    // Use overridePrompt if provided (for auto-resume), otherwise use current state
+    // Ensure we don't try to .trim() an event object from a button click
+    const promptToUse = (typeof overridePrompt === 'string') ? overridePrompt : prompt;
+    const finalPrompt = (promptToUse || "").trim();
 
     if (!finalPrompt) {
       setError("Please enter a prompt or select a preset.");
@@ -182,6 +247,9 @@ export default function App() {
     setLoading(true);
     setError(null);
     setProcessingStage("Analyzing your request...");
+
+    // NEW: Show starting toast (info or loading)
+    const generationToastId = toast.loading("Processing your request...");
 
     try {
       const res = await fetch(
@@ -258,11 +326,12 @@ export default function App() {
         setShowCode(false);
       }
 
-      setProcessingStage("Complete!");
-      setTimeout(() => setProcessingStage(""), 2000);
-
       // ✅ SUCCESS: Update local credits
       await fetchUserCredits();
+
+      // NEW: Show success toast
+      toast.success("Generation Complete!", "Your UI has been successfully built.");
+      toast.dismiss(generationToastId);
 
       // ✅ NEW: Show low credits warning if < 10 (and not already showing insufficient)
       if (userCredits && userCredits.credits < 10) {
@@ -275,6 +344,7 @@ export default function App() {
       setError(e.message || "Generation failed. Please try again.");
       toast.error("Generation failed", e.message || "Please try again later.");
       setProcessingStage("");
+      if (typeof generationToastId !== 'undefined') toast.dismiss(generationToastId);
     } finally {
       setLoading(false);
     }
@@ -345,12 +415,20 @@ export default function App() {
     setProcessingStage("");
     setEstimatedCost(null);
     setSessionId(null);
+    if (userId) {
+      localStorage.removeItem(`stitch_state_${userId}`);
+    }
   };
 
   const toggleSidebar = () => setShowSidebar(prev => !prev);
 
   const screenCount = layout?.screens?.length || 0;
   const isSplitView = !!(layout || loading); // Ensure boolean
+
+  // ✅ NEW: Sync split mode state with parent to show/hide navbar
+  useEffect(() => {
+    onSplitModeChange?.(isSplitView);
+  }, [isSplitView, onSplitModeChange]);
 
   const displayedPresets = showAllPresets
     ? PRESET_PROMPTS

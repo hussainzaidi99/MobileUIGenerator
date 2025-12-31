@@ -1,5 +1,5 @@
-// frontend/poc-project/src/contexts/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { toast } from '../utils/toast';
 
 const AuthContext = createContext(null);
 
@@ -105,6 +105,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       saveAuthState(data.user, data.tokens);
+      toast.success("Account Created!", `Welcome, ${data.user.username}!`);
       return { success: true, user: data.user };
     } catch (err) {
       const errorMessage = err.message || 'Signup failed. Please try again.';
@@ -143,6 +144,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       saveAuthState(data.user, data.tokens);
+      toast.success("Welcome back!", `Logged in as ${data.user.email}`);
       return { success: true, user: data.user };
     } catch (err) {
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
@@ -175,6 +177,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       saveAuthState(data.user, data.tokens);
+      toast.success("Google Login Successful!", `Welcome, ${data.user.username || data.user.email}!`);
       return { success: true, user: data.user };
     } catch (err) {
       const errorMessage = err.message || 'Google authentication failed.';
@@ -198,6 +201,7 @@ export const AuthProvider = ({ children }) => {
       console.error('❌ Logout error:', err);
     } finally {
       clearAuthState();
+      toast.info("Logged out", "You have been securely logged out.");
     }
   };
 
@@ -233,6 +237,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('❌ Token refresh failed:', err);
       clearAuthState();
+      toast.error("Session Expired", "Please login again to continue.");
       throw err;
     }
   };
