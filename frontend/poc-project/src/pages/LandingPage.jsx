@@ -16,6 +16,7 @@ import AuthPage from "./AuthPage";
 import App from "../App";
 import { PaymentSuccess, PaymentCancelled } from './PaymentStatusPage';
 import PricingPage from './PricingPage';
+import TermsPage from './TermsPage';
 import AppIcon from "../assets/Appicon.jpg";
 
 
@@ -546,7 +547,34 @@ function MainHeader() {
           >
             Pricing
           </Link>
-
+          <Link
+            to="/terms"
+            style={{
+              fontSize: '15px',
+              fontWeight: isActive('/terms') ? '600' : '500',
+              color: isActive('/terms') ? '#f8fafc' : '#cbd5e1',
+              textDecoration: 'none',
+              transition: 'all 0.2s',
+              cursor: 'pointer',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              background: isActive('/terms') ? 'rgba(139, 92, 246, 0.2)' : 'transparent'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.color = '#f8fafc';
+              if (!isActive('/terms')) {
+                e.target.style.background = 'rgba(139, 92, 246, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.color = isActive('/terms') ? '#f8fafc' : '#cbd5e1';
+              if (!isActive('/terms')) {
+                e.target.style.background = 'transparent';
+              }
+            }}
+          >
+            Terms
+          </Link>
         </nav>
 
         {/* Right: Auth Buttons or User Dropdown */}
@@ -614,6 +642,47 @@ function MainHeader() {
         </div>
       </div>
     </header>
+  );
+}
+
+/**
+ * 🎨 MAIN FOOTER: Global Footer for all pages
+ */
+function MainFooter() {
+  const navigate = useNavigate();
+  return (
+    <footer style={{
+      padding: '80px 24px 40px',
+      background: 'rgba(10, 10, 20, 0.4)',
+      backdropFilter: 'blur(10px)',
+      borderTop: '1px solid rgba(139, 92, 246, 0.1)',
+      textAlign: 'center'
+    }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          {/* Logo & Slogan */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <img src={AppIcon} alt="AppGen" style={{ width: '48px', height: '48px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)' }} />
+            <div style={{ fontSize: '24px', fontWeight: '900', background: 'linear-gradient(135deg, #f8fafc 0%, #c084fc 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>AppGen</div>
+            <p style={{ color: '#94a3b8', maxWidth: '300px' }}>The future of mobile app development, powered by AI.</p>
+          </div>
+
+          {/* Links */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
+            <Link to="/" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>Generation</Link>
+            <Link to="/features" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>Features</Link>
+            <Link to="/templates" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>Templates</Link>
+            <Link to="/pricing" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>Pricing</Link>
+            <Link to="/terms" style={{ color: '#cbd5e1', textDecoration: 'none', fontWeight: '600' }}>Terms & Conditions</Link>
+          </div>
+
+          {/* Copyright */}
+          <div style={{ borderTop: '1px solid rgba(139, 92, 246, 0.1)', paddingTop: '32px', color: '#64748b', fontSize: '14px' }}>
+            © 2025 Sabasoft Games. All rights reserved. Built with ❤️ for developers.
+          </div>
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -1558,7 +1627,7 @@ function TemplatesPage() {
             e.target.style.boxShadow = '0 8px 32px rgba(139, 92, 246, 0.5)';
           }}
         >
-          View All 50+ Templates
+          Start Generating
         </button>
       </div>
 
@@ -1775,6 +1844,9 @@ function Shell() {
           {/* Pricing page - accessible to all but requires auth for purchase */}
           <Route path="/pricing" element={<PricingPage />} />
 
+          {/* Terms & Conditions page */}
+          <Route path="/terms" element={<TermsPage />} />
+
           {/* 🆕 Optional about page (old landing hero) */}
           <Route path="/about" element={<HomeHero />} />
 
@@ -1799,6 +1871,7 @@ function Shell() {
           {/* Catch all - redirect to home (generation page) */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <MainFooter />
       </div>
     </div>
   );

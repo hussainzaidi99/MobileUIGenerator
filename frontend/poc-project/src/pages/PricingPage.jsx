@@ -4,16 +4,14 @@ import { useNavigate } from "react-router-dom";
 import DarkVeil from "../components/backgrounds/DarkVeil";
 import { toast } from '../utils/toast';
 
-
 export default function PricingPage() {
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(null);
-  const [selectedPackage, setSelectedPackage] = useState(null);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
   const [error, setError] = useState(null);
 
-  // ✅ Use auth context instead of localStorage
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const userId = user?.id;
@@ -29,7 +27,6 @@ export default function PricingPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Fetch available packages and balance on mount
   useEffect(() => {
     fetchPackages();
     if (userId) {
@@ -77,7 +74,7 @@ export default function PricingPage() {
   const handlePurchase = async (packageId) => {
     if (!userId) {
       toast.info("Login Required", "Please log in to purchase credits");
-      navigate("/auth");
+      navigate("/auth", { state: { from: { pathname: '/pricing' } } });
       return;
     }
 
@@ -99,19 +96,16 @@ export default function PricingPage() {
 
       const data = await res.json();
 
-      if (res.ok && data.url) {
-        // Redirect to Stripe Checkout
-        window.location.href = data.url;
+      if (res.ok && data.checkout_url) {
+        window.location.href = data.checkout_url;
       } else {
-        toast.error("Checkout Failed", data.detail || "Failed to create checkout session");
-        setPurchaseLoading(false);
-        setSelectedPackage(null);
+        throw new Error(data.error || "Failed to create checkout session");
       }
-    } catch (error) {
-      console.error("Purchase error:", error);
-      toast.error("Something went wrong", "Please try again later.");
+    } catch (err) {
+      console.error("Purchase error:", err);
+      toast.error("Checkout Failed", err.message || "Something went wrong.");
+    } finally {
       setPurchaseLoading(false);
-      setSelectedPackage(null);
     }
   };
 
@@ -119,243 +113,249 @@ export default function PricingPage() {
     return new Intl.NumberFormat().format(num);
   };
 
-  // ✅ Show login prompt if user is not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div className="pricing-page-container">
-        <DarkVeil opacity={isMobile ? 0.25 : 0.4} particleCount={isMobile ? 15 : 40} />
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '80vh',
-          position: 'relative',
-          zIndex: 10,
-          padding: '2rem'
-        }}>
-          <div style={{
-            textAlign: 'center',
-            background: 'rgba(30, 41, 59, 0.5)',
-            backdropFilter: 'blur(16px)',
-            borderRadius: '32px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            padding: '4rem 3rem',
-            maxWidth: '500px',
-            width: '100%',
-            animation: 'fadeIn 0.6s ease-out'
-          }}>
-            <div style={{
-              width: '100px',
-              height: '100px',
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              borderRadius: '30px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 2.5rem',
-              fontSize: '3rem',
-              boxShadow: '0 20px 40px rgba(99, 102, 241, 0.3)'
-            }}>
-              🔒
-            </div>
-            <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: '#f8fafc', marginBottom: '1rem', letterSpacing: '-0.02em' }}>
-              Login Required
-            </h2>
-            <p style={{ color: '#94a3b8', marginBottom: '3rem', fontSize: '1.25rem', fontWeight: '500' }}>
-              Please log in to view pricing and purchase credits
-            </p>
-            <button
-              onClick={() => navigate("/auth")}
-              className="btn-purchase primary"
-              style={{ width: '100%', fontSize: '1.25rem', padding: '1.25rem' }}
-            >
-              Go to Login
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (loading) {
     return (
-      <div className="pricing-page-container">
-        <DarkVeil opacity={isMobile ? 0.25 : 0.4} particleCount={isMobile ? 15 : 40} />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', position: 'relative', zIndex: 10 }}>
-          <div style={{ textAlign: 'center' }}>
-            <div className="spinner-large" style={{ margin: '0 auto 2rem' }}></div>
-            <p style={{ color: '#f8fafc', fontSize: '1.5rem', fontWeight: '700', letterSpacing: '0.05em' }}>
-              Loading Premium Plans...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="pricing-page-container">
-        <DarkVeil opacity={isMobile ? 0.25 : 0.4} particleCount={isMobile ? 15 : 40} />
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '80vh',
-          position: 'relative',
-          zIndex: 10,
-          padding: '2rem'
-        }}>
-          <div style={{
-            textAlign: 'center',
-            background: 'rgba(30, 41, 59, 0.5)',
-            backdropFilter: 'blur(16px)',
-            borderRadius: '32px',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-            padding: '4rem 3rem',
-            maxWidth: '500px',
-            width: '100%'
-          }}>
-            <div style={{
-              width: '100px',
-              height: '100px',
-              background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-              borderRadius: '30px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 2.5rem',
-              fontSize: '3rem',
-              boxShadow: '0 20px 40px rgba(239, 68, 68, 0.3)'
-            }}>
-              ⚠️
-            </div>
-            <h2 style={{ fontSize: '2.25rem', fontWeight: '900', color: '#f8fafc', marginBottom: '1.5rem' }}>
-              Something went wrong
-            </h2>
-            <p style={{ color: '#94a3b8', marginBottom: '3rem', fontSize: '1.125rem' }}>{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="btn-purchase secondary"
-              style={{ width: '100%' }}
-            >
-              Reload Page
-            </button>
-          </div>
-        </div>
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0f172a'
+      }}>
+        <div className="spinner"></div>
       </div>
     );
   }
 
   return (
-    <div className="pricing-page-container">
-      <DarkVeil opacity={isMobile ? 0.25 : 0.4} particleCount={isMobile ? 15 : 40} />
+    <div style={{
+      minHeight: "100vh",
+      background: "#0f172a",
+      color: "#f8fafc",
+      padding: "120px 24px 80px",
+      position: "relative",
+      overflow: "hidden"
+    }}>
+      {/* Background Decor */}
+      <div style={{
+        position: 'absolute',
+        top: '10%',
+        left: '5%',
+        width: '400px',
+        height: '400px',
+        background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1), transparent 70%)',
+        filter: 'blur(80px)',
+        pointerEvents: 'none'
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: '10%',
+        right: '5%',
+        width: '500px',
+        height: '500px',
+        background: 'radial-gradient(circle, rgba(6, 182, 212, 0.08), transparent 70%)',
+        filter: 'blur(80px)',
+        pointerEvents: 'none'
+      }} />
 
-      <div style={{ position: 'relative', zIndex: 10 }}>
-        {/* Header */}
-        <div className="pricing-header">
-          <h1>Choose Your Plan</h1>
-          <p>1 Credit = 70,000 tokens • Pay only for what you use</p>
+      <div style={{ maxWidth: "1200px", margin: "0 auto", position: "relative", zIndex: 2 }}>
 
-          {/* Current Balance */}
+        {/* Header Section */}
+        <div style={{ textAlign: "center", marginBottom: "80px" }}>
+          <div style={{
+            display: 'inline-block',
+            padding: '8px 20px',
+            background: 'rgba(139, 92, 246, 0.2)',
+            border: '1px solid rgba(139, 92, 246, 0.4)',
+            borderRadius: '20px',
+            fontSize: '14px',
+            fontWeight: '700',
+            color: '#c084fc',
+            marginBottom: '24px'
+          }}>
+            💎 PREMIUM ACCESS
+          </div>
+          <h1 style={{
+            fontSize: isMobile ? "40px" : "64px",
+            fontWeight: "900",
+            marginBottom: "24px",
+            background: "linear-gradient(135deg, #f8fafc 0%, #c084fc 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            lineHeight: "1.1"
+          }}>
+            Simple, Transparent Pricing
+          </h1>
+          <p style={{
+            fontSize: "20px",
+            color: "#94a3b8",
+            maxWidth: "700px",
+            margin: "0 auto",
+            lineHeight: "1.6"
+          }}>
+            No subscriptions. No hidden fees. Pay only for what you need to build your dream mobile interfaces.
+          </p>
+
           {balance && (
-            <div className="balance-card">
-              <div className="balance-item">
-                <p className="balance-label">Your Balance</p>
-                <p className="balance-value">{balance.credits.toFixed(2)} Credits</p>
+            <div style={{
+              marginTop: '40px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '24px',
+              padding: '16px 32px',
+              background: 'rgba(30, 30, 50, 0.6)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              borderRadius: '16px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+            }}>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Balance</div>
+                <div style={{ fontSize: '24px', fontWeight: '800', color: '#f8fafc' }}>
+                  💳 {formatNumber(balance.credits)} Credits
+                </div>
               </div>
-              <div className="balance-divider"></div>
-              <div className="balance-item">
-                <p className="balance-label">Tokens Remaining</p>
-                <p className="balance-value">{formatNumber(balance.tokens_remaining)}</p>
+              <div style={{ width: '1px', height: '40px', background: 'rgba(139, 92, 246, 0.2)' }} />
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Token Equivalent</div>
+                <div style={{ fontSize: '24px', fontWeight: '800', color: '#c084fc' }}>
+                  ✨ {formatNumber(balance.tokens)} Tokens
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Pricing Cards */}
-        <div className="pricing-cards-grid">
-          {packages.map((pkg, index) => {
-            const isPopular = pkg.id === "pro";
-            const isPurchasing = purchaseLoading && selectedPackage === pkg.id;
-
+        {/* Packages Grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(350px, 1fr))",
+          gap: "32px",
+          marginBottom: "80px"
+        }}>
+          {packages.map((pkg) => {
+            const isPopular = pkg.credits === 300;
             return (
               <div
                 key={pkg.id}
-                className={`pricing-card ${isPopular ? "popular" : ""}`}
+                style={{
+                  background: 'rgba(30, 30, 50, 0.4)',
+                  backdropFilter: 'blur(20px)',
+                  border: isPopular ? '2px solid #8b5cf6' : '1px solid rgba(139, 92, 246, 0.2)',
+                  borderRadius: '24px',
+                  padding: '48px 40px',
+                  position: 'relative',
+                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  transform: isPopular ? 'scale(1.05)' : 'scale(1)',
+                  zIndex: isPopular ? 10 : 1
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = isPopular ? 'scale(1.08) translateY(-8px)' : 'scale(1.03) translateY(-8px)';
+                  e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.6)';
+                  e.currentTarget.style.boxShadow = '0 20px 60px rgba(139, 92, 246, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = isPopular ? 'scale(1.05)' : 'scale(1)';
+                  e.currentTarget.style.borderColor = isPopular ? '#8b5cf6' : 'rgba(139, 92, 246, 0.2)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               >
-                {/* Popular Badge */}
                 {isPopular && (
-                  <div className="popular-badge">
-                    ⭐ Most Popular
+                  <div style={{
+                    position: 'absolute',
+                    top: '-16px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)',
+                    color: '#fff',
+                    padding: '6px 20px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.4)',
+                    letterSpacing: '0.05em'
+                  }}>
+                    MOST POPULAR
                   </div>
                 )}
 
-                {/* Package Icon */}
-                <div className="plan-icon">
-                  {index === 0 ? "🌱" : index === 1 ? "⚡" : "🚀"}
-                </div>
-
-                <h3 className="plan-name">
+                <h3 style={{ fontSize: '28px', fontWeight: '800', color: '#f8fafc', marginBottom: '12px' }}>
                   {pkg.name.replace(" Plan", "")}
                 </h3>
-
-                <p className="plan-description">
-                  {pkg.description.includes(" - ")
-                    ? pkg.description.split(" - ")[1]
-                    : pkg.description}
+                <p style={{ fontSize: '16px', color: '#94a3b8', lineHeight: '1.6', marginBottom: '32px' }}>
+                  {pkg.description.includes(" - ") ? pkg.description.split(" - ")[1] : pkg.description}
                 </p>
 
-                {/* Price */}
-                <div className="price-container">
-                  <div className="price-amount">${pkg.price}</div>
-                  <div className="price-label">One-time payment</div>
-                </div>
-
-                {/* Features */}
-                <div className="features-list">
-                  <div className="feature-item">
-                    <div className="feature-icon">✓</div>
-                    <span className="feature-text">
-                      <strong>{pkg.credits}</strong> Credits
-                    </span>
-                  </div>
-
-                  <div className="feature-item">
-                    <div className="feature-icon">✓</div>
-                    <span className="feature-text">
-                      <strong>{formatNumber(pkg.tokens)}</strong> Tokens
-                    </span>
-                  </div>
-
-                  <div className="feature-item">
-                    <div className="feature-icon">✓</div>
-                    <span className="feature-text">
-                      ${pkg.price_per_credit.toFixed(4)} per credit
-                    </span>
-                  </div>
-
-                  {/* Removed: Never expires claim */}
-
-                  <div className="feature-item">
-                    <div className="feature-icon">✓</div>
-                    <span className="feature-text">Full access to all features</span>
+                <div style={{ marginBottom: '32px' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontSize: '48px', fontWeight: '900', color: '#f8fafc' }}>${pkg.price}</span>
+                    <span style={{ fontSize: '16px', color: '#64748b' }}>one-time</span>
                   </div>
                 </div>
 
-                {/* Purchase Button */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '40px', flex: 1 }}>
+                  {[
+                    { icon: '💳', text: <strong>{pkg.credits} Credits</strong> },
+                    { icon: '✨', text: <span><strong>{formatNumber(pkg.tokens)}</strong> Tokens</span> },
+                    { icon: '💰', text: <span>${pkg.price_per_credit.toFixed(4)} per credit</span> },
+                    { icon: '🚀', text: 'Full access to all features' },
+                    { icon: '📱', text: 'Unlimited Exports' }
+                  ].map((feature, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '15px' }}>
+                      <span style={{ fontSize: '18px' }}>{feature.icon}</span>
+                      <span style={{ color: '#cbd5e1' }}>{feature.text}</span>
+                    </div>
+                  ))}
+                </div>
+
                 <button
                   onClick={() => handlePurchase(pkg.id)}
-                  disabled={isPurchasing || purchaseLoading}
-                  className={`btn-purchase ${isPopular ? "primary" : "secondary"}`}
+                  disabled={purchaseLoading && selectedPackage === pkg.id}
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    borderRadius: '16px',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    background: isPopular
+                      ? 'linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)'
+                      : 'rgba(30, 30, 50, 0.6)',
+                    border: isPopular ? 'none' : '1px solid rgba(139, 92, 246, 0.4)',
+                    color: '#FFFFFF',
+                    boxShadow: isPopular ? '0 8px 32px rgba(139, 92, 246, 0.4)' : 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    if (isPopular) {
+                      e.currentTarget.style.boxShadow = '0 12px 40px rgba(139, 92, 246, 0.6)';
+                    } else {
+                      e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
+                      e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.6)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    if (isPopular) {
+                      e.currentTarget.style.boxShadow = '0 8px 32px rgba(139, 92, 246, 0.4)';
+                    } else {
+                      e.currentTarget.style.background = 'rgba(30, 30, 50, 0.6)';
+                      e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.4)';
+                    }
+                  }}
                 >
-                  {isPurchasing ? (
-                    <>
-                      <span className="spinner"></span>
-                      Processing...
-                    </>
+                  {purchaseLoading && selectedPackage === pkg.id ? (
+                    'Processing...'
                   ) : (
-                    `Buy ${pkg.credits} Credits`
+                    <>Buy {pkg.credits} Credits</>
                   )}
                 </button>
               </div>
@@ -363,122 +363,117 @@ export default function PricingPage() {
           })}
         </div>
 
-        {/* Value Proposition */}
-        <div className="value-section">
-          <h2>Why Choose Our Platform?</h2>
-          <div className="value-grid">
-            <div className="value-item">
-              <div className="value-icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
-                </svg>
+        {/* Why Us Section */}
+        <div style={{
+          textAlign: "center",
+          marginBottom: "100px",
+          padding: "80px 40px",
+          background: "rgba(30, 30, 50, 0.4)",
+          backdropFilter: "blur(20px)",
+          borderRadius: "32px",
+          border: "1px solid rgba(139, 92, 246, 0.2)"
+        }}>
+          <h2 style={{ fontSize: "36px", fontWeight: "900", marginBottom: "48px", color: "#f8fafc" }}>Why Choose AppGen?</h2>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: "40px" }}>
+            {[
+              { title: "Lightning Fast", desc: "Generate high-quality UIs in seconds with our optimized AI engine", icon: "⚡" },
+              { title: "Secure & Private", desc: "Your data is encrypted and we never share it with third parties", icon: "🛡️" },
+              { title: "Best Value", desc: "Pay only for what you use. No ongoing subscriptions or hidden costs.", icon: "💎" }
+            ].map((item, i) => (
+              <div key={i}>
+                <div style={{ fontSize: "40px", marginBottom: "20px" }}>{item.icon}</div>
+                <h3 style={{ fontSize: "20px", fontWeight: "700", marginBottom: "12px", color: "#f8fafc" }}>{item.title}</h3>
+                <p style={{ color: "#94a3b8", lineHeight: "1.6" }}>{item.desc}</p>
               </div>
-              <h3>Lightning Fast</h3>
-              <p>
-                Generate high-quality UIs in seconds with our optimized AI engine
-              </p>
-            </div>
-
-            <div className="value-item">
-              <div className="value-icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                  />
-                </svg>
-              </div>
-              <h3>Secure & Private</h3>
-              <p>
-                Your data is encrypted and we never share it with third parties
-              </p>
-            </div>
-
-            <div className="value-item">
-              <div className="value-icon">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <h3>Best Value</h3>
-              <p>
-                Pay only for what you use. Credits expire at the end of the month.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
 
         {/* FAQ Section */}
-        <div className="faq-section">
-          <h2>Frequently Asked Questions</h2>
-
-          <details className="faq-item">
-            <summary>How do credits work?</summary>
-            <p>
-              1 credit equals 70,000 tokens. Tokens are used for AI generation
-              of your UIs. Your credits can be used anytime, giving you complete
-              flexibility.
-            </p>
-          </details>
-
-          <details className="faq-item">
-            <summary>What happens if I run out of credits?</summary>
-            <p>
-              You'll receive a notification when your credits are running low.
-              Simply purchase more credits to continue generating UIs. There's
-              no downtime or waiting period.
-            </p>
-          </details>
-
-          <details className="faq-item">
-            <summary>Can I upgrade or change my plan?</summary>
-            <p>
-              Yes! You can purchase any package at any time. All credits are
-              cumulative and added to your existing balance. Mix and match
-              packages as needed.
-            </p>
-          </details>
-
-          <details className="faq-item">
-            <summary>Are there any hidden fees?</summary>
-            <p>
-              Absolutely not! The price you see is the price you pay. No
-              subscription fees, no monthly charges, no hidden costs. Just
-              simple, transparent pricing.
-            </p>
-          </details>
-
-          <details className="faq-item">
-            <summary>What payment methods do you accept?</summary>
-            <p>
-              We accept all major credit cards, debit cards, and digital
-              payment methods through our secure Stripe integration. Your
-              payment information is never stored on our servers.
-            </p>
-          </details>
+        <div style={{ maxWidth: "800px", margin: "0 auto", marginBottom: "80px" }}>
+          <h2 style={{ fontSize: "36px", fontWeight: "900", textAlign: "center", marginBottom: "48px", color: "#f8fafc" }}>FAQ</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {[
+              { q: "How do credits work?", a: "1 credit equals roughly 70,000 tokens. Tokens are used for AI generation of your UIs. Your credits never expire as long as your account is active." },
+              { q: "What happens if I run out?", a: "Simply purchase more credits to continue generating UIs. There's no downtime or waiting period." },
+              { q: "Is it a subscription?", a: "No, we use a pay-as-you-go model. You buy credits only when you need them." }
+            ].map((faq, i) => (
+              <details key={i} style={{
+                background: "rgba(30, 30, 50, 0.4)",
+                borderRadius: "16px",
+                border: "1px solid rgba(139, 92, 246, 0.1)",
+                overflow: "hidden"
+              }}>
+                <summary style={{
+                  padding: "20px 24px",
+                  cursor: "pointer",
+                  fontWeight: "700",
+                  color: "#f8fafc",
+                  listStyle: "none",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center"
+                }}>
+                  {faq.q}
+                  <span style={{ color: "#8b5cf6" }}>▼</span>
+                </summary>
+                <div style={{ padding: "0 24px 20px", color: "#94a3b8", lineHeight: "1.6" }}>
+                  {faq.a}
+                </div>
+              </details>
+            ))}
+          </div>
         </div>
 
         {/* Support CTA */}
-        <div className="support-cta">
-          <h3>Still have questions?</h3>
-          <p>Our support team is here to help you</p>
-          <a href="mailto:contact@sabasoftgames.com">
+        <div style={{
+          textAlign: "center",
+          padding: "60px",
+          borderRadius: "24px",
+          background: "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)",
+          border: "1px solid rgba(139, 92, 246, 0.2)"
+        }}>
+          <h3 style={{ fontSize: "24px", fontWeight: "800", marginBottom: "12px", color: "#f8fafc" }}>Still have questions?</h3>
+          <p style={{ color: "#94a3b8", marginBottom: "24px" }}>Our support team is here to help you</p>
+          <a
+            href="mailto:contact@sabasoftgames.com"
+            style={{
+              display: "inline-block",
+              padding: "12px 32px",
+              background: "#8b5cf6",
+              color: "#fff",
+              borderRadius: "12px",
+              textDecoration: "none",
+              fontWeight: "700",
+              transition: "all 0.3s"
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.05)"}
+            onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+          >
             Contact Support
           </a>
         </div>
+
       </div>
+
+      <style>{`
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid rgba(139, 92, 246, 0.2);
+          borderTopColor: #8b5cf6;
+          borderRightColor: #8b5cf6;
+          borderBottomColor: #8b5cf6;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        details > summary::-webkit-details-marker {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }
