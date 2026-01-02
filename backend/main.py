@@ -860,11 +860,6 @@ async def generate_pipeline(request: Request):
     usage_summary = token_tracker.get_summary()
 
     print("\n✅ Pipeline Complete!")
-    print(
-        f"   📝 API 0 (Refiner): "
-        f"{'Applied' if refinement_result['refinement_applied'] else
-                'Skipped'}"
-    )
     print(f"   🎯 API 1 (Intent): {len(screens)} screens detected")
     print(f"   🧩 API 2 (Component): {len(all_components)} components generated")
     print("   🖼️  IMAGE ENRICHMENT: ✅ Dynamic Unsplash URLs added")
