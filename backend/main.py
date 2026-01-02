@@ -7,8 +7,25 @@ from asyncio.log import logger
 import os
 import asyncio
 import json 
-from LLM_Schema.llm_client import _safe_json_loads
-from mangum import Mangum  # 💡 This is the magic that creates the Lambda response dictionary
+from typing import Dict, List, Any
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, StreamingResponse
+from dotenv import load_dotenv
+import io
+import zipfile
+from Services.prompt_refiner import refine_prompt, refiner_stats, generate_project_title
+from LLM_Schema.llm_client import (
+    extract_intent,
+    componentize,
+    generate_react_native_from_json,
+    generate_preview_from_json,
+    generate_asset_prompts,
+    generate_backgrounds,
+    send_chat,
+)
+from LLM_Schema.llm_client import _safe_json_loads  # ✅ ADD THIS TOO
 
 from Services.component_model import create_component_model
 from Services.style_enricher import enrich_styles
@@ -77,18 +94,9 @@ from db.database import connect_to_mongo, close_mongo_connection
 # CORS MIDDLEWARE
 # ============================================================================ #
 
-# 🔒 CORS CONFIGURATION
-# This logic automatically adds the 'Access-Control-Allow-Origin' etc. headers you mentioned.
-allowed_origins_raw = os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
-allowed_origins = [o.strip().rstrip('/') for o in allowed_origins_raw if o.strip()]
-
-# Safety net: Explicitly include your Vercel production URL
-if "https://mobile-ui-generator.vercel.app" not in allowed_origins:
-    allowed_origins.append("https://mobile-ui-generator.vercel.app")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=[o.strip().rstrip('/') for o in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -2000,12 +2008,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 
-# 🚀 AWS LAMBDA HANDLER 
-# Mangum converts FastAPI responses into the JSON dictionary format you specified.
-handler = Mangum(app)
-
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         app,
         host="0.0.0.0",
