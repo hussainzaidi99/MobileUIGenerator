@@ -1,0 +1,55 @@
+name: Build, Push Docker Image to ECR and Deploy to Lambda
+
+on:
+  push:
+    branches:
+      - main  # or your default branch
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 3️⃣ Login to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # 4️⃣ Build Docker image
+      - name: Build Docker image
+        run: |
+          IMAGE_TAG=latest
+          docker build -t ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG .
+
+      # 5️⃣ Tag Docker image for ECR
+      - name: Tag Docker image
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          REGION=${{ secrets.AWS_REGION }}
+          IMAGE_URI=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
+          docker tag ${{ secrets.ECR_REPOSITORY }}:latest $IMAGE_URI
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+      # 6️⃣ Push Docker image to ECR
+      - name: Push Docker image
+        run: |
+          docker push $IMAGE_URI
+
+      # 7️⃣ Update Lambda function to use the new image
+      - name: Update Lambda function
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
+            --image-uri $IMAGE_URI

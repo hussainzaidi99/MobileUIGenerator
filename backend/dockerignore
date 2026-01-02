@@ -1,0 +1,13 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtualenv / local env
+venv/
+env/
+*.env
+
+# Logs
+*.log

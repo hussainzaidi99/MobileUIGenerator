@@ -1,0 +1,12 @@
+# Use AWS Lambda Python 3.11 base image
+FROM public.ecr.aws/lambda/python:3.11
+
+# Copy requirements & install
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the source code
+COPY . /var/task
+
+# Set Lambda entrypoint
+CMD ["lambda_handler.handler"]
