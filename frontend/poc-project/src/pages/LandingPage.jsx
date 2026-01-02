@@ -1842,7 +1842,14 @@ function Shell() {
           <Route path="/auth" element={<AuthRoute />} />
 
           {/* Pricing page - accessible to all but requires auth for purchase */}
-          <Route path="/pricing" element={<PricingPage />} />
+          <Route
+            path="/pricing"
+            element={
+              <RequireAuth>
+                <PricingPage />
+              </RequireAuth>
+            }
+          />
 
           {/* Terms & Conditions page */}
           <Route path="/terms" element={<TermsPage />} />

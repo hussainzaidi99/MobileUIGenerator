@@ -13,6 +13,8 @@ import {
   HelpCircle,
   Info,
   LogOut,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { FaGoogle, FaCog, FaApple, FaFacebook, FaGithub } from "react-icons/fa";
 import { ThemeCtx } from "./CanvasRendererLite";
@@ -445,6 +447,7 @@ export const PasswordInput = ({
   borderRadius = "md",
   style,
 }) => {
+  const [show, setShow] = useState(false);
   const radiusMap = { sm: "6px", md: "8px", lg: "12px" };
   return (
     <label
@@ -452,6 +455,7 @@ export const PasswordInput = ({
         display: "block",
         marginBottom: "16px",
         width: "100%",
+        position: "relative"
       }}
     >
       {label && (
@@ -467,22 +471,42 @@ export const PasswordInput = ({
           {label}
         </span>
       )}
-      <input
-        type="password"
-        name={name}
-        placeholder={placeholder || "••••••••"}
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          border: "1px solid #D1D5DB",
-          borderRadius: radiusMap[borderRadius] || "8px",
-          fontSize: "14px",
-          outline: "none",
-          ...style,
-        }}
-        onFocus={(e) => (e.target.style.borderColor = "#0D9488")}
-        onBlur={(e) => (e.target.style.borderColor = "#D1D5DB")}
-      />
+      <div style={{ position: "relative" }}>
+        <input
+          type={show ? "text" : "password"}
+          name={name}
+          placeholder={placeholder || "••••••••"}
+          style={{
+            width: "100%",
+            padding: "10px 40px 10px 12px",
+            border: "1px solid #D1D5DB",
+            borderRadius: radiusMap[borderRadius] || "8px",
+            fontSize: "14px",
+            outline: "none",
+            ...style,
+          }}
+          onFocus={(e) => (e.target.style.borderColor = "#0D9488")}
+          onBlur={(e) => (e.target.style.borderColor = "#D1D5DB")}
+        />
+        <button
+          type="button"
+          onClick={() => setShow(!show)}
+          style={{
+            position: "absolute",
+            right: "10px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "#9CA3AF",
+            display: "flex",
+            alignItems: "center"
+          }}
+        >
+          {show ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
     </label>
   );
 };
@@ -495,6 +519,7 @@ export const IconInput = ({
   borderRadius = "md",
   style,
 }) => {
+  const [show, setShow] = useState(false);
   const radiusMap = { sm: "6px", md: "8px", lg: "12px" };
 
   const iconMap = {
@@ -504,6 +529,8 @@ export const IconInput = ({
     phone: <Phone size={18} />,
     search: <Search size={18} />,
   };
+
+  const isPassword = type === "password";
 
   return (
     <label
@@ -546,11 +573,11 @@ export const IconInput = ({
 
         {/* ✅ Input with proper padding */}
         <input
-          type={type}
+          type={isPassword ? (show ? "text" : "password") : type}
           placeholder={placeholder}
           style={{
             width: "100%",
-            padding: "12px 14px 12px 44px", // ✅ 44px left padding
+            padding: `12px ${isPassword ? "40px" : "14px"} 12px 44px`, // ✅ Extra right padding for password toggle
             border: "1px solid #D1D5DB",
             borderRadius: radiusMap[borderRadius] || "8px",
             fontSize: "14px",
@@ -561,6 +588,28 @@ export const IconInput = ({
           onFocus={(e) => (e.target.style.borderColor = "#0D9488")}
           onBlur={(e) => (e.target.style.borderColor = "#D1D5DB")}
         />
+
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShow(!show)}
+            style={{
+              position: "absolute",
+              right: "10px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "#9CA3AF",
+              display: "flex",
+              alignItems: "center",
+              zIndex: 2
+            }}
+          >
+            {show ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
       </div>
     </label>
   );

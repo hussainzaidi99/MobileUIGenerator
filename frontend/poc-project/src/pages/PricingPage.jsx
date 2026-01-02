@@ -35,6 +35,43 @@ export default function PricingPage() {
   }, [userId]);
 
   const fetchPackages = async () => {
+    // Original packages from backend/Services/tier_manager.py
+    const fallbackPackages = [
+      {
+        id: "basic",
+        name: "Basic Plan",
+        description: "142 Credits - Perfect for small projects (30 days)",
+        credits: 142,
+        tokens: 10000000,
+        price: 4.99,
+        price_per_credit: 4.99 / 142,
+        duration_days: 30,
+        features: ["142 credits/month", "10M tokens", "Email support", "Priority generation"]
+      },
+      {
+        id: "pro",
+        name: "Pro Plan",
+        description: "284 Credits - Great for regular use (30 days)",
+        credits: 284,
+        tokens: 20000000,
+        price: 9.99,
+        price_per_credit: 9.99 / 284,
+        duration_days: 30,
+        features: ["284 credits/month", "20M tokens", "Email support", "Priority generation", "Advanced components"]
+      },
+      {
+        id: "premium",
+        name: "Premium Plan",
+        description: "568 Credits - Best value for power users (30 days)",
+        credits: 568,
+        tokens: 40000000,
+        price: 19.99,
+        price_per_credit: 19.99 / 568,
+        duration_days: 30,
+        features: ["568 credits/month", "40M tokens", "Priority support", "Advanced features", "Custom components"]
+      }
+    ];
+
     try {
       const res = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/payment/packages`
@@ -45,10 +82,11 @@ export default function PricingPage() {
       }
 
       const data = await res.json();
-      setPackages(data.packages || []);
+      setPackages(data.packages && data.packages.length > 0 ? data.packages : fallbackPackages);
     } catch (error) {
-      console.error("Failed to fetch packages:", error);
-      setError("Failed to load pricing packages. Please refresh the page.");
+      console.error("Failed to fetch packages, using fallbacks:", error);
+      setPackages(fallbackPackages);
+      // We don't set a critical error here so users can still see the fallbacks
     } finally {
       setLoading(false);
     }
@@ -96,10 +134,10 @@ export default function PricingPage() {
 
       const data = await res.json();
 
-      if (res.ok && data.checkout_url) {
-        window.location.href = data.checkout_url;
+      if (res.ok && data.url) {
+        window.location.href = data.url;
       } else {
-        throw new Error(data.error || "Failed to create checkout session");
+        throw new Error(data.error || data.detail || "Failed to create checkout session");
       }
     } catch (err) {
       console.error("Purchase error:", err);
@@ -110,6 +148,7 @@ export default function PricingPage() {
   };
 
   const formatNumber = (num) => {
+    if (num === null || num === undefined || isNaN(num)) return "0";
     return new Intl.NumberFormat().format(num);
   };
 
@@ -220,7 +259,7 @@ export default function PricingPage() {
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Token Equivalent</div>
                 <div style={{ fontSize: '24px', fontWeight: '800', color: '#c084fc' }}>
-                  ✨ {formatNumber(balance.tokens)} Tokens
+                  ✨ {formatNumber(balance.tokens_remaining || balance.tokens || 0)} Tokens
                 </div>
               </div>
             </div>
@@ -235,7 +274,7 @@ export default function PricingPage() {
           marginBottom: "80px"
         }}>
           {packages.map((pkg) => {
-            const isPopular = pkg.credits === 300;
+            const isPopular = pkg.id === "pro" || pkg.credits === 284;
             return (
               <div
                 key={pkg.id}
@@ -286,7 +325,7 @@ export default function PricingPage() {
                   {pkg.name.replace(" Plan", "")}
                 </h3>
                 <p style={{ fontSize: '16px', color: '#94a3b8', lineHeight: '1.6', marginBottom: '32px' }}>
-                  {pkg.description.includes(" - ") ? pkg.description.split(" - ")[1] : pkg.description}
+                  {pkg.description ? (pkg.description.includes(" - ") ? pkg.description.split(" - ")[1] : pkg.description) : "Premium UI Generation Plan"}
                 </p>
 
                 <div style={{ marginBottom: '32px' }}>
@@ -299,8 +338,8 @@ export default function PricingPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '40px', flex: 1 }}>
                   {[
                     { icon: '💳', text: <strong>{pkg.credits} Credits</strong> },
-                    { icon: '✨', text: <span><strong>{formatNumber(pkg.tokens)}</strong> Tokens</span> },
-                    { icon: '💰', text: <span>${pkg.price_per_credit.toFixed(4)} per credit</span> },
+                    { icon: '✨', text: <span><strong>{formatNumber(pkg.tokens || pkg.credits * 70000)}</strong> Tokens</span> },
+                    { icon: '💰', text: <span>${(pkg.price_per_credit || (pkg.price / pkg.credits) || 0).toFixed(4)} per credit</span> },
                     { icon: '🚀', text: 'Full access to all features' },
                     { icon: '📱', text: 'Unlimited Exports' }
                   ].map((feature, i) => (

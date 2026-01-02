@@ -6,6 +6,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from '../utils/toast';
 import { getErrorMessage } from '../utils/errorMessages';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function AuthPage({ onSuccess }) {
   const location = useLocation();
@@ -28,6 +29,11 @@ export default function AuthPage({ onSuccess }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetToken, setResetToken] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Visibility toggles
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -811,34 +817,60 @@ export default function AuthPage({ onSuccess }) {
               }}>
                 New Password
               </label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                minLength={6}
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "2px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "12px",
-                  fontSize: "14px",
-                  outline: "none",
-                  transition: "all 0.2s",
-                  background: "rgba(30, 41, 59, 0.6)",
-                  color: "#f8fafc",
-                  boxSizing: "border-box",
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "#667EEA";
-                  e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
-                  e.target.style.boxShadow = "none";
-                }}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  minLength={6}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    paddingRight: "45px",
+                    border: "2px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "12px",
+                    fontSize: "14px",
+                    outline: "none",
+                    transition: "all 0.2s",
+                    background: "rgba(30, 41, 59, 0.6)",
+                    color: "#f8fafc",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#667EEA";
+                    e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                    e.target.style.boxShadow = "none";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#94a3b8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '8px',
+                    zIndex: 2
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#f8fafc')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                >
+                  {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <div style={{ marginBottom: "28px" }}>
@@ -851,34 +883,60 @@ export default function AuthPage({ onSuccess }) {
               }}>
                 Confirm Password
               </label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                minLength={6}
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "2px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "12px",
-                  fontSize: "14px",
-                  outline: "none",
-                  transition: "all 0.2s",
-                  background: "rgba(30, 41, 59, 0.6)",
-                  color: "#f8fafc",
-                  boxSizing: "border-box",
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "#667EEA";
-                  e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
-                  e.target.style.boxShadow = "none";
-                }}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  minLength={6}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    paddingRight: "45px",
+                    border: "2px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "12px",
+                    fontSize: "14px",
+                    outline: "none",
+                    transition: "all 0.2s",
+                    background: "rgba(30, 41, 59, 0.6)",
+                    color: "#f8fafc",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#667EEA";
+                    e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                    e.target.style.boxShadow = "none";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#94a3b8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '8px',
+                    zIndex: 2
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#f8fafc')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <button
@@ -1121,34 +1179,60 @@ export default function AuthPage({ onSuccess }) {
             }}>
               Password
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              minLength={6}
-              style={{
-                width: "100%",
-                padding: "12px 16px",
-                border: "2px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "12px",
-                fontSize: "14px",
-                outline: "none",
-                transition: "all 0.2s",
-                background: "rgba(30, 41, 59, 0.6)",
-                color: "#f8fafc",
-                boxSizing: "border-box",
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = "#667EEA";
-                e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
-                e.target.style.boxShadow = "none";
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                minLength={6}
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  paddingRight: "45px",
+                  border: "2px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "12px",
+                  fontSize: "14px",
+                  outline: "none",
+                  transition: "all 0.2s",
+                  background: "rgba(30, 41, 59, 0.6)",
+                  color: "#f8fafc",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = "#667EEA";
+                  e.target.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.2)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#94a3b8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '8px',
+                  zIndex: 2
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#f8fafc')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {mode === "signup" && (
               <p style={{
                 fontSize: "12px",
