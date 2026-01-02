@@ -96,7 +96,7 @@ from db.database import connect_to_mongo, close_mongo_connection
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",")],
+    allow_origins=[o.strip().rstrip('/') for o in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
