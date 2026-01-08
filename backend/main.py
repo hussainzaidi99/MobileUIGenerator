@@ -2005,11 +2005,15 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 if __name__ == "__main__":
     import uvicorn
+    import os
+
+    # Get port from environment or default to 8080
+    port = int(os.getenv("PORT", "8080"))
 
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8000,
+        port=port,
         log_level="info",
     )
 

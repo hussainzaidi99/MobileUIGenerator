@@ -1,12 +1,15 @@
-# Use AWS Lambda Python 3.11 base image
-FROM public.ecr.aws/lambda/python:3.11
+# Use a standard Python 3.11-slim image
+FROM python:3.11-slim
+
+WORKDIR /app
 
 # Copy requirements & install
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the source code
-COPY . /var/task
+COPY . .
 
-# Set Lambda entrypoint
-CMD ["lambda_handler.handler"]
+# Expose port and start web server
+EXPOSE 8080
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

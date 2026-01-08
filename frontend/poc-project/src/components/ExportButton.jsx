@@ -18,11 +18,11 @@ export default function ExportButton({ rnCode }) {  // ✅ RENAMED PROP
     const exportToastId = toast.loading("Preparing your project export...");
 
     try {
-      // ✅ FIX: Use correct endpoint and payload key
-      const response = await fetch("http://127.0.0.1:8000/export/react-native", {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const response = await fetch(`${API_BASE}/export/react-native`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ react_native_code: rnCode }),  // ✅ FIXED KEY
+        body: JSON.stringify({ react_native_code: rnCode }),
       });
 
       if (!response.ok) {
