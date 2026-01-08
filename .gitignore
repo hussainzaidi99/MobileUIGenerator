@@ -1,7 +1,6 @@
 # ---- General ----
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
 
 # ---- Python backend ----
@@ -17,8 +16,6 @@ venv/
 backend/venv/
 
 # env files (DO NOT COMMIT)
-.env
-.env.*
 backend/.env
 frontend/poc-project/.env.local
 
@@ -34,3 +31,4 @@ frontend/dist/
 *.coverage
 .coverage
 .envrc
+config.bat

@@ -1,12 +1,12 @@
-name: Build, Push Docker Image to ECR and Deploy to Lambda
+name: Build, Push Docker Image to ECR and Deploy to App Runner
 
 on:
   push:
     branches:
-      - main  # or your default branch
+      - main
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,16 +24,13 @@ jobs:
 
       # 3️⃣ Login to Amazon ECR
       - name: Login to Amazon ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
       # 4️⃣ Build Docker image
       - name: Build Docker image
         run: |
-          IMAGE_TAG=latest
-          docker build -t ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG .
-
-      # 5️⃣ Tag Docker image for ECR
+          docker build -t ${{ secrets.ECR_REPOSITORY }}:latest .
+      # 5️⃣ Tag Docker image
       - name: Tag Docker image
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -41,15 +38,7 @@ jobs:
           IMAGE_URI=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
           docker tag ${{ secrets.ECR_REPOSITORY }}:latest $IMAGE_URI
           echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
-
       # 6️⃣ Push Docker image to ECR
       - name: Push Docker image
         run: |
           docker push $IMAGE_URI
-
-      # 7️⃣ Update Lambda function to use the new image
-      - name: Update Lambda function
-        run: |
-          aws lambda update-function-code \
-            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
-            --image-uri $IMAGE_URI
